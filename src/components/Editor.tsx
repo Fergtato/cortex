@@ -19,6 +19,7 @@ import { DatabaseEmbed } from "./DatabaseEmbed";
 import { ResizableImage } from "./ResizableImage";
 import { Toggle } from "./editor/Toggle";
 import { Columns, Column } from "./editor/Columns";
+import { Tabs, Tab } from "./editor/Tabs";
 import { pickImage } from "../lib/image";
 
 interface Props {
@@ -73,6 +74,8 @@ export function Editor({
       Toggle,
       Columns,
       Column,
+      Tabs,
+      Tab,
       Placeholder.configure({ placeholder: "start writing…" }),
     ],
     content: page.content,

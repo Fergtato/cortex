@@ -278,6 +278,27 @@ export function Toolbar({
       >
         ▥ columns
       </button>
+      <button
+        className="tool-btn tool-subpage"
+        title="Insert tabs"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() =>
+          editor
+            .chain()
+            .focus()
+            .insertContent({
+              type: "tabs",
+              attrs: { active: 0 },
+              content: [
+                { type: "tab", attrs: { label: "Tab 1" }, content: [{ type: "paragraph" }] },
+                { type: "tab", attrs: { label: "Tab 2" }, content: [{ type: "paragraph" }] },
+              ],
+            })
+            .run()
+        }
+      >
+        ⊓ tabs
+      </button>
 
       {editor.isActive("table") && (
         <span className="tool-table-ops">
