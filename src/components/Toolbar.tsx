@@ -240,6 +240,23 @@ export function Toolbar({
       >
         ⊞ table
       </button>
+      <button
+        className="tool-btn tool-subpage"
+        title="Insert a toggle list"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() =>
+          editor
+            .chain()
+            .focus()
+            .insertContent({
+              type: "toggle",
+              content: [{ type: "paragraph" }, { type: "paragraph" }],
+            })
+            .run()
+        }
+      >
+        ▸ toggle
+      </button>
 
       {editor.isActive("table") && (
         <span className="tool-table-ops">

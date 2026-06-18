@@ -17,6 +17,7 @@ import { Toolbar } from "./Toolbar";
 import { SubpageLink } from "./SubpageLink";
 import { DatabaseEmbed } from "./DatabaseEmbed";
 import { ResizableImage } from "./ResizableImage";
+import { Toggle } from "./editor/Toggle";
 import { pickImage } from "../lib/image";
 
 interface Props {
@@ -68,6 +69,7 @@ export function Editor({
       TableRow,
       TableHeader,
       TableCell,
+      Toggle,
       Placeholder.configure({ placeholder: "start writing…" }),
     ],
     content: page.content,

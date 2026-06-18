@@ -511,6 +511,39 @@ input[type="checkbox"]:disabled {
   pointer-events: none;
 }
 
+/* toggle list */
+.pt-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 4px 0;
+}
+.pt-toggle-arrow {
+  color: var(--dim);
+  font-size: 10px;
+  line-height: 1.65;
+  width: 14px;
+  flex-shrink: 0;
+}
+.pt-toggle-arrow:hover {
+  color: var(--accent);
+}
+.pt-toggle-body {
+  flex: 1;
+  min-width: 0;
+}
+.pt-toggle-body > * {
+  margin: 0;
+}
+.pt-toggle-body > * + * {
+  margin-top: 0.4em;
+}
+/* collapsed: hide everything except the first (title) block.
+   NodeViewContent nests an inner wrapper, so the blocks are one level down. */
+.pt-toggle[data-open="false"] .pt-toggle-body > * > *:not(:first-child) {
+  display: none;
+}
+
 /* resizable / croppable inline image */
 .rimg-wrap {
   position: relative;
