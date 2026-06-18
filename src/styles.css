@@ -472,6 +472,44 @@ input[type="checkbox"]:disabled {
   padding: 0 1px;
   color: inherit;
 }
+.tool-tableop {
+  color: var(--dim);
+}
+
+/* basic content table (not a database) */
+.editor-content .tableWrapper {
+  overflow-x: auto;
+  margin: 10px 0;
+}
+.content-table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+}
+.content-table td,
+.content-table th {
+  border: 1px solid var(--line-bright);
+  padding: 6px 8px;
+  min-width: 60px;
+  vertical-align: top;
+  position: relative;
+}
+.content-table th {
+  background: #0e0e0e;
+  font-weight: 700;
+  text-align: left;
+}
+.content-table p {
+  margin: 0;
+}
+.content-table .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent-dim);
+  opacity: 0.5;
+  pointer-events: none;
+}
 
 /* resizable / croppable inline image */
 .rimg-wrap {
