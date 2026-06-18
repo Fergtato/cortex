@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { useDialog } from "./Dialog";
 
@@ -7,6 +8,28 @@ interface Props {
   onInsertDatabase: () => void;
   onInsertImage: () => void;
 }
+
+const TEXT_COLORS: { name: string; value: string | null }[] = [
+  { name: "default", value: null },
+  { name: "red", value: "#e06c75" },
+  { name: "orange", value: "#e5a05a" },
+  { name: "yellow", value: "#e6d05a" },
+  { name: "green", value: "#7fd17f" },
+  { name: "blue", value: "#6fb3e0" },
+  { name: "purple", value: "#b78fe0" },
+  { name: "gray", value: "#9aa0a6" },
+];
+
+const HIGHLIGHTS: { name: string; value: string | null }[] = [
+  { name: "none", value: null },
+  { name: "red", value: "#5a2d2d" },
+  { name: "orange", value: "#5a472d" },
+  { name: "yellow", value: "#56522a" },
+  { name: "green", value: "#2d5a3a" },
+  { name: "blue", value: "#2d425a" },
+  { name: "purple", value: "#4a2d5a" },
+  { name: "gray", value: "#454545" },
+];
 
 interface Btn {
   label: string;
@@ -22,6 +45,18 @@ export function Toolbar({
   onInsertImage,
 }: Props) {
   const dialog = useDialog();
+  const [palette, setPalette] = useState<"color" | "highlight" | null>(null);
+
+  function applyColor(value: string | null) {
+    if (value) editor.chain().focus().setColor(value).run();
+    else editor.chain().focus().unsetColor().run();
+    setPalette(null);
+  }
+  function applyHighlight(value: string | null) {
+    if (value) editor.chain().focus().setHighlight({ color: value }).run();
+    else editor.chain().focus().unsetHighlight().run();
+    setPalette(null);
+  }
 
   async function setLink() {
     if (editor.isActive("link")) {
@@ -138,6 +173,35 @@ export function Toolbar({
           {b.label}
         </button>
       ))}
+
+      <span className="tool-palette-wrap">
+        <button
+          className={`tool-btn${editor.isActive("textStyle") ? " active" : ""}`}
+          title="Text color"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setPalette(palette === "color" ? null : "color")}
+        >
+          A▾
+        </button>
+        {palette === "color" && (
+          <Palette items={TEXT_COLORS} kind="text" onPick={applyColor} onClose={() => setPalette(null)} />
+        )}
+      </span>
+
+      <span className="tool-palette-wrap">
+        <button
+          className={`tool-btn${editor.isActive("highlight") ? " active" : ""}`}
+          title="Highlight color"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => setPalette(palette === "highlight" ? null : "highlight")}
+        >
+          ▮▾
+        </button>
+        {palette === "highlight" && (
+          <Palette items={HIGHLIGHTS} kind="bg" onPick={applyHighlight} onClose={() => setPalette(null)} />
+        )}
+      </span>
+
       <button
         className="tool-btn tool-subpage"
         title="Insert subpage"
@@ -163,5 +227,48 @@ export function Toolbar({
         ▣ image
       </button>
     </div>
+  );
+}
+
+function Palette({
+  items,
+  kind,
+  onPick,
+  onClose,
+}: {
+  items: { name: string; value: string | null }[];
+  kind: "text" | "bg";
+  onPick: (value: string | null) => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      <div className="tool-palette-backdrop" onMouseDown={onClose} />
+      <div className="tool-palette" onMouseDown={(e) => e.stopPropagation()}>
+        {items.map((c) => (
+          <button
+            key={c.name}
+            className="tool-swatch"
+            title={c.name}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => onPick(c.value)}
+          >
+            <span
+              className="tool-swatch-chip"
+              style={
+                c.value === null
+                  ? { background: "transparent" }
+                  : kind === "text"
+                  ? { color: c.value, background: "transparent" }
+                  : { background: c.value }
+              }
+            >
+              {kind === "text" ? "A" : ""}
+            </span>
+            <span className="tool-swatch-name">{c.name}</span>
+          </button>
+        ))}
+      </div>
+    </>
   );
 }
