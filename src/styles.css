@@ -346,6 +346,11 @@ input[type="checkbox"]:disabled {
   height: 30px;
   padding: 0 6px;
   border-right: 1px solid var(--line);
+  /* horizontal separators when the toolbar wraps onto multiple rows; the
+     -1px margin merges the last row's border with the toolbar's own bottom
+     border so it isn't doubled */
+  border-bottom: 1px solid var(--line);
+  margin-bottom: -1px;
   color: var(--dim);
 }
 .tool-btn:hover {
