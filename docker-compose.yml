@@ -1,0 +1,19 @@
+services:
+  api:
+    build: ./server
+    ports:
+      - "3001:3001"
+    volumes:
+      - pt-data:/data
+    restart: unless-stopped
+
+  web:
+    build: .
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pt-data:
