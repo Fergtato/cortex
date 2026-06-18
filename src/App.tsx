@@ -18,11 +18,37 @@ export default function App() {
   const settings = useSettings();
   const [sel, setSel] = useState<Selection>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    // Start collapsed on phones; otherwise honour the saved preference.
+    if (typeof window !== "undefined" && window.innerWidth <= 768) return false;
+    const saved = localStorage.getItem("project-tracker:sidebar");
+    return saved ? saved === "open" : true;
+  });
 
-  const openPage = useCallback((id: string) => setSel({ kind: "page", id }), []);
+  useEffect(() => {
+    localStorage.setItem("project-tracker:sidebar", sidebarOpen ? "open" : "closed");
+  }, [sidebarOpen]);
+
+  // On narrow screens the sidebar is an overlay; close it after navigating.
+  const closeSidebarOnMobile = useCallback(() => {
+    if (typeof window !== "undefined" && window.innerWidth <= 768) {
+      setSidebarOpen(false);
+    }
+  }, []);
+
+  const openPage = useCallback(
+    (id: string) => {
+      setSel({ kind: "page", id });
+      closeSidebarOnMobile();
+    },
+    [closeSidebarOnMobile]
+  );
   const openDatabase = useCallback(
-    (id: string) => setSel({ kind: "database", id }),
-    []
+    (id: string) => {
+      setSel({ kind: "database", id });
+      closeSidebarOnMobile();
+    },
+    [closeSidebarOnMobile]
   );
   const nav: Nav = useMemo(() => ({ openPage, openDatabase }), [openPage, openDatabase]);
 
@@ -52,10 +78,32 @@ export default function App() {
   return (
     <StoreContext.Provider value={store}>
       <NavContext.Provider value={nav}>
-        <div className="app">
+        <div className={`app${sidebarOpen ? " sidebar-open" : " sidebar-closed"}`}>
+          {sidebarOpen && (
+            <div
+              className="sidebar-backdrop"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )}
+          {!sidebarOpen && (
+            <button
+              className="sidebar-show-btn"
+              title="Show sidebar"
+              onClick={() => setSidebarOpen(true)}
+            >
+              ☰
+            </button>
+          )}
           <aside className="sidebar">
             <header className="sidebar-head">
               <span className="logo">▚ PROJECT-TRACKER</span>
+              <button
+                className="sidebar-hide-btn"
+                title="Hide sidebar"
+                onClick={() => setSidebarOpen(false)}
+              >
+                «
+              </button>
             </header>
 
             <button

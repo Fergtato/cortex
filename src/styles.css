@@ -87,6 +87,48 @@ input[type="checkbox"]:disabled {
   display: grid;
   grid-template-columns: 280px 1fr;
   height: 100vh;
+  height: 100dvh;
+}
+.app.sidebar-closed {
+  grid-template-columns: 1fr;
+}
+.app.sidebar-closed .sidebar {
+  display: none;
+}
+
+/* sidebar show/hide controls */
+.sidebar-hide-btn {
+  color: var(--dim);
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 4px;
+}
+.sidebar-hide-btn:hover {
+  color: var(--accent);
+}
+.sidebar-show-btn {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 60;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--line-bright);
+  background: var(--panel);
+  color: var(--accent);
+  font-size: 14px;
+  line-height: 1;
+}
+.sidebar-show-btn:hover {
+  border-color: var(--accent);
+}
+/* the floating show button sits in the top-left corner; drop page content
+   below it so they don't overlap */
+.app.sidebar-closed .main .page {
+  padding-top: 48px;
+}
+.sidebar-backdrop {
+  display: none;
 }
 
 .sidebar {
@@ -98,6 +140,10 @@ input[type="checkbox"]:disabled {
 }
 
 .sidebar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   padding: 12px 12px 10px;
   border-bottom: 1px solid var(--line);
 }
@@ -1872,4 +1918,55 @@ input[type="checkbox"]:disabled {
   list-style: none;
   padding: 0;
   margin: 6px 0 0;
+}
+
+/* ---------- mobile / narrow screens ---------- */
+@media (max-width: 768px) {
+  /* main is always full width; the sidebar becomes a slide-over drawer */
+  .app,
+  .app.sidebar-closed,
+  .app.sidebar-open {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(280px, 84vw);
+    z-index: 110;
+    transform: translateX(-100%);
+    transition: transform 0.2s ease;
+    border-right: 1px solid var(--line-bright);
+  }
+  /* keep the drawer mounted when closed so it can slide out */
+  .app.sidebar-closed .sidebar {
+    display: flex;
+  }
+  .app.sidebar-open .sidebar {
+    transform: translateX(0);
+  }
+  .sidebar-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  /* tighter content padding on phones */
+  .page {
+    padding: 16px 14px 96px;
+  }
+  .app.sidebar-closed .main .page {
+    padding-top: 52px;
+  }
+  .page-title {
+    font-size: 20px;
+  }
+
+  /* stack layout columns vertically rather than cramming them side by side */
+  .pt-columns-row > * {
+    grid-auto-flow: row;
+  }
 }
