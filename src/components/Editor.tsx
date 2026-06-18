@@ -4,6 +4,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
+import Link from "@tiptap/extension-link";
 import type { Page } from "../types";
 import { Toolbar } from "./Toolbar";
 import { SubpageLink } from "./SubpageLink";
@@ -47,6 +48,12 @@ export function Editor({
       SubpageLink,
       DatabaseEmbed,
       ResizableImage,
+      Link.configure({
+        openOnClick: true,
+        autolink: true,
+        defaultProtocol: "https",
+        HTMLAttributes: { target: "_blank", rel: "noopener noreferrer nofollow" },
+      }),
       Placeholder.configure({ placeholder: "start writing…" }),
     ],
     content: page.content,

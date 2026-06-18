@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/react";
+import { useDialog } from "./Dialog";
 
 interface Props {
   editor: Editor;
@@ -20,6 +21,23 @@ export function Toolbar({
   onInsertDatabase,
   onInsertImage,
 }: Props) {
+  const dialog = useDialog();
+
+  async function setLink() {
+    if (editor.isActive("link")) {
+      editor.chain().focus().unsetLink().run();
+      return;
+    }
+    const prev = (editor.getAttributes("link").href as string) ?? "";
+    const url = await dialog.prompt("Link URL:", prev);
+    if (url === null) return;
+    if (url.trim() === "") {
+      editor.chain().focus().unsetLink().run();
+      return;
+    }
+    editor.chain().focus().extendMarkRange("link").setLink({ href: url.trim() }).run();
+  }
+
   const buttons: Btn[] = [
     {
       label: "B",
@@ -44,6 +62,12 @@ export function Toolbar({
       title: "Inline code",
       isActive: () => editor.isActive("code"),
       run: () => editor.chain().focus().toggleCode().run(),
+    },
+    {
+      label: "🔗",
+      title: "Link (select text first)",
+      isActive: () => editor.isActive("link"),
+      run: () => setLink(),
     },
     {
       label: "H1",
