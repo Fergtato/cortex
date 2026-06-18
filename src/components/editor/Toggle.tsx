@@ -8,8 +8,13 @@ import {
 
 function ToggleView({ node, updateAttributes }: NodeViewProps) {
   const open = node.attrs.open as boolean;
+  const bordered = node.attrs.bordered as boolean;
   return (
-    <NodeViewWrapper className="pt-toggle" data-open={open ? "true" : "false"}>
+    <NodeViewWrapper
+      className="pt-toggle"
+      data-open={open ? "true" : "false"}
+      data-bordered={bordered ? "true" : "false"}
+    >
       <button
         className="pt-toggle-arrow"
         contentEditable={false}
@@ -20,6 +25,15 @@ function ToggleView({ node, updateAttributes }: NodeViewProps) {
         {open ? "▼" : "▶"}
       </button>
       <NodeViewContent className="pt-toggle-body" />
+      <button
+        className={`pt-toggle-border-btn${bordered ? " active" : ""}`}
+        contentEditable={false}
+        title="Toggle border"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => updateAttributes({ bordered: !bordered })}
+      >
+        ▢
+      </button>
     </NodeViewWrapper>
   );
 }
@@ -41,6 +55,11 @@ export const Toggle = Node.create({
         default: true,
         parseHTML: (el) => el.getAttribute("data-open") !== "false",
         renderHTML: (attrs) => ({ "data-open": attrs.open ? "true" : "false" }),
+      },
+      bordered: {
+        default: false,
+        parseHTML: (el) => el.getAttribute("data-bordered") === "true",
+        renderHTML: (attrs) => ({ "data-bordered": attrs.bordered ? "true" : "false" }),
       },
     };
   },

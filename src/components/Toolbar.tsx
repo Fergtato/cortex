@@ -99,7 +99,7 @@ export function Toolbar({
       run: () => editor.chain().focus().toggleCode().run(),
     },
     {
-      label: "🔗",
+      label: "↗",
       title: "Link (select text first)",
       isActive: () => editor.isActive("link"),
       run: () => setLink(),

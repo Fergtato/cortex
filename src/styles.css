@@ -290,6 +290,10 @@ input[type="checkbox"]:disabled {
   gap: 0;
   border-bottom: 1px solid var(--line);
   background: #0e0e0e;
+  /* stay reachable while scrolling a long page */
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 .tool-btn {
   min-width: 32px;
@@ -513,33 +517,65 @@ input[type="checkbox"]:disabled {
 
 /* toggle list */
 .pt-toggle {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 6px;
   margin: 4px 0;
 }
+.pt-toggle[data-bordered="true"] {
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+}
 .pt-toggle-arrow {
   color: var(--dim);
   font-size: 10px;
-  line-height: 1.65;
+  /* match the title's first-line box (14px text x 1.65 line-height) so the
+     arrow centres on the title rather than sitting too high */
+  height: 23.1px;
   width: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 .pt-toggle-arrow:hover {
+  color: var(--accent);
+}
+.pt-toggle-border-btn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.pt-toggle:hover .pt-toggle-border-btn {
+  opacity: 0.55;
+}
+.pt-toggle-border-btn:hover {
+  opacity: 1;
+  color: var(--accent);
+}
+.pt-toggle-border-btn.active {
+  opacity: 0.85;
   color: var(--accent);
 }
 .pt-toggle-body {
   flex: 1;
   min-width: 0;
 }
-.pt-toggle-body > * {
+/* reset block margins inside the toggle body (blocks are nested one level
+   deeper because NodeViewContent adds an inner wrapper) */
+.pt-toggle-body > * > * {
   margin: 0;
 }
-.pt-toggle-body > * + * {
+.pt-toggle-body > * > * + * {
   margin-top: 0.4em;
 }
-/* collapsed: hide everything except the first (title) block.
-   NodeViewContent nests an inner wrapper, so the blocks are one level down. */
+/* collapsed: hide everything except the first (title) block */
 .pt-toggle[data-open="false"] .pt-toggle-body > * > *:not(:first-child) {
   display: none;
 }
