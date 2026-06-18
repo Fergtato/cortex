@@ -89,9 +89,9 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
             store={store}
             embedded
             lockSchema
-            filter={node.attrs.filter ?? null}
+            filters={node.attrs.filters ?? []}
             sort={node.attrs.sort ?? null}
-            onChangeFilter={(f) => updateAttributes({ filter: f })}
+            onChangeFilters={(f) => updateAttributes({ filters: f })}
             onChangeSort={(s) => updateAttributes({ sort: s })}
           />
         </>
@@ -116,17 +116,19 @@ export const DatabaseEmbed = Node.create({
         renderHTML: (attrs) => ({ "data-db-id": attrs.dbId }),
       },
       // Per-embed view config, persisted in the page content.
-      filter: {
-        default: null,
+      filters: {
+        default: [],
         parseHTML: (el) => {
           try {
-            return JSON.parse(el.getAttribute("data-filter") || "null");
+            return JSON.parse(el.getAttribute("data-filters") || "[]");
           } catch {
-            return null;
+            return [];
           }
         },
         renderHTML: (attrs) =>
-          attrs.filter ? { "data-filter": JSON.stringify(attrs.filter) } : {},
+          attrs.filters && attrs.filters.length
+            ? { "data-filters": JSON.stringify(attrs.filters) }
+            : {},
       },
       sort: {
         default: null,

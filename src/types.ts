@@ -61,9 +61,43 @@ export interface DatabaseView {
 }
 
 /** Per-embed view config (stored on the page's embed node, not the database). */
-export interface DbFilter {
+export type FilterOp =
+  // text / url
+  | "is"
+  | "is_not"
+  | "contains"
+  | "not_contains"
+  | "starts_with"
+  | "ends_with"
+  // any type
+  | "empty"
+  | "not_empty"
+  // number
+  | "num_eq"
+  | "num_neq"
+  | "num_gt"
+  | "num_lt"
+  | "num_gte"
+  | "num_lte"
+  // select
+  | "select_is"
+  | "select_is_not"
+  // checkbox
+  | "checked"
+  | "unchecked"
+  // date
+  | "date_on"
+  | "date_before"
+  | "date_after";
+
+export interface FilterCondition {
+  id: string;
   propId: string;
-  query: string;
+  op: FilterOp;
+  /** single value for text/number/date operators */
+  value?: string;
+  /** chosen options for select operators */
+  values?: string[];
 }
 
 export interface DbSort {

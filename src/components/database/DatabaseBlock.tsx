@@ -3,8 +3,8 @@ import {
   VIEW_TYPES,
   type Database,
   type DatabaseRow,
-  type DbFilter,
   type DbSort,
+  type FilterCondition,
   type PropertyType,
   type ViewType,
 } from "../../types";
@@ -13,6 +13,8 @@ import { useDialog } from "../Dialog";
 import { TableView } from "./TableView";
 import { GalleryView } from "./GalleryView";
 import { TimelineView } from "./TimelineView";
+import { FilterBar } from "./FilterBar";
+import { matchesAll } from "./filtering";
 
 interface Props {
   db: Database;
@@ -22,9 +24,9 @@ interface Props {
   /** Lock schema editing (properties + view add/delete); data stays editable. */
   lockSchema?: boolean;
   /** Per-embed filter/sort, persisted by the host. Presence shows the controls. */
-  filter?: DbFilter | null;
+  filters?: FilterCondition[];
   sort?: DbSort | null;
-  onChangeFilter?: (f: DbFilter | null) => void;
+  onChangeFilters?: (f: FilterCondition[]) => void;
   onChangeSort?: (s: DbSort | null) => void;
 }
 
@@ -55,13 +57,13 @@ export function DatabaseBlock({
   store,
   embedded = false,
   lockSchema = false,
-  filter = null,
+  filters = [],
   sort = null,
-  onChangeFilter,
+  onChangeFilters,
   onChangeSort,
 }: Props) {
   const dialog = useDialog();
-  const showControls = Boolean(onChangeFilter && onChangeSort);
+  const showControls = Boolean(onChangeFilters && onChangeSort);
 
   // Embeds track the active view locally so switching never mutates the source.
   const [localViewId, setLocalViewId] = useState(db.activeViewId);
@@ -71,19 +73,7 @@ export function DatabaseBlock({
     lockSchema ? setLocalViewId(id) : store.setActiveView(db.id, id);
 
   const rows: DatabaseRow[] = useMemo(() => {
-    let out = db.rows;
-    if (filter && filter.propId && filter.query.trim()) {
-      const prop = db.properties.find((p) => p.id === filter.propId);
-      const q = filter.query.trim().toLowerCase();
-      out = out.filter((r) => {
-        const v = r.cells[filter.propId];
-        if (prop?.type === "checkbox") {
-          const yes = ["true", "yes", "✓", "done", "checked"].includes(q);
-          return (v === true) === yes;
-        }
-        return String(v ?? "").toLowerCase().includes(q);
-      });
-    }
+    let out = filters.length ? db.rows.filter((r) => matchesAll(db, r, filters)) : db.rows;
     if (sort && sort.propId) {
       const prop = db.properties.find((p) => p.id === sort.propId);
       out = [...out].sort((a, b) => {
@@ -92,7 +82,8 @@ export function DatabaseBlock({
       });
     }
     return out;
-  }, [db.rows, db.properties, filter, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db.rows, db.properties, filters, sort]);
 
   async function renameViewPrompt(viewId: string, current: string) {
     const name = await dialog.prompt("Rename view:", current);
@@ -171,84 +162,13 @@ export function DatabaseBlock({
       </div>
 
       {showControls && (
-        <div className="db-controls">
-          <div className="db-control">
-            <span className="db-control-label">sort</span>
-            <select
-              className="db-control-select"
-              value={sort?.propId ?? ""}
-              onChange={(e) =>
-                onChangeSort!(
-                  e.target.value
-                    ? { propId: e.target.value, dir: sort?.dir ?? "asc" }
-                    : null
-                )
-              }
-            >
-              <option value="">none</option>
-              {db.properties.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            {sort && (
-              <button
-                className="db-control-btn"
-                title="Toggle direction"
-                onClick={() =>
-                  onChangeSort!({
-                    propId: sort.propId,
-                    dir: sort.dir === "asc" ? "desc" : "asc",
-                  })
-                }
-              >
-                {sort.dir === "asc" ? "↑ asc" : "↓ desc"}
-              </button>
-            )}
-          </div>
-
-          <div className="db-control">
-            <span className="db-control-label">filter</span>
-            <select
-              className="db-control-select"
-              value={filter?.propId ?? ""}
-              onChange={(e) =>
-                onChangeFilter!(
-                  e.target.value
-                    ? { propId: e.target.value, query: filter?.query ?? "" }
-                    : null
-                )
-              }
-            >
-              <option value="">none</option>
-              {db.properties.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            {filter?.propId && (
-              <>
-                <input
-                  className="db-control-input"
-                  placeholder="contains…"
-                  value={filter.query}
-                  onChange={(e) =>
-                    onChangeFilter!({ propId: filter.propId, query: e.target.value })
-                  }
-                />
-                <button
-                  className="db-control-btn"
-                  title="Clear filter"
-                  onClick={() => onChangeFilter!(null)}
-                >
-                  ×
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+        <FilterBar
+          db={db}
+          filters={filters}
+          sort={sort}
+          onChangeFilters={onChangeFilters!}
+          onChangeSort={onChangeSort!}
+        />
       )}
 
       <div className="db-body">
