@@ -544,6 +544,62 @@ input[type="checkbox"]:disabled {
   display: none;
 }
 
+/* layout columns */
+.pt-columns {
+  margin: 8px 0;
+}
+.pt-columns-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.pt-columns:hover .pt-columns-controls {
+  opacity: 1;
+}
+.pt-col-btn {
+  border: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 11px;
+  padding: 2px 6px;
+}
+.pt-col-btn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.pt-col-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.pt-col-count {
+  color: var(--dim);
+  font-size: 11px;
+  margin-left: 4px;
+}
+/* the grid sits on NodeViewContent's inner wrapper, whose children are the columns */
+.pt-columns-row > * {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.pt-column {
+  min-width: 0;
+}
+.pt-column > * {
+  margin: 0;
+}
+.pt-column > * + * {
+  margin-top: 0.4em;
+}
+.pt-columns[data-borders="true"] .pt-column {
+  border: 1px solid var(--line);
+  padding: 8px;
+}
+
 /* resizable / croppable inline image */
 .rimg-wrap {
   position: relative;

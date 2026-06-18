@@ -257,6 +257,27 @@ export function Toolbar({
       >
         ▸ toggle
       </button>
+      <button
+        className="tool-btn tool-subpage"
+        title="Insert columns"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() =>
+          editor
+            .chain()
+            .focus()
+            .insertContent({
+              type: "columns",
+              attrs: { borders: false },
+              content: [
+                { type: "column", content: [{ type: "paragraph" }] },
+                { type: "column", content: [{ type: "paragraph" }] },
+              ],
+            })
+            .run()
+        }
+      >
+        ▥ columns
+      </button>
 
       {editor.isActive("table") && (
         <span className="tool-table-ops">
