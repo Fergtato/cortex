@@ -19,3 +19,6 @@ npm-debug.log*
 
 # local Claude Code settings (launch.json is kept/shared)
 .claude/settings.local.json
+
+# local data backups (personal content — never commit)
+/backups/
