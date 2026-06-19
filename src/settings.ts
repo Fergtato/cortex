@@ -91,7 +91,7 @@ export const FONTS: Record<FontKey, { label: string; stack: string }> = {
   courier: { label: "Courier", stack: '"Courier New","Courier",monospace' },
 };
 
-const KEY = "project-tracker:settings:v1";
+const KEY = "cortex:settings:v1";
 
 function loadSettings(): Settings {
   try {

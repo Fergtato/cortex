@@ -1,9 +1,9 @@
 {
-  "name": "project-tracker-server",
+  "name": "cortex-server",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Local API + SQLite backend for project-tracker",
+  "description": "Local API + SQLite backend for Cortex",
   "scripts": {
     "start": "node index.js"
   },

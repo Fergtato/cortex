@@ -1,6 +1,6 @@
-# project-tracker — context for AI assistants / new contributors
+# cortex — context for AI assistants / new contributors
 
-A personal, **Notion-lite project tracker**. Single-page app, styled like a
+A personal, **Notion-lite app**. Single-page app, styled like a
 terminal **TUI** (monospace, sharp 1px outlines, no rounded corners, dark theme
 with a configurable accent). This file is the handoff brief: read it before
 making changes.
@@ -17,7 +17,7 @@ making changes.
 - **Persistence**: pluggable — browser `localStorage` *or* the SQLite API.
 
 ```bash
-npm install            # if it errors EACCES on the npm cache, add: --cache /tmp/pt-npm-cache
+npm install            # if it errors EACCES on the npm cache, add: --cache /tmp/cortex-npm-cache
 npm run dev            # dev server → http://localhost:5173
 npm run build          # tsc -b && vite build (type-check + bundle)
 
@@ -33,7 +33,7 @@ docker compose up -d --build   # rebuild after code changes; never touches the d
 - **Tiptap is pinned to `2.27.2`** (last v2 line; the npm `latest` tag is v3,
   which is a breaking change). Every `@tiptap/*` dep must stay on this version.
 - **npm global cache** on this machine has root-owned files → install with
-  `--cache /tmp/pt-npm-cache` if you hit `EACCES`.
+  `--cache /tmp/cortex-npm-cache` if you hit `EACCES`.
 - **Do NOT use `window.confirm/prompt/alert`.** They break once the user ticks
   "don't ask again". Use the in-app `useDialog()` (`confirm`/`prompt`/`choose`)
   from `src/components/Dialog.tsx`.
@@ -73,7 +73,7 @@ docker compose up -d --build   # rebuild after code changes; never touches the d
 - **`src/storage/datasource.ts`** — the local|api choice + apiUrl (stored in
   localStorage so the app knows where to read everything else from). Switching
   data source reloads the app.
-- **localStorage keys**: `project-tracker:pages:v1`, `:databases:v1`,
+- **localStorage keys**: `cortex:pages:v1`, `:databases:v1`,
   `:settings:v1`, `:datasource:v1`, `:sidebar`. Settings + data-source choice +
   sidebar state always live in localStorage; pages/databases follow the chosen
   source.

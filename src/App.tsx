@@ -21,12 +21,12 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     // Start collapsed on phones; otherwise honour the saved preference.
     if (typeof window !== "undefined" && window.innerWidth <= 768) return false;
-    const saved = localStorage.getItem("project-tracker:sidebar");
+    const saved = localStorage.getItem("cortex:sidebar");
     return saved ? saved === "open" : true;
   });
 
   useEffect(() => {
-    localStorage.setItem("project-tracker:sidebar", sidebarOpen ? "open" : "closed");
+    localStorage.setItem("cortex:sidebar", sidebarOpen ? "open" : "closed");
   }, [sidebarOpen]);
 
   // On narrow screens the sidebar is an overlay; close it after navigating.
@@ -96,7 +96,7 @@ export default function App() {
           )}
           <aside className="sidebar">
             <header className="sidebar-head">
-              <span className="logo">▚ PROJECT-TRACKER</span>
+              <span className="logo">▚ CORTEX</span>
               <button
                 className="sidebar-hide-btn"
                 title="Hide sidebar"

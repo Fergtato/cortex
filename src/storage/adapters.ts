@@ -13,8 +13,8 @@ export interface StorageAdapter {
   saveDatabases(databases: DatabaseMap): Promise<void>;
 }
 
-const PAGES_KEY = "project-tracker:pages:v1";
-const DB_KEY = "project-tracker:databases:v1";
+const PAGES_KEY = "cortex:pages:v1";
+const DB_KEY = "cortex:databases:v1";
 
 class LocalStorageAdapter implements StorageAdapter {
   private read<T>(key: string): T {

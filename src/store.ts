@@ -62,7 +62,7 @@ export function useStore(): Store {
         setPages(p);
         setDatabases(d);
       })
-      .catch((err) => console.error("[project-tracker] failed to load data:", err))
+      .catch((err) => console.error("[cortex] failed to load data:", err))
       .finally(() => {
         if (!cancelled) setLoaded(true);
       });
@@ -79,7 +79,7 @@ export function useStore(): Store {
     window.clearTimeout(pagesTimer.current);
     pagesTimer.current = window.setTimeout(() => {
       adapter.savePages(pages).catch((err) =>
-        console.error("[project-tracker] failed to save pages:", err)
+        console.error("[cortex] failed to save pages:", err)
       );
     }, 250);
     return () => window.clearTimeout(pagesTimer.current);
@@ -91,7 +91,7 @@ export function useStore(): Store {
     window.clearTimeout(dbTimer.current);
     dbTimer.current = window.setTimeout(() => {
       adapter.saveDatabases(databases).catch((err) =>
-        console.error("[project-tracker] failed to save databases:", err)
+        console.error("[cortex] failed to save databases:", err)
       );
     }, 250);
     return () => window.clearTimeout(dbTimer.current);

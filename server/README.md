@@ -1,4 +1,4 @@
-# project-tracker server
+# Cortex server
 
 A tiny local API that stores the app's data in SQLite, as an alternative to the
 browser's localStorage.
@@ -7,7 +7,7 @@ browser's localStorage.
 
 ```bash
 cd server
-npm install          # if your global npm cache errors with EACCES, add: --cache /tmp/pt-npm-cache
+npm install          # if your global npm cache errors with EACCES, add: --cache /tmp/cortex-npm-cache
 npm start            # → http://localhost:3001
 ```
 

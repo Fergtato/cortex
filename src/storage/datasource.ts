@@ -13,7 +13,7 @@ export const DEFAULT_DATA_SOURCE: DataSourceConfig = {
 
 // The data-source choice itself always lives in localStorage so the app knows
 // where to read everything else from, regardless of the chosen backend.
-const KEY = "project-tracker:datasource:v1";
+const KEY = "cortex:datasource:v1";
 
 export function getDataSource(): DataSourceConfig {
   try {

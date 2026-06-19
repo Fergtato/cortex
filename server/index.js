@@ -55,6 +55,6 @@ collectionRoutes("databases");
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 
 app.listen(PORT, () => {
-  console.log(`project-tracker API listening on http://localhost:${PORT}`);
+  console.log(`Cortex API listening on http://localhost:${PORT}`);
   console.log(`sqlite file: ${DB_PATH}`);
 });

@@ -17,3 +17,8 @@ services:
 
 volumes:
   pt-data:
+    # Use the volume created under the old project name so existing SQLite
+    # data survives the folder rename. Docker Compose prefixes named volumes
+    # with the project name, which changed from project-tracker -> cortex.
+    external: true
+    name: project-tracker_pt-data
