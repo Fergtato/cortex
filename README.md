@@ -5,8 +5,12 @@ a rich-text editor, and any page can have arbitrarily nested **subpages**. The w
 UI is skinned to look like a terminal TUI — monospace text, sharp 1px outlines, no
 rounded corners, dark background with a green accent.
 
-Everything runs in the browser. There is **no server and no database** — your data is
-saved locally in the browser's `localStorage` (see [Architecture](#architecture)).
+Data is stored either in the browser's `localStorage` or in a small local
+**SQLite API** (`server/`), switchable in Settings → data source.
+
+> **Working on this codebase (human or AI)?** Read **[AGENTS.md](AGENTS.md)**
+> first — it's the architecture brief and lists the gotchas (pinned Tiptap
+> version, no native dialogs, Docker rebuild step, etc.).
 
 ---
 
