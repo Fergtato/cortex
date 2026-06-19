@@ -1,39 +1,78 @@
-# project-tracker
+# Cortex
 
-A personal, Notion-lite app for tracking projects. Every project is a **page** with
-a rich-text editor, and any page can have arbitrarily nested **subpages**. The whole
-UI is skinned to look like a terminal TUI — monospace text, sharp 1px outlines, no
-rounded corners, dark background with a green accent.
+A personal, Notion-lite workspace for organising projects, notes, and databases.
+Every project is a **page** with a rich-text editor; pages nest into arbitrarily
+deep **subpages**. Any page can embed a **database** with table, gallery, and
+timeline views, filters, and sorting. The whole UI is skinned like a terminal
+TUI — monospace, sharp 1px outlines, no rounded corners, dark theme with a
+configurable accent colour.
 
-Data is stored either in the browser's `localStorage` or in a small local
-**SQLite API** (`server/`), switchable in Settings → data source.
+Data lives either in the browser's `localStorage` or in a small local
+**SQLite API** (`server/`), switchable at any time from Settings → data source.
 
-> **Working on this codebase (human or AI)?** Read **[AGENTS.md](AGENTS.md)**
+> **Working on the codebase (human or AI)?** Read **[AGENTS.md](AGENTS.md)**
 > first — it's the architecture brief and lists the gotchas (pinned Tiptap
-> version, no native dialogs, Docker rebuild step, etc.).
+> version, no native dialogs, Docker rebuild step, pluggable storage, etc.).
+
+---
+
+## Features
+
+- **Rich-text editor** (Tiptap) — bold, italic, strikethrough, inline code,
+  text colour and highlight, headings, bullet / ordered / task lists,
+  blockquotes, code blocks, tables, horizontal rules, and external links.
+- **Custom blocks** — collapsible toggle lists, 2–5 column layouts, and tabbed
+  content sections, all inserted from the toolbar.
+- **Pages & subpages** — infinitely nestable tree with breadcrumbs, recursive
+  sidebar, in-place reordering, and recursive delete.
+- **Databases** — standalone or embedded in any page, with text / number /
+  select / date / checkbox / url / image properties. Views:
+  - **Table** — sort and filter, inline cell editing.
+  - **Gallery** — card view with the first image property as cover.
+  - **Timeline** — date-based layout.
+  - Notion-style **filter chips** with type-aware operators, plus per-embed
+    filters and sort.
+- **Images** — drag-to-resize with aspect-ratio crop, downscaled to data URLs
+  on insert.
+- **Theming** — 7 accent colours, 3 dark themes (midnight / slate / carbon),
+  monospace font choice, and a CRT-glow toggle. All via CSS variables.
+- **Responsive** — collapsible sidebar that becomes an overlay drawer on
+  phones; content goes full-width.
+- **Pluggable persistence** — `localStorage` for a zero-setup local app, or a
+  tiny Express + SQLite API for data that survives the browser and can be
+  backed up as a single file.
 
 ---
 
 ## Quick start
 
 ```bash
-npm install          # if the global npm cache errors with EACCES, add: --cache /tmp/pt-npm-cache
-npm run dev          # start the dev server → http://localhost:5173
-npm run build        # type-check (tsc) + production build into dist/
+npm install
+npm run dev          # → http://localhost:5173
+```
+
+Requires Node 18+ (developed on Node 24). If your global npm cache errors with
+`EACCES`, add `--cache /tmp/cortex-npm-cache` to the install command.
+
+```bash
+npm run build        # tsc type-check + vite production build into dist/
 npm run preview      # serve the production build locally
 ```
 
-Requires Node 18+ (developed on Node 24).
+By default the app uses `localStorage`. To use the SQLite API instead, start
+it (`cd server && npm install && npm start` → `http://localhost:3001`), then
+in the app open **⚙ settings → data source → API (SQLite)**, enter the URL,
+**test connection**, and **apply**.
 
 ---
 
 ## Run with Docker
 
 Runs the frontend (nginx) and the API + SQLite backend together, with a named
-volume so your data survives restarts:
+volume so data survives restarts:
 
 ```bash
-docker compose up --build
+docker compose up -d --build
 ```
 
 - App → http://localhost:8080
@@ -42,136 +81,109 @@ docker compose up --build
 Then in the app: **⚙ settings → data source → API (SQLite)**, URL
 `http://localhost:3001`, **test connection**, **apply**.
 
-Stop with `docker compose down` (add `-v` to also delete the data volume).
-To run only the backend in Docker (and the frontend via `npm run dev`):
-`docker compose up --build api`.
+```bash
+docker compose down          # stop (data survives)
+docker compose down -v       # stop and delete the data volume
+docker compose up -d --build api   # backend only (run frontend via `npm run dev`)
+```
 
----
-
-## How it works
-
-- **Create a project** — click `[ + new project ]` in the sidebar. It becomes a
-  top-level page.
-- **Open a page** — click any row in the sidebar tree. It opens in the main panel
-  with an editable title and a rich-text body.
-- **Edit text** — the toolbar above the editor toggles bold, italic, strikethrough,
-  inline code, headings (H1–H3), bullet / ordered / task lists, blockquotes, code
-  blocks, and horizontal rules.
-- **Add subpages** — click `+` on a sidebar row, or `+ add subpage` in the page
-  header. Subpages nest infinitely deep and also appear in a list at the bottom of
-  their parent page.
-- **Navigate** — the breadcrumb at the top of each page links back up the tree.
-- **Delete** — the `×` on a sidebar row deletes that page *and all of its descendants*
-  (after a confirmation prompt).
-- **Saving** — every change is written to `localStorage` automatically, debounced by
-  250 ms. Reload the tab and your work is still there. Clearing browser data wipes it.
+> **Note:** Docker Compose prefixes named volumes with the project name
+> (defaults to the folder name). Renaming the project folder will create a
+> fresh empty volume and orphan the old data. The included `docker-compose.yml`
+> pins the volume name externally to avoid this.
 
 ---
 
 ## Architecture
 
-This is a **single-page application with no backend**. The "backend" is the browser:
-`localStorage` is the persistence layer, and the React store is the in-memory
-database. The diagram below shows where each responsibility lives.
+Single-page React app with an optional local API.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Browser                                                      │
-│                                                               │
-│   ┌─────────────────────── Frontend (React) ──────────────┐  │
-│   │                                                        │  │
-│   │   App.tsx                                              │  │
-│   │     ├── Sidebar ── PageTree (recursive)                │  │
-│   │     └── Main ───── Editor ── Toolbar  (Tiptap)         │  │
-│   │                                                        │  │
-│   │   useStore()  ← in-memory "database" (React state)     │  │
-│   └────────────────────────┬───────────────────────────────  │
-│                            │  read on load / write (250ms)   │
-│                            ▼                                  │
-│   ┌──────────────── "Backend" (persistence) ─────────────┐   │
-│   │   localStorage["project-tracker:pages:v1"]           │   │
-│   │   = JSON blob of all pages                           │   │
-│   └──────────────────────────────────────────────────────┘   │
-└───────────────────────────────────────────────────────────────┘
+┌──────────────────────────── Browser ────────────────────────────┐
+│  React (Vite + TS) + Tiptap editor                              │
+│    App.tsx ── Sidebar / PageTree + Editor / Toolbar              │
+│    useStore()  ← in-memory store (pages + databases, CRUD)       │
+│         │  read on load / debounced write (250ms)                │
+│         ▼                                                        │
+│  StorageAdapter ──┬─ LocalStorageAdapter  (localStorage)         │
+│                   └─ ApiAdapter         (fetch → SQLite API)     │
+└──────────────────────────────────────────────────────────────────┘
+                                  │ (when API mode)
+                                  ▼
+┌──────────────────── Express + better-sqlite3 ───────────────────┐
+│  GET/PUT /api/pages   GET/PUT /api/databases   GET /api/health   │
+│  one row per entity, JSON in a `data` column → server/data.db    │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ### Frontend
+**Vite + React 18 + TypeScript**, rich text via **Tiptap 2** (pinned to
+`2.27.2`, the last v2 release — do not let npm upgrade to v3). State lives in
+a single `useStore()` hook (`src/store.ts`) holding a flat `PageMap` and
+`DatabaseMap`; the page tree is derived by filtering on `parentId`. Custom
+editor nodes (`SubpageLink`, `ResizableImage`, `DatabaseEmbed`, `Toggle`,
+`Columns`, `Tabs`) are React node views. Deeply-nested components reach the
+store and navigation via React contexts.
 
-Built with **Vite + React + TypeScript**. Rich text is handled by **Tiptap**
-(`StarterKit` + task lists + a placeholder), pinned to `2.27.2` (the last v2 release).
+### Persistence
+A `StorageAdapter` interface (`src/storage/adapters.ts`) abstracts
+`LocalStorageAdapter` and `ApiAdapter`; `getAdapter()` picks based on the
+data-source setting stored in localStorage. Both operate on whole collections
+(GET map / PUT replace-all), so the store is the single source of truth and
+swapping backends requires no UI changes. The API server (`server/index.js`)
+is ~60 lines of Express with two tables (`pages`, `databases`), each one row
+per entity with its JSON in a `data` column.
+
+### Settings
+`useSettings()` writes CSS variables onto `:root`, so `styles.css` re-themes
+for free — accent colour, theme/background, font, CRT-glow, and the data-source
+config with a connection test.
+
+See **[AGENTS.md](AGENTS.md)** for the full file map, conventions, and gotchas.
+
+---
+
+## Tech stack
+
+| Layer    | Tech |
+|----------|------|
+| Frontend | Vite, React 18, TypeScript, Tiptap 2 |
+| Backend  | Express, better-sqlite3 |
+| Deploy   | Docker (nginx + api), docker-compose |
+
+---
+
+## Project structure
 
 ```
-project-tracker/
-├── index.html                 # Vite entry point
-├── vite.config.ts             # Vite + React plugin config
-├── tsconfig.json              # TypeScript compiler options
-├── package.json               # deps + scripts
-└── src/
-    ├── main.tsx               # React root; mounts <App>
-    ├── App.tsx                # layout: sidebar + main panel, breadcrumbs, page header
-    ├── store.ts               # useStore() hook — state + localStorage persistence
-    ├── types.ts               # Page / PageMap type definitions
-    ├── styles.css             # all styling (the TUI look lives here)
-    └── components/
-        ├── PageTree.tsx       # recursive sidebar navigation tree
-        ├── Editor.tsx         # Tiptap editor wrapper
-        └── Toolbar.tsx        # formatting buttons for the editor
-```
-
-**Component tree**
-
-- `App` owns the currently-selected page id and renders the two-column layout.
-  - `PageTree` renders the sidebar. It's recursive: each node renders its own
-    children via another `PageTree`, which is how arbitrary nesting works.
-  - `Editor` wraps a Tiptap instance and reports HTML changes upward; `Toolbar`
-    issues formatting commands to that editor.
-
-### "Backend" / data layer
-
-There is no API server. State management and persistence are both handled by the
-`useStore()` hook in [src/store.ts](src/store.ts):
-
-- **In-memory store** — all pages are held in a single flat object (`PageMap`),
-  keyed by id. This acts as the app's database while it's running.
-- **Tree shape** — pages aren't physically nested. Each page carries a `parentId`
-  (`null` = top-level project). The tree is *derived* by filtering pages by their
-  parent — `childrenOf(parentId)`. This keeps updates simple: editing or moving a
-  page is a single-record change, never a deep tree rewrite.
-- **Persistence** — on load, the store reads the JSON blob from
-  `localStorage["project-tracker:pages:v1"]`. On every change it writes the whole
-  blob back, debounced by 250 ms so fast typing doesn't thrash storage.
-- **Operations exposed by the store**: `createPage`, `updatePage` (title/content),
-  `deletePage` (recursively removes descendants), and the `childrenOf` / `roots`
-  selectors.
-
-**Data model** (see [src/types.ts](src/types.ts)):
-
-```ts
-interface Page {
-  id: string;
-  title: string;
-  content: string;       // Tiptap-generated HTML for the page body
-  parentId: string | null; // null = top-level project
-  createdAt: number;
-  updatedAt: number;
-}
-
-type PageMap = Record<string, Page>; // the entire "database"
+cortex/
+├── index.html
+├── vite.config.ts
+├── package.json
+├── src/
+│   ├── main.tsx                # React root; mounts <App>
+│   ├── App.tsx                 # layout, sidebar, providers
+│   ├── store.ts                # useStore() — state + CRUD + adapter load/save
+│   ├── types.ts                # Page / Database / View / Filter types
+│   ├── settings.ts             # theme/accent/font/glow + data-source config
+│   ├── context.ts              # StoreContext + NavContext
+│   ├── styles.css              # all styling (the TUI look lives here)
+│   ├── lib/image.ts            # image picker + downscale → data URL
+│   ├── storage/                # pluggable persistence + key migration
+│   └── components/
+│       ├── Editor.tsx, Toolbar.tsx
+│       ├── Dialog.tsx          # in-app confirm/prompt/choose (no window.*)
+│       ├── SettingsPanel.tsx, PageTree.tsx
+│       ├── SubpageLink.ts, ResizableImage.tsx, DatabaseEmbed.tsx
+│       ├── editor/             # Toggle, Columns, Tabs block nodes
+│       └── database/           # DatabaseBlock + Table/Gallery/Timeline views
+├── server/                     # Express + SQLite API (+ Dockerfile)
+├── Dockerfile, nginx.conf, docker-compose.yml
+└── AGENTS.md                   # architecture brief for contributors
 ```
 
 ---
 
-## Notes & limitations
+## License
 
-- Data is per-browser and per-origin. It does **not** sync across devices or
-  browsers, and clearing site data deletes it. Consider exporting if it matters.
-- The storage key is versioned (`:v1`) so the schema can be migrated later without
-  clobbering old data.
-
-### Turning this into a real client/server app
-
-Because all reads and writes funnel through `useStore()`, swapping the persistence
-layer is localized. To add a real backend, replace the `loadPages` / `savePages`
-functions (and the create/update/delete calls) in [src/store.ts](src/store.ts) with
-`fetch` calls to a REST or GraphQL API. The `Page` / `PageMap` types can be reused
-as the wire format, and the rest of the UI wouldn't need to change.
+[MIT](LICENSE) © Fergus
