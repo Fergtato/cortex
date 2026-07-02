@@ -28,13 +28,43 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: "20mb" }));
 
-/** Registers GET (read map) + PUT (replace whole collection) for a table. */
+/**
+ * Registers routes for a collection table:
+ *   GET   read the whole map
+ *   PATCH apply an incremental delta ({ upserts, deletes }) — the normal save
+ *         path; only touches the rows that changed
+ *   PUT   replace the whole collection (kept for bulk import / restore)
+ */
 function collectionRoutes(table) {
   app.get(`/api/${table}`, (_req, res) => {
     const rows = db.prepare(`SELECT id, data FROM ${table}`).all();
     const map = {};
     for (const row of rows) map[row.id] = JSON.parse(row.data);
     res.json(map);
+  });
+
+  app.patch(`/api/${table}`, (req, res) => {
+    const body = req.body && typeof req.body === "object" ? req.body : {};
+    const upserts =
+      body.upserts && typeof body.upserts === "object" ? body.upserts : {};
+    const deletes = Array.isArray(body.deletes) ? body.deletes : [];
+    const apply = db.transaction(() => {
+      const upsert = db.prepare(
+        `INSERT INTO ${table} (id, data) VALUES (?, ?)
+         ON CONFLICT(id) DO UPDATE SET data = excluded.data`
+      );
+      for (const [id, value] of Object.entries(upserts)) {
+        upsert.run(id, JSON.stringify(value));
+      }
+      const remove = db.prepare(`DELETE FROM ${table} WHERE id = ?`);
+      for (const id of deletes) remove.run(id);
+    });
+    apply();
+    res.json({
+      ok: true,
+      upserts: Object.keys(upserts).length,
+      deletes: deletes.length,
+    });
   });
 
   app.put(`/api/${table}`, (req, res) => {

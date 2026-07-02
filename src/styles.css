@@ -233,6 +233,9 @@ input[type="checkbox"]:disabled {
 }
 
 .row-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 18px;
   height: 18px;
   border: 1px solid var(--line);
@@ -243,9 +246,49 @@ input[type="checkbox"]:disabled {
   border-color: var(--accent);
   color: var(--accent);
 }
-.row-btn[title="Delete page"]:hover {
-  border-color: var(--danger);
+
+.tree-menu-wrap {
+  position: relative;
+}
+.tree-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+.tree-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  min-width: 130px;
+  border: 1px solid var(--line-bright);
+  background: var(--bg);
+}
+.tree-menu-item {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+}
+.tree-menu-item:last-child {
+  border-bottom: none;
+}
+.tree-menu-item:hover {
+  background: var(--selection);
+}
+.tree-menu-item.danger {
   color: var(--danger);
+}
+.tree-menu-item.danger:hover {
+  background: #3a1a1a;
 }
 
 /* ---------- main ---------- */
@@ -369,9 +412,31 @@ input[type="checkbox"]:disabled {
 .editor-content .ProseMirror {
   outline: none;
   min-height: 340px;
+  caret-color: transparent;
 }
 .editor-content .ProseMirror > * + * {
   margin-top: 0.7em;
+}
+/* Thick terminal-style block cursor (see editor/BlockCursor.ts). Hidden unless
+   the editor is focused; blinks like a terminal caret. */
+.block-cursor {
+  display: none;
+  width: 0.65ch;
+  height: 1.15em;
+  margin-left: -0.05ch;
+  vertical-align: text-bottom;
+  background: var(--fg);
+  pointer-events: none;
+  user-select: none;
+  animation: block-cursor-blink 1.1s steps(2, start) infinite;
+}
+.ProseMirror-focused .block-cursor {
+  display: inline-block;
+}
+@keyframes block-cursor-blink {
+  to {
+    opacity: 0;
+  }
 }
 .editor-content h1 {
   font-size: 22px;
@@ -453,16 +518,82 @@ input[type="checkbox"]:disabled {
 }
 
 .subpage-link-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   color: var(--accent);
   border: 1px solid var(--line-bright);
   padding: 0 5px;
-  cursor: pointer;
   white-space: nowrap;
   background: #111;
 }
 .subpage-link-inline:hover {
   background: var(--accent-dim);
   border-color: var(--accent);
+}
+.sp-link-text {
+  cursor: pointer;
+}
+.sp-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  border-radius: 0;
+  color: var(--dim);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 4px;
+  cursor: pointer;
+  line-height: 1;
+}
+.subpage-link-inline:hover .sp-menu-btn {
+  display: inline-block;
+}
+.sp-menu-btn:hover {
+  color: var(--accent);
+}
+.sp-menu-wrap {
+  position: relative;
+}
+.sp-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+.sp-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 100;
+  min-width: 130px;
+  border: 1px solid var(--line-bright);
+  background: var(--bg);
+}
+.sp-menu-item {
+  display: block;
+  width: 100%;
+  padding: 5px 10px;
+  text-align: left;
+  border: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+}
+.sp-menu-item:last-child {
+  border-bottom: none;
+}
+.sp-menu-item:hover {
+  background: var(--selection);
+}
+.sp-menu-item.danger {
+  color: var(--danger);
+}
+.sp-menu-item.danger:hover {
+  background: #3a1a1a;
 }
 .tool-subpage {
   min-width: auto;
@@ -1197,6 +1328,13 @@ input[type="checkbox"]:disabled {
   color: var(--accent);
   border-color: var(--accent);
 }
+.db-section-actions {
+  display: flex;
+  gap: 4px;
+}
+.section-import {
+  font-size: 12px;
+}
 .db-list {
   list-style: none;
   margin: 0;
@@ -1309,6 +1447,49 @@ input[type="checkbox"]:disabled {
 .db-del:hover {
   color: var(--danger);
   border-color: var(--danger);
+}
+
+.export-wrap {
+  position: relative;
+}
+.export-btn {
+  color: var(--dim);
+  border: 1px solid var(--line);
+  padding: 2px 8px;
+  font-size: 11px;
+  font-family: inherit;
+}
+.export-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.export-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 2px;
+  background: #0e0e0e;
+  border: 1px solid var(--line-bright);
+  z-index: 20;
+  min-width: 64px;
+  display: flex;
+  flex-direction: column;
+}
+.export-item {
+  text-align: left;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--fg);
+  border: none;
+  border-bottom: 1px solid var(--line);
+}
+.export-item:last-child {
+  border-bottom: none;
+}
+.export-item:hover {
+  background: var(--selection);
+  color: var(--accent);
 }
 
 .db-views {

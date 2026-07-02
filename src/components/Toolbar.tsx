@@ -5,6 +5,7 @@ import { useDialog } from "./Dialog";
 interface Props {
   editor: Editor;
   onInsertSubpage: () => void;
+  onInsertPageLink: () => void;
   onInsertDatabase: () => void;
   onInsertImage: () => void;
 }
@@ -41,6 +42,7 @@ interface Btn {
 export function Toolbar({
   editor,
   onInsertSubpage,
+  onInsertPageLink,
   onInsertDatabase,
   onInsertImage,
 }: Props) {
@@ -209,6 +211,14 @@ export function Toolbar({
         onClick={onInsertSubpage}
       >
         ▸ subpage
+      </button>
+      <button
+        className="tool-btn tool-subpage"
+        title="Link to a page"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onInsertPageLink}
+      >
+        ↗ page
       </button>
       <button
         className="tool-btn tool-subpage"

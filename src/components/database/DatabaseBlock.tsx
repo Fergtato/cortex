@@ -15,6 +15,7 @@ import { GalleryView } from "./GalleryView";
 import { TimelineView } from "./TimelineView";
 import { FilterBar } from "./FilterBar";
 import { matchesAll } from "./filtering";
+import { ExportControls } from "./ExportControls";
 
 interface Props {
   db: Database;
@@ -99,6 +100,7 @@ export function DatabaseBlock({
             value={db.name}
             onChange={(e) => store.renameDatabase(db.id, e.target.value)}
           />
+          <ExportControls db={db} />
           <button
             className="db-del"
             title="Delete database"

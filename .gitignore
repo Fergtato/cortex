@@ -25,3 +25,8 @@ npm-debug.log*
 
 # AI session transcripts (not for publishing)
 session-ses_*.md
+
+# local tooling artifacts (editor workspace, MCP config, Playwright debug output)
+cortex.code-workspace
+opencode.json
+.playwright-mcp/

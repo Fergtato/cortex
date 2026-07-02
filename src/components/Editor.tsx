@@ -13,6 +13,8 @@ import TableRow from "@tiptap/extension-table-row";
 import TableHeader from "@tiptap/extension-table-header";
 import TableCell from "@tiptap/extension-table-cell";
 import type { Page } from "../types";
+import { useStoreContext } from "../context";
+import { useDialog } from "./Dialog";
 import { Toolbar } from "./Toolbar";
 import { SubpageLink } from "./SubpageLink";
 import { DatabaseEmbed } from "./DatabaseEmbed";
@@ -20,6 +22,7 @@ import { ResizableImage } from "./ResizableImage";
 import { Toggle } from "./editor/Toggle";
 import { Columns, Column } from "./editor/Columns";
 import { Tabs, Tab } from "./editor/Tabs";
+import { BlockCursor } from "./editor/BlockCursor";
 import { pickImage } from "../lib/image";
 
 interface Props {
@@ -29,6 +32,7 @@ interface Props {
   onChangeContent: (html: string) => void;
   /** Creates a child page and returns its id + title for inline insertion. */
   onCreateSubpage: () => { id: string; title: string };
+  onCreatedNavigate: () => void;
   onOpenPage: (id: string) => void;
 }
 
@@ -37,14 +41,16 @@ export function Editor({
   subpages,
   onChangeContent,
   onCreateSubpage,
+  onCreatedNavigate,
   onOpenPage,
 }: Props) {
+  const store = useStoreContext();
+  const dialog = useDialog();
+
   // Keep the latest callbacks in refs so the editor's handlers (captured once at
   // creation) always call the current versions without recreating the editor.
   const onChangeRef = useRef(onChangeContent);
   onChangeRef.current = onChangeContent;
-  const onOpenRef = useRef(onOpenPage);
-  onOpenRef.current = onOpenPage;
 
   // The editor is created ONCE and reused for every page. Switching pages swaps
   // its content (below) rather than tearing down and rebuilding the instance —
@@ -76,19 +82,11 @@ export function Editor({
       Column,
       Tabs,
       Tab,
+      BlockCursor,
       Placeholder.configure({ placeholder: "start writing…" }),
     ],
     content: page.content,
     onUpdate: ({ editor }) => onChangeRef.current(editor.getHTML()),
-    editorProps: {
-      handleClickOn: (_view, _pos, node) => {
-        if (node.type.name === "subpageLink" && node.attrs.pageId) {
-          onOpenRef.current(node.attrs.pageId);
-          return true;
-        }
-        return false;
-      },
-    },
   });
 
   // Load the page's content when navigating to a different page. `false` keeps
@@ -136,6 +134,35 @@ export function Editor({
         { type: "text", text: " " },
       ])
       .run();
+    onCreatedNavigate();
+    onOpenPage(id);
+  }
+
+  async function insertPageLink() {
+    if (!editor) return;
+    const pages = Object.values(store.pages).filter((p) => p.id !== page.id);
+    if (pages.length === 0) return;
+    const choice = await dialog.choose(
+      "Link to page:",
+      pages.map((p) => ({
+        label: `▸ ${p.title || "untitled"}`,
+        value: p.id,
+      }))
+    );
+    if (!choice) return;
+    const target = store.pages[choice];
+    if (!target) return;
+    editor
+      .chain()
+      .focus()
+      .insertContent([
+        {
+          type: "subpageLink",
+          attrs: { pageId: choice, title: target.title || "untitled" },
+        },
+        { type: "text", text: " " },
+      ])
+      .run();
   }
 
   function insertDatabase() {
@@ -171,6 +198,7 @@ export function Editor({
       <Toolbar
         editor={editor}
         onInsertSubpage={insertSubpage}
+        onInsertPageLink={insertPageLink}
         onInsertDatabase={insertDatabase}
         onInsertImage={insertImage}
       />

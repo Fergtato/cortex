@@ -9,10 +9,38 @@ import type {
   PropertyType,
   ViewType,
 } from "./types";
-import { getAdapter } from "./storage/adapters";
+import { getAdapter, type CollectionDelta } from "./storage/adapters";
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+/**
+ * Diff a previously-persisted snapshot against the current map. Because the
+ * store is strictly immutable (every update produces a new object for the
+ * changed entity and preserves identity for the rest), a reference comparison
+ * is enough to find exactly what changed. Returns null when nothing changed.
+ */
+function diffMap<T>(
+  prev: Record<string, T>,
+  next: Record<string, T>
+): CollectionDelta<T> | null {
+  const upserts: Record<string, T> = {};
+  let changed = false;
+  for (const id in next) {
+    if (next[id] !== prev[id]) {
+      upserts[id] = next[id];
+      changed = true;
+    }
+  }
+  const deletes: string[] = [];
+  for (const id in prev) {
+    if (!(id in next)) {
+      deletes.push(id);
+      changed = true;
+    }
+  }
+  return changed ? { upserts, deletes } : null;
 }
 
 export interface Store {
@@ -42,6 +70,8 @@ export interface Store {
   addRow: (dbId: string) => void;
   updateCell: (dbId: string, rowId: string, propId: string, value: CellValue) => void;
   deleteRow: (dbId: string, rowId: string) => void;
+  /** Apply an arbitrary immutable transform to a database (used by import). */
+  updateDatabase: (dbId: string, fn: (db: Database) => Database) => void;
 }
 
 export function useStore(): Store {
@@ -53,6 +83,13 @@ export function useStore(): Store {
   const [databases, setDatabases] = useState<DatabaseMap>({});
   const [loaded, setLoaded] = useState(false);
 
+  // Snapshots of what is currently persisted, used to diff for incremental
+  // saves. Kept in sync with the backend: seeded on load, advanced after each
+  // successful flush. On a failed save they are left untouched so the next
+  // flush re-sends the same delta (plus anything new).
+  const savedPages = useRef<PageMap>({});
+  const savedDbs = useRef<DatabaseMap>({});
+
   // Initial load from the configured data source.
   useEffect(() => {
     let cancelled = false;
@@ -61,6 +98,8 @@ export function useStore(): Store {
         if (cancelled) return;
         setPages(p);
         setDatabases(d);
+        savedPages.current = p;
+        savedDbs.current = d;
       })
       .catch((err) => console.error("[cortex] failed to load data:", err))
       .finally(() => {
@@ -72,15 +111,22 @@ export function useStore(): Store {
   }, [adapter]);
 
   // Debounced persistence. Guarded by `loaded` so the empty initial state is
-  // never written back over real data before the load finishes.
+  // never written back over real data before the load finishes. Only the
+  // entities that changed since the last save are sent (see `diffMap`), so a
+  // single edit never re-serializes the whole collection.
   const pagesTimer = useRef<number | undefined>(undefined);
   useEffect(() => {
     if (!loaded) return;
     window.clearTimeout(pagesTimer.current);
     pagesTimer.current = window.setTimeout(() => {
-      adapter.savePages(pages).catch((err) =>
-        console.error("[cortex] failed to save pages:", err)
-      );
+      const delta = diffMap(savedPages.current, pages);
+      if (!delta) return;
+      adapter
+        .savePages(delta)
+        .then(() => {
+          savedPages.current = pages;
+        })
+        .catch((err) => console.error("[cortex] failed to save pages:", err));
     }, 250);
     return () => window.clearTimeout(pagesTimer.current);
   }, [pages, loaded, adapter]);
@@ -90,9 +136,14 @@ export function useStore(): Store {
     if (!loaded) return;
     window.clearTimeout(dbTimer.current);
     dbTimer.current = window.setTimeout(() => {
-      adapter.saveDatabases(databases).catch((err) =>
-        console.error("[cortex] failed to save databases:", err)
-      );
+      const delta = diffMap(savedDbs.current, databases);
+      if (!delta) return;
+      adapter
+        .saveDatabases(delta)
+        .then(() => {
+          savedDbs.current = databases;
+        })
+        .catch((err) => console.error("[cortex] failed to save databases:", err));
     }, 250);
     return () => window.clearTimeout(dbTimer.current);
   }, [databases, loaded, adapter]);
@@ -138,6 +189,26 @@ export function useStore(): Store {
       };
       walk(id);
       for (const rid of removed) delete next[rid];
+
+      // Strip subpage links to deleted pages from remaining pages' content.
+      for (const page of Object.values(next)) {
+        let content = page.content;
+        let changed = false;
+        for (const rid of removed) {
+          const re = new RegExp(
+            `<a\\b[^>]*data-subpage-link[^>]*data-page-id="${rid}"[^>]*>.*?</a>`,
+            "gi"
+          );
+          if (re.test(content)) {
+            content = content.replace(re, "");
+            changed = true;
+          }
+        }
+        if (changed) {
+          next[page.id] = { ...next[page.id], content, updatedAt: Date.now() };
+        }
+      }
+
       return next;
     });
   }, []);
@@ -318,6 +389,11 @@ export function useStore(): Store {
     [patchDb]
   );
 
+  const updateDatabase = useCallback(
+    (dbId: string, fn: (db: Database) => Database) => patchDb(dbId, fn),
+    [patchDb]
+  );
+
   return {
     loaded,
     pages,
@@ -341,5 +417,6 @@ export function useStore(): Store {
     addRow,
     updateCell,
     deleteRow,
+    updateDatabase,
   };
 }

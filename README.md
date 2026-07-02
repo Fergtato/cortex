@@ -111,7 +111,8 @@ Single-page React app with an optional local API.
                                   │ (when API mode)
                                   ▼
 ┌──────────────────── Express + better-sqlite3 ───────────────────┐
-│  GET/PUT /api/pages   GET/PUT /api/databases   GET /api/health   │
+│  GET/PATCH/PUT /api/pages   GET/PATCH/PUT /api/databases         │
+│  GET /api/health                                                 │
 │  one row per entity, JSON in a `data` column → server/data.db    │
 └──────────────────────────────────────────────────────────────────┘
 ```
@@ -128,11 +129,13 @@ store and navigation via React contexts.
 ### Persistence
 A `StorageAdapter` interface (`src/storage/adapters.ts`) abstracts
 `LocalStorageAdapter` and `ApiAdapter`; `getAdapter()` picks based on the
-data-source setting stored in localStorage. Both operate on whole collections
-(GET map / PUT replace-all), so the store is the single source of truth and
-swapping backends requires no UI changes. The API server (`server/index.js`)
-is ~60 lines of Express with two tables (`pages`, `databases`), each one row
-per entity with its JSON in a `data` column.
+data-source setting stored in localStorage. Loads read the whole collection;
+saves are **incremental** — the store diffs against the last-persisted snapshot
+and sends only changed/deleted entities (`PATCH { upserts, deletes }`), so one
+edit never re-serializes the whole collection. The store stays the single
+source of truth and swapping backends requires no UI changes. The API server
+(`server/index.js`) is a small Express app with two tables (`pages`,
+`databases`), each one row per entity with its JSON in a `data` column.
 
 ### Settings
 `useSettings()` writes CSS variables onto `:root`, so `styles.css` re-themes

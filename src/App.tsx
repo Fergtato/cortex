@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useStore } from "./store";
 import { useSettings } from "./settings";
 import { StoreContext, NavContext, type Nav } from "./context";
@@ -6,6 +6,8 @@ import { PageTree } from "./components/PageTree";
 import { Editor } from "./components/Editor";
 import { DatabaseBlock } from "./components/database/DatabaseBlock";
 import { SettingsPanel } from "./components/SettingsPanel";
+import { useDialog } from "./components/Dialog";
+import { importFromCSV, importFromJSON } from "./lib/importDB";
 import type { Page } from "./types";
 
 type Selection =
@@ -50,6 +52,71 @@ export default function App() {
     },
     [closeSidebarOnMobile]
   );
+
+  const justCreated = useRef(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const dialog = useDialog();
+
+  const handleImport = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+      const ext = file.name.split(".").pop()?.toLowerCase();
+      const baseName = file.name.replace(/\.[^.]+$/, "");
+      try {
+        const text = await file.text();
+        const data =
+          ext === "json"
+            ? importFromJSON(text)
+            : ext === "csv"
+            ? importFromCSV(text, baseName)
+            : null;
+        if (!data) {
+          await dialog.confirm(
+            `Could not import "${file.name}". Use a .json or .csv file exported from Cortex or matching the expected structure.`,
+            { confirmLabel: "ok" }
+          );
+          return;
+        }
+        const id = store.createDatabase();
+        store.updateDatabase(id, (db) => ({
+          ...db,
+          name: data.name,
+          properties: data.properties,
+          rows: data.rows,
+        }));
+        openDatabase(id);
+      } catch (err) {
+        console.error("[cortex] import failed:", err);
+        await dialog.confirm(`Import failed: ${String(err)}`, { confirmLabel: "ok" });
+      }
+    },
+    [store, openDatabase, dialog]
+  );
+
+  const navigateToNew = useCallback(
+    (id: string) => {
+      justCreated.current = true;
+      openPage(id);
+    },
+    [openPage]
+  );
+
+  const page =
+    sel?.kind === "page" ? store.pages[sel.id] ?? null : null;
+  const database =
+    sel?.kind === "database" ? store.getDatabase(sel.id) ?? null : null;
+
+  useEffect(() => {
+    if (justCreated.current) {
+      justCreated.current = false;
+      titleRef.current?.focus();
+      titleRef.current?.select();
+    }
+  }, [page?.id]);
+
   const nav: Nav = useMemo(() => ({ openPage, openDatabase }), [openPage, openDatabase]);
 
   // Keep selection valid: clear it if the selected page/database was deleted.
@@ -58,11 +125,6 @@ export default function App() {
     if (sel.kind === "page" && !store.pages[sel.id]) setSel(null);
     if (sel.kind === "database" && !store.getDatabase(sel.id)) setSel(null);
   }, [sel, store.pages, store]);
-
-  const page =
-    sel?.kind === "page" ? store.pages[sel.id] ?? null : null;
-  const database =
-    sel?.kind === "database" ? store.getDatabase(sel.id) ?? null : null;
 
   // Breadcrumb trail from root to the selected page.
   const trail = useMemo(() => {
@@ -124,18 +186,35 @@ export default function App() {
                   depth={0}
                   selectedId={sel?.kind === "page" ? sel.id : null}
                   onSelect={openPage}
+                  onCreatedSelect={navigateToNew}
                 />
               )}
 
               <div className="sidebar-section-label db-label">
-                databases
-                <button
-                  className="section-add"
-                  title="New database"
-                  onClick={() => openDatabase(store.createDatabase())}
-                >
-                  +
-                </button>
+                <span>databases</span>
+                <span className="db-section-actions">
+                  <button
+                    className="section-add"
+                    title="New database"
+                    onClick={() => openDatabase(store.createDatabase())}
+                  >
+                    +
+                  </button>
+                  <button
+                    className="section-add section-import"
+                    title="Import database (.json or .csv)"
+                    onClick={() => importInputRef.current?.click()}
+                  >
+                    ↥
+                  </button>
+                </span>
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".json,.csv,application/json,text/csv"
+                  style={{ display: "none" }}
+                  onChange={handleImport}
+                />
               </div>
               {store.databases.length === 0 ? (
                 <p className="empty-hint">no databases yet</p>
@@ -186,6 +265,7 @@ export default function App() {
                 </div>
 
                 <input
+                  ref={titleRef}
                   className="page-title"
                   value={page.title}
                   placeholder="untitled"
@@ -204,6 +284,7 @@ export default function App() {
                     const id = store.createPage(page.id, "untitled");
                     return { id, title: "untitled" };
                   }}
+                  onCreatedNavigate={() => { justCreated.current = true; }}
                   onOpenPage={openPage}
                 />
               </div>

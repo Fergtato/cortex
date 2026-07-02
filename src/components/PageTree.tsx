@@ -9,9 +9,10 @@ interface Props {
   depth: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onCreatedSelect: (id: string) => void;
 }
 
-export function PageTree({ store, parentId, depth, selectedId, onSelect }: Props) {
+export function PageTree({ store, parentId, depth, selectedId, onSelect, onCreatedSelect }: Props) {
   const pages = store.childrenOf(parentId);
 
   return (
@@ -24,6 +25,7 @@ export function PageTree({ store, parentId, depth, selectedId, onSelect }: Props
           depth={depth}
           selectedId={selectedId}
           onSelect={onSelect}
+          onCreatedSelect={onCreatedSelect}
         />
       ))}
     </ul>
@@ -36,14 +38,44 @@ interface NodeProps {
   depth: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  onCreatedSelect: (id: string) => void;
 }
 
-function TreeNode({ store, page, depth, selectedId, onSelect }: NodeProps) {
+function TreeNode({ store, page, depth, selectedId, onSelect, onCreatedSelect }: NodeProps) {
   const [open, setOpen] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
   const dialog = useDialog();
   const children = store.childrenOf(page.id);
   const hasChildren = children.length > 0;
   const selected = page.id === selectedId;
+
+  const menuItems = [
+    {
+      key: "rename",
+      label: "Rename",
+      danger: false,
+      async action() {
+        setMenuOpen(false);
+        const name = await dialog.prompt("Rename page:", page.title || "untitled");
+        if (name !== null && name.trim() !== "") {
+          store.updatePage(page.id, { title: name.trim() });
+        }
+      },
+    },
+    {
+      key: "delete",
+      label: "Delete",
+      danger: true,
+      async action() {
+        setMenuOpen(false);
+        const ok = await dialog.confirm(
+          `Delete "${page.title || "untitled"}" and all subpages?`,
+          { confirmLabel: "delete", danger: true }
+        );
+        if (ok) store.deletePage(page.id);
+      },
+    },
+  ];
 
   return (
     <li className="tree-node">
@@ -70,25 +102,42 @@ function TreeNode({ store, page, depth, selectedId, onSelect }: NodeProps) {
               e.stopPropagation();
               const id = store.createPage(page.id);
               setOpen(true);
-              onSelect(id);
+              onCreatedSelect(id);
             }}
           >
             +
           </button>
-          <button
-            className="row-btn"
-            title="Delete page"
-            onClick={async (e) => {
-              e.stopPropagation();
-              const ok = await dialog.confirm(
-                `Delete "${page.title || "untitled"}" and all subpages?`,
-                { confirmLabel: "delete", danger: true }
-              );
-              if (ok) store.deletePage(page.id);
-            }}
-          >
-            ×
-          </button>
+          <span className="tree-menu-wrap">
+            <button
+              className="row-btn row-btn-menu"
+              title="Page menu"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen((o) => !o);
+              }}
+            >
+              ⋯
+            </button>
+            {menuOpen && (
+              <>
+                <div
+                  className="tree-menu-backdrop"
+                  onClick={() => setMenuOpen(false)}
+                />
+                <div className="tree-menu">
+                  {menuItems.map((item) => (
+                    <button
+                      key={item.key}
+                      className={`tree-menu-item${item.danger ? " danger" : ""}`}
+                      onClick={item.action}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </span>
         </span>
       </div>
       {hasChildren && open && (
@@ -98,6 +147,7 @@ function TreeNode({ store, page, depth, selectedId, onSelect }: NodeProps) {
           depth={depth + 1}
           selectedId={selectedId}
           onSelect={onSelect}
+          onCreatedSelect={onCreatedSelect}
         />
       )}
     </li>
