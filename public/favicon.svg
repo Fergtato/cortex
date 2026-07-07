@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Cortex favicon: the sidebar's ▚ brand glyph, drawn as quadrant squares
+       (no font dependency) on the TUI dark panel with a 1px border. -->
+  <rect x="0" y="0" width="32" height="32" fill="#0c0c0c"/>
+  <rect x="0.5" y="0.5" width="31" height="31" fill="none" stroke="#5a5a52"/>
+  <rect x="8" y="8" width="8" height="8" fill="#7fd17f"/>
+  <rect x="16" y="16" width="8" height="8" fill="#7fd17f"/>
+</svg>
