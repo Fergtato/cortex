@@ -1,4 +1,5 @@
-import type { CellValue, PropertyDef } from "../../types";
+import { useLayoutEffect, useRef } from "react";
+import type { CellValue, DatabaseRow, PropertyDef } from "../../types";
 import type { Store } from "../../store";
 import { pickImage } from "../../lib/image";
 import { SelectCell } from "./SelectCell";
@@ -9,6 +10,34 @@ interface Props {
   value: CellValue;
   store: Store;
   onChange: (value: CellValue) => void;
+  /** The row, for computed cells (created/edited time, auto id, formulas). */
+  row?: DatabaseRow;
+}
+
+/** Auto-growing textarea for wrapped text columns: shows all content. */
+function WrapTextCell({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string | null) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "0";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      className="cell-input cell-textarea"
+      value={value}
+      onChange={(e) => onChange(e.target.value || null)}
+    />
+  );
 }
 
 export function Cell({ dbId, prop, value, store, onChange }: Props) {
@@ -47,6 +76,11 @@ export function Cell({ dbId, prop, value, store, onChange }: Props) {
       );
 
     case "url":
+      if (prop.wrap) {
+        return (
+          <WrapTextCell value={typeof value === "string" ? value : ""} onChange={onChange} />
+        );
+      }
       return (
         <input
           type="text"
@@ -87,6 +121,11 @@ export function Cell({ dbId, prop, value, store, onChange }: Props) {
 
     case "text":
     default:
+      if (prop.wrap) {
+        return (
+          <WrapTextCell value={typeof value === "string" ? value : ""} onChange={onChange} />
+        );
+      }
       return (
         <input
           type="text"

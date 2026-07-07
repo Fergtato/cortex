@@ -1835,6 +1835,62 @@ input[type="checkbox"]:disabled {
   background: var(--accent-dim);
 }
 
+/* row hover highlight */
+.db-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* column drag reorder */
+.th-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.th-drag {
+  color: var(--dim);
+  cursor: grab;
+  font-size: 10px;
+  user-select: none;
+  padding: 0 1px;
+}
+.th-drag:hover {
+  color: var(--fg);
+}
+.th-dragover {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* wrap toggle */
+.th-wrap {
+  color: var(--dim);
+  border: 1px solid var(--line);
+  width: 18px;
+  height: 18px;
+  line-height: 1;
+  font-size: 10px;
+}
+.th-wrap:hover {
+  color: var(--fg);
+  border-color: var(--line-bright);
+}
+.th-wrap.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.td-wrap {
+  max-width: 360px;
+}
+.cell-textarea {
+  display: block;
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  min-height: 28px;
+}
+
 .cell-input {
   width: 100%;
   background: none;

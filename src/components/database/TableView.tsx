@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PROPERTY_TYPES, type Database, type DatabaseRow } from "../../types";
 import type { Store } from "../../store";
 import { useDialog } from "../Dialog";
@@ -16,26 +17,69 @@ interface Props {
 
 export function TableView({ db, store, rows, lockSchema, minimal }: Props) {
   const dialog = useDialog();
+  // Column drag state (header handles reorder via store.reorderProperties).
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [overIdx, setOverIdx] = useState<number | null>(null);
+
+  const canWrap = (type: string) => type === "text" || type === "url";
+
   return (
     <div className="db-table-wrap">
       <table className="db-table">
         <thead>
           <tr>
             {db.properties.map((prop, i) => (
-              <th key={prop.id}>
+              <th
+                key={prop.id}
+                className={
+                  overIdx === i && dragIdx !== null && dragIdx !== i ? "th-dragover" : undefined
+                }
+                onDragOver={(e) => {
+                  if (dragIdx !== null && i > 0 && i !== dragIdx) {
+                    e.preventDefault();
+                    setOverIdx(i);
+                  }
+                }}
+                onDragLeave={() => setOverIdx((cur) => (cur === i ? null : cur))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (dragIdx !== null && i > 0) store.reorderProperties(db.id, dragIdx, i);
+                  setDragIdx(null);
+                  setOverIdx(null);
+                }}
+              >
                 {lockSchema ? (
                   <div className="th-inner">
                     <span className="th-name-ro">{prop.name}</span>
                   </div>
                 ) : (
                   <div className="th-inner">
-                    <input
-                      className="th-name"
-                      value={prop.name}
-                      onChange={(e) =>
-                        store.updateProperty(db.id, prop.id, { name: e.target.value })
-                      }
-                    />
+                    <div className="th-name-row">
+                      {i > 0 && (
+                        <span
+                          className="th-drag"
+                          title="Drag to reorder column"
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.effectAllowed = "move";
+                            setDragIdx(i);
+                          }}
+                          onDragEnd={() => {
+                            setDragIdx(null);
+                            setOverIdx(null);
+                          }}
+                        >
+                          ⠿
+                        </span>
+                      )}
+                      <input
+                        className="th-name"
+                        value={prop.name}
+                        onChange={(e) =>
+                          store.updateProperty(db.id, prop.id, { name: e.target.value })
+                        }
+                      />
+                    </div>
                     <div className="th-controls">
                       <select
                         className="th-type"
@@ -53,6 +97,17 @@ export function TableView({ db, store, rows, lockSchema, minimal }: Props) {
                           </option>
                         ))}
                       </select>
+                      {canWrap(prop.type) && (
+                        <button
+                          className={`th-wrap${prop.wrap ? " active" : ""}`}
+                          title={prop.wrap ? "Unwrap text (clip)" : "Wrap text (show all)"}
+                          onClick={() =>
+                            store.updateProperty(db.id, prop.id, { wrap: !prop.wrap })
+                          }
+                        >
+                          ↵
+                        </button>
+                      )}
                       {i > 0 && (
                         <button
                           className="th-del"
@@ -94,11 +149,12 @@ export function TableView({ db, store, rows, lockSchema, minimal }: Props) {
           {rows.map((row) => (
             <tr key={row.id}>
               {db.properties.map((prop) => (
-                <td key={prop.id}>
+                <td key={prop.id} className={prop.wrap ? "td-wrap" : undefined}>
                   <Cell
                     dbId={db.id}
                     prop={prop}
                     value={row.cells[prop.id] ?? null}
+                    row={row}
                     store={store}
                     onChange={(v) => store.updateCell(db.id, row.id, prop.id, v)}
                   />
