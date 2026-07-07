@@ -11,6 +11,7 @@ import { useDialog } from "../Dialog";
 import { TableView } from "./TableView";
 import { GalleryView } from "./GalleryView";
 import { TimelineView } from "./TimelineView";
+import { KanbanView } from "./KanbanView";
 import { FilterBar } from "./FilterBar";
 import { matchesAll } from "./filtering";
 import { ExportControls } from "./ExportControls";
@@ -203,6 +204,16 @@ export function DatabaseBlock({
         )}
         {active.type === "timeline" && (
           <TimelineView db={db} store={store} rows={rows} lockSchema={lockSchema} minimal={minimal} />
+        )}
+        {active.type === "kanban" && (
+          <KanbanView
+            db={db}
+            store={store}
+            rows={rows}
+            view={active}
+            lockSchema={lockSchema}
+            minimal={minimal}
+          />
         )}
       </div>
     </div>
