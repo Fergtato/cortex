@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   SELECT_COLORS,
   type CellValue,
@@ -7,6 +7,10 @@ import {
 } from "../../types";
 import type { Store } from "../../store";
 import { useDialog } from "../Dialog";
+
+/** Estimated max popover height, used to flip above the cell near the bottom. */
+const POP_EST_HEIGHT = 340;
+const POP_MIN_WIDTH = 230;
 
 interface Props {
   dbId: string;
@@ -24,7 +28,26 @@ export function SelectCell({ dbId, prop, value, store, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  // Fixed-position coordinates so the popover escapes overflow containers
+  // (the table's horizontal scroller, gallery cards, kanban columns).
+  const [popPos, setPopPos] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
+  const displayRef = useRef<HTMLDivElement>(null);
   const dialog = useDialog();
+
+  const toggleOpen = () => {
+    if (!open) {
+      const rect = displayRef.current?.getBoundingClientRect();
+      if (rect) {
+        const left = Math.max(8, Math.min(rect.left, window.innerWidth - POP_MIN_WIDTH - 8));
+        let top = rect.bottom + 4;
+        if (top + POP_EST_HEIGHT > window.innerHeight) {
+          top = Math.max(8, rect.top - POP_EST_HEIGHT - 4);
+        }
+        setPopPos({ left, top });
+      }
+    }
+    setOpen((o) => !o);
+  };
 
   const multi = prop.type === "multiselect";
   const options = prop.options ?? [];
@@ -71,8 +94,9 @@ export function SelectCell({ dbId, prop, value, store, onChange }: Props) {
   return (
     <div className="cell-selectwrap">
       <div
+        ref={displayRef}
         className={`cell-select-display${single ? ` selc-${single.color} tinted` : ""}`}
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         title="Click to edit"
       >
         {multi ? (
@@ -101,7 +125,12 @@ export function SelectCell({ dbId, prop, value, store, onChange }: Props) {
               setEditingId(null);
             }}
           />
-          <div className="filter-pop select-pop" onMouseDown={(e) => e.stopPropagation()}>
+          <div
+            className="filter-pop select-pop"
+            // Fixed positioning so no overflow:hidden/auto ancestor can clip it.
+            style={{ position: "fixed", left: popPos.left, top: popPos.top }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
             <div className="select-pop-new">
               <input
                 className="filter-pop-input"
