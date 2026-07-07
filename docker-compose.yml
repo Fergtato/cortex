@@ -5,6 +5,11 @@ services:
       - "3001:3001"
     volumes:
       - pt-data:/data
+    environment:
+      # Set in a .env file (or the shell) to require a bearer token on the
+      # API — do this whenever the API is reachable beyond localhost.
+      - CORTEX_TOKEN=${CORTEX_TOKEN:-}
+      - CORS_ORIGIN=${CORS_ORIGIN:-*}
     restart: unless-stopped
 
   web:

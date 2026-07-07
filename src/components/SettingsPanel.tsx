@@ -128,28 +128,43 @@ export function SettingsPanel({
   );
 }
 
-type TestState = "idle" | "testing" | "ok" | "fail";
+type TestState = "idle" | "testing" | "ok" | "unauthorized" | "fail";
 
 function DataSourceSection() {
   const initial = getDataSource();
   const [mode, setMode] = useState<DataSourceMode>(initial.mode);
   const [apiUrl, setApiUrl] = useState(initial.apiUrl);
+  const [apiToken, setApiToken] = useState(initial.apiToken ?? "");
   const [test, setTest] = useState<TestState>("idle");
 
-  const dirty = mode !== initial.mode || apiUrl.trim() !== initial.apiUrl;
+  const dirty =
+    mode !== initial.mode ||
+    apiUrl.trim() !== initial.apiUrl ||
+    apiToken.trim() !== (initial.apiToken ?? "");
 
   async function testConnection() {
     setTest("testing");
+    const base = apiUrl.replace(/\/$/, "");
     try {
-      const res = await fetch(`${apiUrl.replace(/\/$/, "")}/api/health`);
-      setTest(res.ok ? "ok" : "fail");
+      const health = await fetch(`${base}/api/health`);
+      if (!health.ok) {
+        setTest("fail");
+        return;
+      }
+      // Health is open by design; verify the token against a protected route.
+      const authed = await fetch(`${base}/api/pages`, {
+        headers: apiToken.trim()
+          ? { Authorization: `Bearer ${apiToken.trim()}` }
+          : {},
+      });
+      setTest(authed.status === 401 ? "unauthorized" : authed.ok ? "ok" : "fail");
     } catch {
       setTest("fail");
     }
   }
 
   function apply() {
-    setDataSource({ mode, apiUrl: apiUrl.trim() });
+    setDataSource({ mode, apiUrl: apiUrl.trim(), apiToken: apiToken.trim() });
     // Reload so the store re-initializes against the new backend cleanly.
     window.location.reload();
   }
@@ -186,13 +201,27 @@ function DataSourceSection() {
               }}
             />
           </label>
+          <label className="ds-field">
+            <span className="ds-field-label">token</span>
+            <input
+              className="dialog-input"
+              type="password"
+              value={apiToken}
+              placeholder="(blank if the server has no CORTEX_TOKEN)"
+              onChange={(e) => {
+                setApiToken(e.target.value);
+                setTest("idle");
+              }}
+            />
+          </label>
           <div className="ds-test-row">
             <button className="opt-btn" onClick={testConnection}>
               test connection
             </button>
             <span className={`ds-test ds-test-${test}`}>
               {test === "testing" && "…checking"}
-              {test === "ok" && "✓ reachable"}
+              {test === "ok" && "✓ connected"}
+              {test === "unauthorized" && "✗ wrong or missing token"}
               {test === "fail" && "✗ no response"}
             </span>
           </div>
