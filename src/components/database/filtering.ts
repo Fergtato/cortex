@@ -7,6 +7,7 @@ import type {
   PropertyDef,
   PropertyType,
 } from "../../types";
+import { computedCellValue } from "../../lib/formula";
 
 export interface OpDef {
   value: FilterOp;
@@ -17,6 +18,7 @@ export interface OpDef {
 export function operatorsForType(type: PropertyType): OpDef[] {
   switch (type) {
     case "number":
+    case "auto_id":
       return [
         { value: "num_eq", label: "=" },
         { value: "num_neq", label: "≠" },
@@ -85,7 +87,7 @@ export function valueKind(op: FilterOp, type: PropertyType): ValueKind {
     return "none";
   }
   if (type === "select" || type === "multiselect") return "select";
-  if (type === "number") return "number";
+  if (type === "number" || type === "auto_id") return "number";
   if (type === "date") return "date";
   return "text";
 }
@@ -163,7 +165,8 @@ export function matchesAll(
   return filters.every((cond) => {
     const prop = db.properties.find((p) => p.id === cond.propId);
     if (!prop) return true;
-    return matchOne(row.cells[cond.propId] ?? null, cond);
+    // computedCellValue falls through to the stored cell for plain types.
+    return matchOne(computedCellValue(db, row, prop), cond);
   });
 }
 

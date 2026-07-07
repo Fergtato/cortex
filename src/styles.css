@@ -2153,6 +2153,18 @@ input[type="checkbox"]:disabled {
   outline-offset: 1px;
 }
 
+/* computed cells (formula / created / edited / auto id) */
+.cell-computed {
+  display: inline-block;
+  padding: 6px;
+  font-size: 12px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+.cell-computed.error {
+  color: var(--danger);
+}
+
 /* read-only cell display (page embeds) */
 .cell-ro {
   display: inline-block;

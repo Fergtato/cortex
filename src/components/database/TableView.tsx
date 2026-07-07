@@ -97,6 +97,23 @@ export function TableView({ db, store, rows, lockSchema, minimal }: Props) {
                           </option>
                         ))}
                       </select>
+                      {prop.type === "formula" && (
+                        <button
+                          className="th-wrap"
+                          title={prop.formula ? `ƒ ${prop.formula}` : "Edit formula"}
+                          onClick={async () => {
+                            const raw = await dialog.prompt(
+                              "Formula (reference fields by name, e.g. {Price} * {Qty}):",
+                              prop.formula ?? ""
+                            );
+                            if (raw !== null) {
+                              store.updateProperty(db.id, prop.id, { formula: raw });
+                            }
+                          }}
+                        >
+                          ƒ
+                        </button>
+                      )}
                       {canWrap(prop.type) && (
                         <button
                           className={`th-wrap${prop.wrap ? " active" : ""}`}

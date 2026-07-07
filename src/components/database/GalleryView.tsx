@@ -78,6 +78,7 @@ export function GalleryView({ db, store, rows, view, minimal }: Props) {
                     dbId={db.id}
                     prop={prop}
                     value={row.cells[prop.id] ?? null}
+                    row={row}
                     store={store}
                     onChange={(v) => store.updateCell(db.id, row.id, prop.id, v)}
                   />

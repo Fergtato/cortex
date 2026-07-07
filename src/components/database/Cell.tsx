@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef } from "react";
 import type { CellValue, DatabaseRow, PropertyDef } from "../../types";
 import type { Store } from "../../store";
 import { pickImage } from "../../lib/image";
+import { computedCellValue, formatComputed } from "../../lib/formula";
 import { SelectCell } from "./SelectCell";
 
 interface Props {
@@ -40,9 +41,25 @@ function WrapTextCell({
   );
 }
 
-export function Cell({ dbId, prop, value, store, onChange }: Props) {
-
+export function Cell({ dbId, prop, value, store, onChange, row }: Props) {
   switch (prop.type) {
+    case "formula":
+    case "created_time":
+    case "last_edited_time":
+    case "auto_id": {
+      const db = store.getDatabase(dbId);
+      const computed = db && row ? computedCellValue(db, row, prop) : null;
+      const text = formatComputed(prop, computed);
+      return (
+        <span
+          className={`cell-computed${text === "#ERR" || text === "#REF" ? " error" : ""}`}
+          title={prop.type === "formula" ? prop.formula : undefined}
+        >
+          {text || "—"}
+        </span>
+      );
+    }
+
     case "checkbox":
       return (
         <span className="cell-checkbox-wrap">

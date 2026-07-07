@@ -15,6 +15,7 @@ import { KanbanView } from "./KanbanView";
 import { FilterBar } from "./FilterBar";
 import { matchesAll } from "./filtering";
 import { ExportControls } from "./ExportControls";
+import { computedCellValue } from "../../lib/formula";
 
 interface Props {
   db: Database;
@@ -63,9 +64,20 @@ export function compareCells(a: unknown, b: unknown, prop?: PropertyDef): number
   if (ae) return 1; // empties sort last
   if (be) return -1;
   const type = prop?.type;
-  if (type === "number") return Number(a) - Number(b);
+  if (
+    type === "number" ||
+    type === "auto_id" ||
+    type === "created_time" ||
+    type === "last_edited_time"
+  ) {
+    return Number(a) - Number(b);
+  }
   if (type === "date") return new Date(String(a)).getTime() - new Date(String(b)).getTime();
   if (type === "checkbox") return (a === true ? 1 : 0) - (b === true ? 1 : 0);
+  // Formulas: numeric when both sides are numeric, string otherwise.
+  if (type === "formula" && typeof a === "number" && typeof b === "number") {
+    return a - b;
+  }
   const ka = sortKey(a, prop);
   const kb = sortKey(b, prop);
   return String(ka).localeCompare(String(kb));
@@ -98,7 +110,9 @@ export function DatabaseBlock({
     if (sort && sort.propId) {
       const prop = db.properties.find((p) => p.id === sort.propId);
       out = [...out].sort((a, b) => {
-        const c = compareCells(a.cells[sort.propId], b.cells[sort.propId], prop);
+        const av = prop ? computedCellValue(db, a, prop) : a.cells[sort.propId];
+        const bv = prop ? computedCellValue(db, b, prop) : b.cells[sort.propId];
+        const c = compareCells(av, bv, prop);
         return sort.dir === "asc" ? c : -c;
       });
     }

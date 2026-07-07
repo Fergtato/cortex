@@ -41,6 +41,10 @@ export const PROPERTY_TYPES: PropertyType[] = [
   "checkbox",
   "url",
   "image",
+  "formula",
+  "created_time",
+  "last_edited_time",
+  "auto_id",
 ];
 
 /** Named colours for select options; each maps to CSS vars in styles.css. */
