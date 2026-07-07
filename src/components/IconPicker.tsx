@@ -10,13 +10,17 @@ interface Props {
   onClose: () => void;
 }
 
+/** Cap the rendered grid — the catalogue is ~2000 icons; filtering narrows it. */
+const MAX_SHOWN = 180;
+
 /** In-app picker for a page's Lucide line-icon + palette colour. */
 export function IconPicker({ current, currentColor, onPick, onPickColor, onClose }: Props) {
   const [filter, setFilter] = useState("");
 
-  const names = filter.trim()
+  const matches = filter.trim()
     ? ICON_NAMES.filter((n) => n.includes(filter.trim().toLowerCase()))
     : ICON_NAMES;
+  const names = matches.slice(0, MAX_SHOWN);
 
   return (
     <>
@@ -85,6 +89,11 @@ export function IconPicker({ current, currentColor, onPick, onPickColor, onClose
             <span className="filter-hint icon-picker-empty">no matching icons</span>
           )}
         </div>
+        {matches.length > MAX_SHOWN && (
+          <div className="icon-picker-more">
+            showing {MAX_SHOWN} of {matches.length} — type to narrow
+          </div>
+        )}
       </div>
     </>
   );

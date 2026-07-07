@@ -2280,6 +2280,12 @@ input[type="checkbox"]:disabled {
   grid-column: 1 / -1;
   padding: 8px;
 }
+.icon-picker-more {
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 10px;
+  padding: 4px 8px;
+}
 .tree-icon {
   margin-right: 5px;
   flex: none;

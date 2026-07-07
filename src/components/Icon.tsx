@@ -1,196 +1,49 @@
 import type { ComponentType } from "react";
-import {
-  Icon as LucideLabIcon,
-  type LucideProps,
-  FileText,
-  Folder,
-  Book,
-  Bookmark,
-  Star,
-  Home,
-  Hammer,
-  Wrench,
-  Settings,
-  Lightbulb,
-  Flame,
-  Zap,
-  Sparkles,
-  Sun,
-  Moon,
-  Leaf,
-  Trees,
-  Target,
-  Palette,
-  Film,
-  Gamepad2,
-  Music,
-  Camera,
-  GraduationCap,
-  FlaskConical,
-  Microscope,
-  Telescope,
-  Laptop,
-  Monitor,
-  Smartphone,
-  Database,
-  Lock,
-  Key,
-  Shield,
-  Box,
-  TrendingUp,
-  Wallet,
-  Receipt,
-  CreditCard,
-  ShoppingCart,
-  Banknote,
-  PiggyBank,
-  Plane,
-  Rocket,
-  Car,
-  Bike,
-  Heart,
-  Check,
-  Flag,
-  Calendar,
-  Clock,
-  Brain,
-  Terminal,
-  Code,
-  Globe,
-  Map,
-  Compass,
-  List,
-  Dumbbell,
-} from "lucide-react";
-import {
-  barn,
-  cabin,
-  cactus,
-  coffee,
-  farm,
-  floppyDisk,
-  forkKnife,
-  gearbox,
-  mug,
-  owl,
-  pacMan,
-  penguin,
-  planet,
-  soccerBall,
-  starNorth,
-  steeringWheel,
-  sushi,
-  tire,
-  toolbox,
-  treesForest,
-  ufo,
-  watchActivity,
-  whale,
-  yinYang,
-} from "@lucide/lab";
+import { icons as lucideIcons, Icon as LucideLabIcon, type LucideProps } from "lucide-react";
+import * as lab from "@lucide/lab";
 import type { SelectColor } from "../types";
 
 /**
+ * The FULL Lucide catalogue (~1745 icons) plus every @lucide/lab extra
+ * (~300), keyed by the kebab-case names shown on lucide.dev. Loading all of
+ * them intentionally trades bundle size for choice — this is a self-hosted
+ * personal app, so the ~1 MB raw cost is acceptable.
+ *
  * Lab icons are bare icon-node arrays rendered through lucide's generic
- * <Icon iconNode=…>; core icons are ready-made components. The registry
- * holds either, keyed by the kebab-case name stored on Page.icon.
+ * <Icon iconNode=…>; core icons are ready-made components.
  */
 type LabIconNode = Parameters<typeof LucideLabIcon>[0]["iconNode"];
 type IconDef = ComponentType<LucideProps> | LabIconNode;
 
-export const ICON_REGISTRY: Record<string, IconDef> = {
-  // documents & places
-  "file-text": FileText,
-  folder: Folder,
-  book: Book,
-  bookmark: Bookmark,
-  list: List,
-  home: Home,
-  cabin,
-  barn,
-  farm,
-  globe: Globe,
-  map: Map,
-  compass: Compass,
-  // making & tools
-  hammer: Hammer,
-  wrench: Wrench,
-  toolbox,
-  settings: Settings,
-  gearbox,
-  terminal: Terminal,
-  code: Code,
-  "floppy-disk": floppyDisk,
-  database: Database,
-  laptop: Laptop,
-  monitor: Monitor,
-  smartphone: Smartphone,
-  // ideas & nature
-  lightbulb: Lightbulb,
-  brain: Brain,
-  flame: Flame,
-  zap: Zap,
-  sparkles: Sparkles,
-  star: Star,
-  "star-north": starNorth,
-  sun: Sun,
-  moon: Moon,
-  planet,
-  ufo,
-  leaf: Leaf,
-  trees: Trees,
-  forest: treesForest,
-  cactus,
-  owl,
-  penguin,
-  whale,
-  // pursuits
-  target: Target,
-  palette: Palette,
-  film: Film,
-  gamepad: Gamepad2,
-  "pac-man": pacMan,
-  music: Music,
-  camera: Camera,
-  "graduation-cap": GraduationCap,
-  flask: FlaskConical,
-  microscope: Microscope,
-  telescope: Telescope,
-  dumbbell: Dumbbell,
-  bike: Bike,
-  "soccer-ball": soccerBall,
-  "yin-yang": yinYang,
-  // money & things
-  wallet: Wallet,
-  receipt: Receipt,
-  "credit-card": CreditCard,
-  "shopping-cart": ShoppingCart,
-  banknote: Banknote,
-  "piggy-bank": PiggyBank,
-  "trending-up": TrendingUp,
-  box: Box,
-  lock: Lock,
-  key: Key,
-  shield: Shield,
-  watch: watchActivity,
-  coffee,
-  mug,
-  "fork-knife": forkKnife,
-  sushi,
-  // travel & time
-  plane: Plane,
-  rocket: Rocket,
-  car: Car,
-  "steering-wheel": steeringWheel,
-  tire,
-  heart: Heart,
-  check: Check,
-  flag: Flag,
-  calendar: Calendar,
-  clock: Clock,
-};
+/** "AArrowDown" / "pacMan" / "Gamepad2" -> "a-arrow-down" / "pac-man" / "gamepad-2" */
+function kebab(name: string): string {
+  return name
+    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1-$2")
+    .replace(/([a-zA-Z])(\d)/g, "$1-$2")
+    .toLowerCase();
+}
 
-export const ICON_NAMES = Object.keys(ICON_REGISTRY);
+const registry: Record<string, IconDef> = {};
+// Lab first so the official set wins any name collision.
+for (const [name, node] of Object.entries(lab)) {
+  registry[kebab(name)] = node as LabIconNode;
+}
+for (const [name, component] of Object.entries(lucideIcons)) {
+  registry[kebab(name)] = component;
+}
+// Back-compat for keys stored before the picker exposed the full catalogue.
+const ALIASES: Record<string, string> = {
+  gamepad: "gamepad-2",
+  flask: "flask-conical",
+  forest: "trees-forest",
+};
+for (const [from, to] of Object.entries(ALIASES)) {
+  if (!registry[from] && registry[to]) registry[from] = registry[to];
+}
+
+export const ICON_REGISTRY = registry;
+export const ICON_NAMES = Object.keys(ICON_REGISTRY).sort();
 
 /** True when the stored value is a known icon key (legacy emojis aren't). */
 export function isIconName(name: string | undefined): name is string {
