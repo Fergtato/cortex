@@ -1,27 +1,130 @@
-import { useState } from "react";
-import { PROPERTY_TYPES, type Database, type DatabaseRow } from "../../types";
+import { Fragment, useState } from "react";
+import {
+  PROPERTY_TYPES,
+  type AggOp,
+  type Database,
+  type DatabaseRow,
+  type DatabaseView,
+  type PropertyDef,
+} from "../../types";
 import type { Store } from "../../store";
 import { useDialog } from "../Dialog";
 import { Cell } from "./Cell";
+import { computedCellValue } from "../../lib/formula";
+import { AGG_OPS, aggregate } from "./aggregate";
 
 interface Props {
   db: Database;
   store: Store;
   /** Rows to display (already filtered/sorted by the host). */
   rows: DatabaseRow[];
+  view: DatabaseView;
   /** Hide schema-editing controls (property name/type/delete, add property). */
   lockSchema?: boolean;
-  /** Minimal chrome: hide the new-row button and row-delete column. */
+  /** Minimal chrome: hide the new-row button, row-delete column, calc row. */
   minimal?: boolean;
 }
 
-export function TableView({ db, store, rows, lockSchema, minimal }: Props) {
+const UNGROUPED = "__none__";
+
+export function TableView({ db, store, rows, view, lockSchema, minimal }: Props) {
   const dialog = useDialog();
   // Column drag state (header handles reorder via store.reorderProperties).
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const canWrap = (type: string) => type === "text" || type === "url";
+
+  const aggs = view.aggregations ?? {};
+  const hasAggs = db.properties.some((p) => aggs[p.id]);
+  const colSpan = db.properties.length + (minimal ? 0 : 1);
+
+  const groupProp = db.properties.find(
+    (p) => p.id === view.groupByPropId && p.type === "select"
+  );
+  const groups = groupProp
+    ? [
+        ...(groupProp.options ?? []).map((o) => ({
+          key: o.id,
+          label: o.name,
+          color: o.color as string | null,
+          rows: rows.filter((r) => r.cells[groupProp.id] === o.id),
+        })),
+        {
+          key: UNGROUPED,
+          label: `no ${groupProp.name.toLowerCase()}`,
+          color: null,
+          rows: rows.filter(
+            (r) =>
+              !r.cells[groupProp.id] ||
+              !(groupProp.options ?? []).some((o) => o.id === r.cells[groupProp.id])
+          ),
+        },
+      ].filter((g) => g.rows.length > 0 || g.key !== UNGROUPED)
+    : null;
+
+  const toggleGroup = (key: string) =>
+    setCollapsed((cur) => {
+      const next = new Set(cur);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+
+  const colValues = (prop: PropertyDef, over: DatabaseRow[]) =>
+    over.map((r) => computedCellValue(db, r, prop));
+
+  const setAgg = (propId: string, op: string) => {
+    const next = { ...aggs };
+    if (op) next[propId] = op as AggOp;
+    else delete next[propId];
+    store.updateView(db.id, view.id, { aggregations: next });
+  };
+
+  const renderRow = (row: DatabaseRow) => (
+    <tr key={row.id}>
+      {db.properties.map((prop) => (
+        <td key={prop.id} className={prop.wrap ? "td-wrap" : undefined}>
+          <Cell
+            dbId={db.id}
+            prop={prop}
+            value={row.cells[prop.id] ?? null}
+            row={row}
+            store={store}
+            onChange={(v) => store.updateCell(db.id, row.id, prop.id, v)}
+          />
+        </td>
+      ))}
+      {!minimal && (
+        <td className="row-del-cell">
+          <button
+            className="row-del"
+            title="Delete row"
+            onClick={() => store.deleteRow(db.id, row.id)}
+          >
+            ×
+          </button>
+        </td>
+      )}
+    </tr>
+  );
+
+  const renderAggRow = (over: DatabaseRow[], className: string) => (
+    <tr className={className}>
+      {db.properties.map((prop) => (
+        <td key={prop.id} className="agg-cell">
+          {aggs[prop.id] && (
+            <span className="agg-val">
+              <span className="agg-op">{aggs[prop.id]}</span>{" "}
+              {aggregate(aggs[prop.id], colValues(prop, over))}
+            </span>
+          )}
+        </td>
+      ))}
+      {!minimal && <td />}
+    </tr>
+  );
 
   return (
     <div className="db-table-wrap">
@@ -163,34 +266,62 @@ export function TableView({ db, store, rows, lockSchema, minimal }: Props) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={row.id}>
+          {groups
+            ? groups.map((g) => (
+                <Fragment key={g.key}>
+                  <tr className="tgroup-row">
+                    <td colSpan={colSpan}>
+                      <button
+                        className="tgroup-toggle"
+                        onClick={() => toggleGroup(g.key)}
+                      >
+                        {collapsed.has(g.key) ? "▸" : "▾"}
+                      </button>
+                      {g.color ? (
+                        <span className={`cell-pill selc-${g.color}`}>{g.label}</span>
+                      ) : (
+                        <span className="tgroup-none">{g.label}</span>
+                      )}
+                      <span className="tgroup-count">{g.rows.length}</span>
+                    </td>
+                  </tr>
+                  {!collapsed.has(g.key) && g.rows.map(renderRow)}
+                  {!collapsed.has(g.key) && hasAggs && renderAggRow(g.rows, "tgroup-agg")}
+                </Fragment>
+              ))
+            : rows.map(renderRow)}
+        </tbody>
+        {!minimal && (
+          <tfoot>
+            <tr className="agg-row">
               {db.properties.map((prop) => (
-                <td key={prop.id} className={prop.wrap ? "td-wrap" : undefined}>
-                  <Cell
-                    dbId={db.id}
-                    prop={prop}
-                    value={row.cells[prop.id] ?? null}
-                    row={row}
-                    store={store}
-                    onChange={(v) => store.updateCell(db.id, row.id, prop.id, v)}
-                  />
+                <td key={prop.id} className="agg-cell">
+                  <span className="agg-pick">
+                    <select
+                      className="agg-select"
+                      value={aggs[prop.id] ?? ""}
+                      title="Column calculation"
+                      onChange={(e) => setAgg(prop.id, e.target.value)}
+                    >
+                      <option value="">calc</option>
+                      {AGG_OPS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                    {aggs[prop.id] && (
+                      <span className="agg-val">
+                        {aggregate(aggs[prop.id], colValues(prop, rows))}
+                      </span>
+                    )}
+                  </span>
                 </td>
               ))}
-              {!minimal && (
-                <td className="row-del-cell">
-                  <button
-                    className="row-del"
-                    title="Delete row"
-                    onClick={() => store.deleteRow(db.id, row.id)}
-                  >
-                    ×
-                  </button>
-                </td>
-              )}
+              <td />
             </tr>
-          ))}
-        </tbody>
+          </tfoot>
+        )}
       </table>
       {!minimal && (
         <button className="add-row-btn" onClick={() => store.addRow(db.id)}>

@@ -78,25 +78,6 @@ export function KanbanView({ db, store, rows, view, lockSchema, minimal }: Props
 
   return (
     <div className="kanban-wrap">
-      {!minimal && selectProps.length > 1 && (
-        <div className="kanban-config">
-          <span className="db-control-label">group by</span>
-          <select
-            className="db-control-select"
-            value={groupProp.id}
-            onChange={(e) =>
-              store.updateView(db.id, view.id, { groupByPropId: e.target.value })
-            }
-          >
-            {selectProps.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-
       <div className="kanban">
         {columns.map((col) => {
           const colRows = rowsFor(col.id);

@@ -206,12 +206,28 @@ export function DatabaseBlock({
           sort={sort}
           onChangeFilters={(f) => store.updateView(db.id, active.id, { filters: f })}
           onChangeSort={(s) => store.updateView(db.id, active.id, { sort: s })}
+          // Grouping applies to table + kanban views.
+          groupBy={
+            active.type === "table" || active.type === "kanban"
+              ? active.groupByPropId ?? null
+              : undefined
+          }
+          onChangeGroupBy={(propId) =>
+            store.updateView(db.id, active.id, { groupByPropId: propId })
+          }
         />
       )}
 
       <div className="db-body">
         {active.type === "table" && (
-          <TableView db={db} store={store} rows={rows} lockSchema={lockSchema} minimal={minimal} />
+          <TableView
+            db={db}
+            store={store}
+            rows={rows}
+            view={active}
+            lockSchema={lockSchema}
+            minimal={minimal}
+          />
         )}
         {active.type === "gallery" && (
           <GalleryView db={db} store={store} rows={rows} view={active} minimal={minimal} />

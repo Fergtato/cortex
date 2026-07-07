@@ -13,12 +13,23 @@ interface Props {
   sort: DbSort | null;
   onChangeFilters: (filters: FilterCondition[]) => void;
   onChangeSort: (sort: DbSort | null) => void;
+  /** Group-by property id; undefined hides the control (view doesn't group). */
+  groupBy?: string | null;
+  onChangeGroupBy?: (propId: string | null) => void;
 }
 
 let counter = 0;
 const newId = () => `f${Date.now().toString(36)}${counter++}`;
 
-export function FilterBar({ db, filters, sort, onChangeFilters, onChangeSort }: Props) {
+export function FilterBar({
+  db,
+  filters,
+  sort,
+  onChangeFilters,
+  onChangeSort,
+  groupBy,
+  onChangeGroupBy,
+}: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
 
   const addFilter = () => {
@@ -87,6 +98,26 @@ export function FilterBar({ db, filters, sort, onChangeFilters, onChangeSort }: 
           </button>
         )}
       </div>
+
+      {groupBy !== undefined && onChangeGroupBy && (
+        <div className="db-control">
+          <span className="db-control-label">group</span>
+          <select
+            className="db-control-select"
+            value={groupBy ?? ""}
+            onChange={(e) => onChangeGroupBy(e.target.value || null)}
+          >
+            <option value="">none</option>
+            {db.properties
+              .filter((p) => p.type === "select")
+              .map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+          </select>
+        </div>
+      )}
 
       <div className="filter-bar">
         <span className="db-control-label">filter</span>

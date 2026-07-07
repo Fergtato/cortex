@@ -2153,6 +2153,62 @@ input[type="checkbox"]:disabled {
   outline-offset: 1px;
 }
 
+/* table grouping + column calculations */
+.tgroup-row td {
+  background: #101010;
+  padding: 4px 6px;
+}
+.tgroup-toggle {
+  color: var(--dim);
+  padding: 0 6px 0 2px;
+}
+.tgroup-toggle:hover {
+  color: var(--fg);
+}
+.tgroup-none {
+  color: var(--dim);
+  font-size: 11px;
+}
+.tgroup-count {
+  color: var(--dim);
+  font-size: 11px;
+  margin-left: 8px;
+}
+.tgroup-agg td,
+.agg-row td {
+  background: #0e0e0e;
+}
+.agg-cell {
+  padding: 3px 6px !important;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.agg-pick {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.agg-select {
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-family: inherit;
+  font-size: 10px;
+  outline: none;
+  cursor: pointer;
+  max-width: 54px;
+}
+.agg-select:hover {
+  color: var(--fg);
+}
+.agg-op {
+  color: var(--dim);
+  font-size: 10px;
+}
+.agg-val {
+  color: var(--accent);
+}
+
 /* computed cells (formula / created / edited / auto id) */
 .cell-computed {
   display: inline-block;
