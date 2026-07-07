@@ -9,6 +9,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
 // DB_PATH lets a container mount a volume for the SQLite file.
 const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data.db");
+// CORTEX_TOKEN protects the API when exposed beyond localhost. When set,
+// every /api/* request (except the health check) must send
+// `Authorization: Bearer <token>`. Leave unset for open local use.
+const TOKEN = process.env.CORTEX_TOKEN || "";
+// CORS_ORIGIN restricts who may call the API from a browser (default: any).
+const CORS_ORIGIN = process.env.CORS_ORIGIN || "*";
 
 // ---- database ----------------------------------------------------------
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -25,8 +31,16 @@ for (const table of ["pages", "databases"]) {
 
 // ---- app ---------------------------------------------------------------
 const app = express();
-app.use(cors());
+app.use(cors({ origin: CORS_ORIGIN }));
 app.use(express.json({ limit: "20mb" }));
+
+// Bearer-token auth for everything except the health check.
+app.use("/api", (req, res, next) => {
+  if (!TOKEN || req.path === "/health") return next();
+  const header = req.get("authorization") || "";
+  if (header === `Bearer ${TOKEN}`) return next();
+  res.status(401).json({ error: "unauthorized" });
+});
 
 /**
  * Registers routes for a collection table:
@@ -87,4 +101,5 @@ app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.listen(PORT, () => {
   console.log(`Cortex API listening on http://localhost:${PORT}`);
   console.log(`sqlite file: ${DB_PATH}`);
+  console.log(TOKEN ? "auth: bearer token required" : "auth: OPEN (set CORTEX_TOKEN to protect)");
 });

@@ -8,6 +8,8 @@ interface Props {
   rows: DatabaseRow[];
   /** Hide schema-editing controls (adding a date property). */
   lockSchema?: boolean;
+  /** Minimal chrome: hide the new-item button. */
+  minimal?: boolean;
 }
 
 function rowTitle(db: Database, row: DatabaseRow): string {
@@ -31,7 +33,7 @@ function fmt(ms: number): string {
   });
 }
 
-export function TimelineView({ db, store, rows, lockSchema }: Props) {
+export function TimelineView({ db, store, rows, lockSchema, minimal }: Props) {
   const dateProp = db.properties.find((p) => p.type === "date");
 
   if (!dateProp) {
@@ -113,9 +115,11 @@ export function TimelineView({ db, store, rows, lockSchema }: Props) {
         </div>
       )}
 
-      <button className="add-row-btn" onClick={() => store.addRow(db.id)}>
-        + new item
-      </button>
+      {!minimal && (
+        <button className="add-row-btn" onClick={() => store.addRow(db.id)}>
+          + new item
+        </button>
+      )}
     </div>
   );
 }

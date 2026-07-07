@@ -4,11 +4,14 @@ export interface DataSourceConfig {
   mode: DataSourceMode;
   /** Base URL of the API server when mode === "api" (no trailing slash). */
   apiUrl: string;
+  /** Bearer token sent to the API (matches the server's CORTEX_TOKEN). */
+  apiToken?: string;
 }
 
 export const DEFAULT_DATA_SOURCE: DataSourceConfig = {
   mode: "local",
   apiUrl: "http://localhost:3001",
+  apiToken: "",
 };
 
 // The data-source choice itself always lives in localStorage so the app knows

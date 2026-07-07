@@ -65,14 +65,21 @@ class LocalStorageAdapter implements StorageAdapter {
 }
 
 class ApiAdapter implements StorageAdapter {
-  constructor(private baseUrl: string) {}
+  constructor(private baseUrl: string, private token?: string) {}
 
   private url(path: string) {
     return `${this.baseUrl.replace(/\/$/, "")}/api/${path}`;
   }
 
+  private headers(json = false): HeadersInit {
+    return {
+      ...(json ? { "Content-Type": "application/json" } : {}),
+      ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
+    };
+  }
+
   private async get<T>(path: string): Promise<T> {
-    const res = await fetch(this.url(path));
+    const res = await fetch(this.url(path), { headers: this.headers() });
     if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
     return (await res.json()) as T;
   }
@@ -80,7 +87,7 @@ class ApiAdapter implements StorageAdapter {
   private async patch(path: string, body: unknown): Promise<void> {
     const res = await fetch(this.url(path), {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: this.headers(true),
       body: JSON.stringify(body),
     });
     if (!res.ok) throw new Error(`PATCH ${path} failed: ${res.status}`);
@@ -103,6 +110,6 @@ class ApiAdapter implements StorageAdapter {
 /** Builds the adapter for the currently-configured data source. */
 export function getAdapter(): StorageAdapter {
   const config = getDataSource();
-  if (config.mode === "api") return new ApiAdapter(config.apiUrl);
+  if (config.mode === "api") return new ApiAdapter(config.apiUrl, config.apiToken);
   return new LocalStorageAdapter();
 }

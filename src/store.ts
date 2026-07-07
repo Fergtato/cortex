@@ -3,13 +3,17 @@ import type {
   CellValue,
   Database,
   DatabaseMap,
+  DatabaseView,
   Page,
   PageMap,
   PropertyDef,
   PropertyType,
+  SelectColor,
+  SelectOption,
   ViewType,
 } from "./types";
 import { getAdapter, type CollectionDelta } from "./storage/adapters";
+import { colorForIndex, migrateDatabases } from "./storage/migrateDatabases";
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -51,7 +55,10 @@ export interface Store {
   roots: Page[];
   childrenOf: (parentId: string | null) => Page[];
   createPage: (parentId: string | null, title?: string) => string;
-  updatePage: (id: string, patch: Partial<Pick<Page, "title" | "content">>) => void;
+  updatePage: (
+    id: string,
+    patch: Partial<Pick<Page, "title" | "content" | "icon" | "cover">>
+  ) => void;
   deletePage: (id: string) => void;
 
   /* databases */
@@ -67,7 +74,21 @@ export interface Store {
   addProperty: (dbId: string, name: string, type: PropertyType) => void;
   updateProperty: (dbId: string, propId: string, patch: Partial<PropertyDef>) => void;
   deleteProperty: (dbId: string, propId: string) => void;
-  addRow: (dbId: string) => void;
+  /** Move the property at `from` to position `to` (title stays at index 0). */
+  reorderProperties: (dbId: string, from: number, to: number) => void;
+  /** Add a select option; returns its id so callers can select it right away. */
+  addSelectOption: (dbId: string, propId: string, name: string, color?: SelectColor) => string;
+  updateSelectOption: (
+    dbId: string,
+    propId: string,
+    optId: string,
+    patch: Partial<Pick<SelectOption, "name" | "color">>
+  ) => void;
+  /** Delete an option and strip it from every row's cell value. */
+  deleteSelectOption: (dbId: string, propId: string, optId: string) => void;
+  /** Patch per-view config (filters, sort, grouping, cover fit, …). */
+  updateView: (dbId: string, viewId: string, patch: Partial<DatabaseView>) => void;
+  addRow: (dbId: string, cells?: Record<string, CellValue>) => void;
   updateCell: (dbId: string, rowId: string, propId: string, value: CellValue) => void;
   deleteRow: (dbId: string, rowId: string) => void;
   /** Apply an arbitrary immutable transform to a database (used by import). */
@@ -97,7 +118,10 @@ export function useStore(): Store {
       .then(([p, d]) => {
         if (cancelled) return;
         setPages(p);
-        setDatabases(d);
+        // One-time v2 migration (string select options -> coloured objects).
+        // The saved snapshot keeps the *raw* map so the first debounced flush
+        // persists exactly the entities the migration touched.
+        setDatabases(migrateDatabases(d));
         savedPages.current = p;
         savedDbs.current = d;
       })
@@ -167,7 +191,7 @@ export function useStore(): Store {
   }, []);
 
   const updatePage = useCallback(
-    (id: string, patch: Partial<Pick<Page, "title" | "content">>) => {
+    (id: string, patch: Partial<Pick<Page, "title" | "content" | "icon" | "cover">>) => {
       setPages((prev) => {
         const existing = prev[id];
         if (!existing) return prev;
@@ -242,7 +266,11 @@ export function useStore(): Store {
       id: uid(),
       name: "Status",
       type: "select",
-      options: ["todo", "doing", "done"],
+      options: [
+        { id: uid(), name: "todo", color: "red" },
+        { id: uid(), name: "doing", color: "yellow" },
+        { id: uid(), name: "done", color: "green" },
+      ],
     };
     const dateProp: PropertyDef = { id: uid(), name: "Date", type: "date" };
     const tableView = { id: uid(), name: "Table", type: "table" as ViewType };
@@ -251,10 +279,11 @@ export function useStore(): Store {
       name: "Untitled database",
       properties: [titleProp, statusProp, dateProp],
       rows: [
-        { id: uid(), cells: { [titleProp.id]: "First item" }, createdAt: now },
+        { id: uid(), cells: { [titleProp.id]: "First item" }, createdAt: now, updatedAt: now, seq: 1 },
       ],
       views: [tableView],
       activeViewId: tableView.id,
+      nextSeq: 2,
       createdAt: now,
       updatedAt: now,
     };
@@ -329,18 +358,128 @@ export function useStore(): Store {
 
   const updateProperty = useCallback(
     (dbId: string, propId: string, patch: Partial<PropertyDef>) =>
+      patchDb(dbId, (db) => {
+        const prev = db.properties.find((p) => p.id === propId);
+        if (!prev) return db;
+        const isSelectType = (t?: PropertyType) => t === "select" || t === "multiselect";
+        const next = {
+          ...prev,
+          ...patch,
+          // Ensure select-ish properties always have an options array.
+          ...(isSelectType(patch.type) && !prev.options ? { options: [] } : {}),
+        };
+        let rows = db.rows;
+        // Converting between select and multiselect reshapes cell values.
+        if (patch.type && patch.type !== prev.type) {
+          if (prev.type === "select" && patch.type === "multiselect") {
+            rows = db.rows.map((r) => {
+              const v = r.cells[propId];
+              return typeof v === "string" && v
+                ? { ...r, cells: { ...r.cells, [propId]: [v] } }
+                : r;
+            });
+          } else if (prev.type === "multiselect" && patch.type === "select") {
+            rows = db.rows.map((r) => {
+              const v = r.cells[propId];
+              return Array.isArray(v)
+                ? { ...r, cells: { ...r.cells, [propId]: v[0] ?? null } }
+                : r;
+            });
+          }
+        }
+        return {
+          ...db,
+          properties: db.properties.map((p) => (p.id === propId ? next : p)),
+          rows,
+        };
+      }),
+    [patchDb]
+  );
+
+  const reorderProperties = useCallback(
+    (dbId: string, from: number, to: number) =>
+      patchDb(dbId, (db) => {
+        // The title property is pinned at index 0.
+        if (from === to || from === 0 || to === 0) return db;
+        if (from < 0 || from >= db.properties.length) return db;
+        if (to < 0 || to >= db.properties.length) return db;
+        const properties = [...db.properties];
+        const [moved] = properties.splice(from, 1);
+        properties.splice(to, 0, moved);
+        return { ...db, properties };
+      }),
+    [patchDb]
+  );
+
+  const addSelectOption = useCallback(
+    (dbId: string, propId: string, name: string, color?: SelectColor) => {
+      const id = uid();
+      patchDb(dbId, (db) => ({
+        ...db,
+        properties: db.properties.map((p) => {
+          if (p.id !== propId) return p;
+          const options = p.options ?? [];
+          return {
+            ...p,
+            options: [...options, { id, name, color: color ?? colorForIndex(options.length) }],
+          };
+        }),
+      }));
+      return id;
+    },
+    [patchDb]
+  );
+
+  const updateSelectOption = useCallback(
+    (
+      dbId: string,
+      propId: string,
+      optId: string,
+      patch: Partial<Pick<SelectOption, "name" | "color">>
+    ) =>
       patchDb(dbId, (db) => ({
         ...db,
         properties: db.properties.map((p) =>
           p.id === propId
             ? {
                 ...p,
-                ...patch,
-                // Ensure select properties always have an options array.
-                ...(patch.type === "select" && !p.options ? { options: [] } : {}),
+                options: (p.options ?? []).map((o) =>
+                  o.id === optId ? { ...o, ...patch } : o
+                ),
               }
             : p
         ),
+      })),
+    [patchDb]
+  );
+
+  const deleteSelectOption = useCallback(
+    (dbId: string, propId: string, optId: string) =>
+      patchDb(dbId, (db) => ({
+        ...db,
+        properties: db.properties.map((p) =>
+          p.id === propId
+            ? { ...p, options: (p.options ?? []).filter((o) => o.id !== optId) }
+            : p
+        ),
+        // Strip the deleted option from every row that referenced it.
+        rows: db.rows.map((r) => {
+          const v = r.cells[propId];
+          if (v === optId) return { ...r, cells: { ...r.cells, [propId]: null } };
+          if (Array.isArray(v) && v.includes(optId)) {
+            return { ...r, cells: { ...r.cells, [propId]: v.filter((x) => x !== optId) } };
+          }
+          return r;
+        }),
+      })),
+    [patchDb]
+  );
+
+  const updateView = useCallback(
+    (dbId: string, viewId: string, patch: Partial<DatabaseView>) =>
+      patchDb(dbId, (db) => ({
+        ...db,
+        views: db.views.map((v) => (v.id === viewId ? { ...v, ...patch } : v)),
       })),
     [patchDb]
   );
@@ -364,11 +503,16 @@ export function useStore(): Store {
   );
 
   const addRow = useCallback(
-    (dbId: string) =>
-      patchDb(dbId, (db) => ({
-        ...db,
-        rows: [...db.rows, { id: uid(), cells: {}, createdAt: Date.now() }],
-      })),
+    (dbId: string, cells: Record<string, CellValue> = {}) =>
+      patchDb(dbId, (db) => {
+        const seq = db.nextSeq ?? db.rows.length + 1;
+        const now = Date.now();
+        return {
+          ...db,
+          nextSeq: seq + 1,
+          rows: [...db.rows, { id: uid(), cells, createdAt: now, updatedAt: now, seq }],
+        };
+      }),
     [patchDb]
   );
 
@@ -377,7 +521,9 @@ export function useStore(): Store {
       patchDb(dbId, (db) => ({
         ...db,
         rows: db.rows.map((r) =>
-          r.id === rowId ? { ...r, cells: { ...r.cells, [propId]: value } } : r
+          r.id === rowId
+            ? { ...r, cells: { ...r.cells, [propId]: value }, updatedAt: Date.now() }
+            : r
         ),
       })),
     [patchDb]
@@ -414,6 +560,11 @@ export function useStore(): Store {
     addProperty,
     updateProperty,
     deleteProperty,
+    reorderProperties,
+    addSelectOption,
+    updateSelectOption,
+    deleteSelectOption,
+    updateView,
     addRow,
     updateCell,
     deleteRow,

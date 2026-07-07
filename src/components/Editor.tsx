@@ -23,6 +23,7 @@ import { Toggle } from "./editor/Toggle";
 import { Columns, Column } from "./editor/Columns";
 import { Tabs, Tab } from "./editor/Tabs";
 import { BlockCursor } from "./editor/BlockCursor";
+import { SlashCommands, type SlashActions } from "./editor/SlashCommands";
 import { pickImage } from "../lib/image";
 
 interface Props {
@@ -51,6 +52,15 @@ export function Editor({
   // creation) always call the current versions without recreating the editor.
   const onChangeRef = useRef(onChangeContent);
   onChangeRef.current = onChangeContent;
+
+  // Slash-menu actions: the extension is created once with the editor, so it
+  // reads the current callbacks through this ref (assigned below each render).
+  const slashActionsRef = useRef<SlashActions>({
+    insertSubpage: () => {},
+    insertPageLink: () => {},
+    insertDatabase: () => {},
+    insertImage: () => {},
+  });
 
   // The editor is created ONCE and reused for every page. Switching pages swaps
   // its content (below) rather than tearing down and rebuilding the instance —
@@ -83,7 +93,8 @@ export function Editor({
       Tabs,
       Tab,
       BlockCursor,
-      Placeholder.configure({ placeholder: "start writing…" }),
+      SlashCommands.configure({ actions: () => slashActionsRef.current }),
+      Placeholder.configure({ placeholder: "start writing… (/ for blocks)" }),
     ],
     content: page.content,
     onUpdate: ({ editor }) => onChangeRef.current(editor.getHTML()),
@@ -177,6 +188,13 @@ export function Editor({
     if (!src) return;
     editor.chain().focus().insertContent({ type: "resizableImage", attrs: { src } }).run();
   }
+
+  slashActionsRef.current = {
+    insertSubpage,
+    insertPageLink,
+    insertDatabase,
+    insertImage,
+  };
 
   if (!editor) return null;
 

@@ -1,4 +1,5 @@
 import {
+  useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
@@ -18,6 +19,9 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
   const store = useStoreContext();
   const nav = useNav();
   const dialog = useDialog();
+  // Editing reveals the view switcher, filter/sort bar, and new-row button;
+  // by default an embed is just a titled table.
+  const [editing, setEditing] = useState(false);
 
   const dbId: string | null = node.attrs.dbId ?? null;
   const db = dbId ? store.getDatabase(dbId) : undefined;
@@ -31,7 +35,10 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
       { label: "＋ create new database", value: NEW },
     ]);
     if (!choice) return;
-    updateAttributes({ dbId: choice === NEW ? store.createDatabase() : choice });
+    updateAttributes({
+      dbId: choice === NEW ? store.createDatabase() : choice,
+      viewId: null,
+    });
   }
 
   return (
@@ -72,16 +79,31 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
               ▤ {db.name || "untitled"} ↗
             </button>
             <span className="db-embed-actions">
-              <button className="row-btn" title="Embed a different database" onClick={pick}>
-                ⇄
-              </button>
               <button
-                className="row-btn"
-                title="Remove embed (keeps the database)"
-                onClick={() => deleteNode()}
+                className={`row-btn db-embed-edit${editing ? " active" : ""}`}
+                title={editing ? "Done editing" : "Edit view, filters, sort, rows"}
+                onClick={() => setEditing((e) => !e)}
               >
-                ×
+                {editing ? "✓ done" : "✎ edit"}
               </button>
+              {editing && (
+                <button
+                  className="row-btn"
+                  title="Embed a different database"
+                  onClick={pick}
+                >
+                  ⇄
+                </button>
+              )}
+              {editing && (
+                <button
+                  className="row-btn"
+                  title="Remove embed (keeps the database)"
+                  onClick={() => deleteNode()}
+                >
+                  ×
+                </button>
+              )}
             </span>
           </div>
           <DatabaseBlock
@@ -89,10 +111,9 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
             store={store}
             embedded
             lockSchema
-            filters={node.attrs.filters ?? []}
-            sort={node.attrs.sort ?? null}
-            onChangeFilters={(f) => updateAttributes({ filters: f })}
-            onChangeSort={(s) => updateAttributes({ sort: s })}
+            minimal={!editing}
+            viewId={node.attrs.viewId ?? null}
+            onSelectView={(id) => updateAttributes({ viewId: id })}
           />
         </>
       )}
@@ -115,32 +136,13 @@ export const DatabaseEmbed = Node.create({
         parseHTML: (el) => el.getAttribute("data-db-id"),
         renderHTML: (attrs) => ({ "data-db-id": attrs.dbId }),
       },
-      // Per-embed view config, persisted in the page content.
-      filters: {
-        default: [],
-        parseHTML: (el) => {
-          try {
-            return JSON.parse(el.getAttribute("data-filters") || "[]");
-          } catch {
-            return [];
-          }
-        },
-        renderHTML: (attrs) =>
-          attrs.filters && attrs.filters.length
-            ? { "data-filters": JSON.stringify(attrs.filters) }
-            : {},
-      },
-      sort: {
+      // Which of the database's views this embed shows (view config itself —
+      // filters/sort/grouping — lives on the view, shared everywhere).
+      viewId: {
         default: null,
-        parseHTML: (el) => {
-          try {
-            return JSON.parse(el.getAttribute("data-sort") || "null");
-          } catch {
-            return null;
-          }
-        },
+        parseHTML: (el) => el.getAttribute("data-view-id"),
         renderHTML: (attrs) =>
-          attrs.sort ? { "data-sort": JSON.stringify(attrs.sort) } : {},
+          attrs.viewId ? { "data-view-id": attrs.viewId } : {},
       },
     };
   },

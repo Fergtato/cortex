@@ -1,19 +1,65 @@
-import type { CellValue, PropertyDef } from "../../types";
-import { useDialog } from "../Dialog";
+import { useLayoutEffect, useRef } from "react";
+import type { CellValue, DatabaseRow, PropertyDef } from "../../types";
+import type { Store } from "../../store";
 import { pickImage } from "../../lib/image";
+import { computedCellValue, formatComputed } from "../../lib/formula";
+import { SelectCell } from "./SelectCell";
 
 interface Props {
+  dbId: string;
   prop: PropertyDef;
   value: CellValue;
+  store: Store;
   onChange: (value: CellValue) => void;
-  /** Lets a select property gain a new option on the fly. */
-  onAddOption?: (option: string) => void;
+  /** The row, for computed cells (created/edited time, auto id, formulas). */
+  row?: DatabaseRow;
 }
 
-export function Cell({ prop, value, onChange, onAddOption }: Props) {
-  const dialog = useDialog();
+/** Auto-growing textarea for wrapped text columns: shows all content. */
+function WrapTextCell({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string | null) => void;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "0";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      rows={1}
+      className="cell-input cell-textarea"
+      value={value}
+      onChange={(e) => onChange(e.target.value || null)}
+    />
+  );
+}
 
+export function Cell({ dbId, prop, value, store, onChange, row }: Props) {
   switch (prop.type) {
+    case "formula":
+    case "created_time":
+    case "last_edited_time":
+    case "auto_id": {
+      const db = store.getDatabase(dbId);
+      const computed = db && row ? computedCellValue(db, row, prop) : null;
+      const text = formatComputed(prop, computed);
+      return (
+        <span
+          className={`cell-computed${text === "#ERR" || text === "#REF" ? " error" : ""}`}
+          title={prop.type === "formula" ? prop.formula : undefined}
+        >
+          {text || "—"}
+        </span>
+      );
+    }
+
     case "checkbox":
       return (
         <span className="cell-checkbox-wrap">
@@ -47,6 +93,11 @@ export function Cell({ prop, value, onChange, onAddOption }: Props) {
       );
 
     case "url":
+      if (prop.wrap) {
+        return (
+          <WrapTextCell value={typeof value === "string" ? value : ""} onChange={onChange} />
+        );
+      }
       return (
         <input
           type="text"
@@ -57,37 +108,11 @@ export function Cell({ prop, value, onChange, onAddOption }: Props) {
         />
       );
 
-    case "select": {
-      const ADD = "__add__";
-      const options = prop.options ?? [];
+    case "select":
+    case "multiselect":
       return (
-        <select
-          className="cell-input cell-select"
-          value={typeof value === "string" ? value : ""}
-          onChange={(e) => {
-            if (e.target.value === ADD) {
-              dialog.prompt("New option:").then((raw) => {
-                const next = raw?.trim();
-                if (next) {
-                  onAddOption?.(next);
-                  onChange(next);
-                }
-              });
-              return;
-            }
-            onChange(e.target.value || null);
-          }}
-        >
-          <option value="">—</option>
-          {options.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-          <option value={ADD}>+ new option…</option>
-        </select>
+        <SelectCell dbId={dbId} prop={prop} value={value} store={store} onChange={onChange} />
       );
-    }
 
     case "image": {
       const pick = async () => {
@@ -113,6 +138,11 @@ export function Cell({ prop, value, onChange, onAddOption }: Props) {
 
     case "text":
     default:
+      if (prop.wrap) {
+        return (
+          <WrapTextCell value={typeof value === "string" ? value : ""} onChange={onChange} />
+        );
+      }
       return (
         <input
           type="text"
