@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Page } from "../types";
 import type { Store } from "../store";
 import { useDialog } from "./Dialog";
+import { Icon } from "./Icon";
 
 interface Props {
   store: Store;
@@ -94,7 +95,9 @@ function TreeNode({ store, page, depth, selectedId, onSelect, onCreatedSelect }:
           {hasChildren ? (open ? "▼" : "▶") : "·"}
         </span>
         <span className="tree-title">
-          {page.icon && <span className="tree-icon">{page.icon} </span>}
+          {page.icon && (
+            <Icon name={page.icon} size={13} color={page.iconColor} className="tree-icon" />
+          )}
           {page.title || "untitled"}
         </span>
         <span className="tree-actions">

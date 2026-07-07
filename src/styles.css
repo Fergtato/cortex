@@ -2199,14 +2199,27 @@ input[type="checkbox"]:disabled {
   align-items: center;
   gap: 10px;
 }
+/* inline SVG icon wrapper (see components/Icon.tsx) */
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -2px;
+}
+.crumb .glyph,
+.meta-btn .glyph {
+  margin-right: 4px;
+}
 .page-icon {
-  font-size: 30px;
-  line-height: 1;
-  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: 1px solid transparent;
   cursor: pointer;
 }
 .page-icon:hover {
   background: var(--selection);
+  border-color: var(--line);
 }
 .icon-picker-anchor {
   position: relative;
@@ -2228,19 +2241,34 @@ input[type="checkbox"]:disabled {
   padding: 6px;
   border-bottom: 1px solid var(--line);
 }
+.icon-picker-colors {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.swatch-none {
+  color: var(--dim);
+  font-size: 10px;
+  line-height: 1;
+  background: none;
+  border: 1px solid var(--line-bright);
+}
 .icon-picker-grid {
   display: grid;
-  grid-template-columns: repeat(10, 1fr);
+  grid-template-columns: repeat(9, 1fr);
   gap: 2px;
   padding: 6px;
-  max-height: 220px;
+  max-height: 240px;
   overflow-y: auto;
 }
 .icon-picker-cell {
-  font-size: 17px;
-  padding: 3px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
   cursor: pointer;
-  text-align: center;
+  color: var(--fg);
 }
 .icon-picker-cell:hover {
   background: var(--selection);
@@ -2248,8 +2276,18 @@ input[type="checkbox"]:disabled {
 .icon-picker-cell.active {
   outline: 1px solid var(--accent);
 }
+.icon-picker-empty {
+  grid-column: 1 / -1;
+  padding: 8px;
+}
 .tree-icon {
-  font-size: 12px;
+  margin-right: 5px;
+  flex: none;
+}
+.tree-title {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
 }
 
 /* slash command menu */

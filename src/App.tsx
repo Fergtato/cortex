@@ -7,6 +7,7 @@ import { Editor } from "./components/Editor";
 import { DatabaseBlock } from "./components/database/DatabaseBlock";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { useDialog } from "./components/Dialog";
+import { Icon, isIconName } from "./components/Icon";
 import { IconPicker } from "./components/IconPicker";
 import { importFromCSV, importFromJSON } from "./lib/importDB";
 import { pickImage } from "./lib/image";
@@ -285,7 +286,7 @@ export default function App() {
                     <span key={p.id}>
                       {i > 0 && <span className="crumb-sep"> / </span>}
                       <button className="crumb" onClick={() => openPage(p.id)}>
-                        {p.icon ? `${p.icon} ` : ""}
+                        {p.icon && <Icon name={p.icon} size={12} color={p.iconColor} />}
                         {p.title || "untitled"}
                       </button>
                     </span>
@@ -293,13 +294,13 @@ export default function App() {
                 </div>
 
                 <div className="page-title-row">
-                  {page.icon && (
+                  {isIconName(page.icon) && (
                     <button
                       className="page-icon"
                       title="Change icon"
                       onClick={() => setIconPickerOpen(true)}
                     >
-                      {page.icon}
+                      <Icon name={page.icon} size={26} color={page.iconColor} />
                     </button>
                   )}
                   <input
@@ -314,7 +315,9 @@ export default function App() {
                   <div className="icon-picker-anchor">
                     <IconPicker
                       current={page.icon}
+                      currentColor={page.iconColor}
                       onPick={(icon) => store.updatePage(page.id, { icon })}
+                      onPickColor={(iconColor) => store.updatePage(page.id, { iconColor })}
                       onClose={() => setIconPickerOpen(false)}
                     />
                   </div>
@@ -322,9 +325,9 @@ export default function App() {
 
                 <div className="page-meta">
                   <span>updated {new Date(page.updatedAt).toLocaleString()}</span>
-                  {!page.icon && (
+                  {!isIconName(page.icon) && (
                     <button className="meta-btn" onClick={() => setIconPickerOpen(true)}>
-                      ☺ add icon
+                      <Icon name="sparkles" size={11} /> add icon
                     </button>
                   )}
                   {!page.cover && (

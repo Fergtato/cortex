@@ -5,8 +5,10 @@ export interface Page {
   content: string;
   /** null for top-level projects, otherwise the parent page id. */
   parentId: string | null;
-  /** Optional emoji shown before the title in the sidebar and header. */
+  /** Optional icon name (see ICON_REGISTRY) shown before the title. */
   icon?: string;
+  /** Palette colour for the icon; unset renders in the text colour. */
+  iconColor?: SelectColor;
   /** Optional cover image (data URL) shown as a banner above the title. */
   cover?: string;
   createdAt: number;

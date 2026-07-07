@@ -57,7 +57,7 @@ export interface Store {
   createPage: (parentId: string | null, title?: string) => string;
   updatePage: (
     id: string,
-    patch: Partial<Pick<Page, "title" | "content" | "icon" | "cover">>
+    patch: Partial<Pick<Page, "title" | "content" | "icon" | "iconColor" | "cover">>
   ) => void;
   deletePage: (id: string) => void;
 
@@ -191,7 +191,10 @@ export function useStore(): Store {
   }, []);
 
   const updatePage = useCallback(
-    (id: string, patch: Partial<Pick<Page, "title" | "content" | "icon" | "cover">>) => {
+    (
+      id: string,
+      patch: Partial<Pick<Page, "title" | "content" | "icon" | "iconColor" | "cover">>
+    ) => {
       setPages((prev) => {
         const existing = prev[id];
         if (!existing) return prev;
