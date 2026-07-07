@@ -1,11 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   VIEW_TYPES,
   type Database,
   type DatabaseRow,
-  type DbSort,
-  type FilterCondition,
-  type PropertyType,
+  type PropertyDef,
   type ViewType,
 } from "../../types";
 import type { Store } from "../../store";
@@ -24,11 +22,11 @@ interface Props {
   embedded?: boolean;
   /** Lock schema editing (properties + view add/delete); data stays editable. */
   lockSchema?: boolean;
-  /** Per-embed filter/sort, persisted by the host. Presence shows the controls. */
-  filters?: FilterCondition[];
-  sort?: DbSort | null;
-  onChangeFilters?: (f: FilterCondition[]) => void;
-  onChangeSort?: (s: DbSort | null) => void;
+  /** Minimal chrome: hide view tabs, filter/sort bar, and new-row controls. */
+  minimal?: boolean;
+  /** Controlled active view (embeds persist their own choice). */
+  viewId?: string | null;
+  onSelectView?: (id: string) => void;
 }
 
 const VIEW_ICON: Record<ViewType, string> = {
@@ -40,19 +38,36 @@ const VIEW_ICON: Record<ViewType, string> = {
 };
 
 function isEmpty(v: unknown) {
-  return v === null || v === undefined || v === "";
+  return v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
 }
 
-function compareCells(a: unknown, b: unknown, type?: PropertyType): number {
+/** Sort key for a cell; select values sort by option *name*, not id. */
+function sortKey(v: unknown, prop?: PropertyDef): unknown {
+  if (!prop) return v;
+  if (prop.type === "select" && typeof v === "string") {
+    return prop.options?.find((o) => o.id === v)?.name ?? v;
+  }
+  if (prop.type === "multiselect" && Array.isArray(v)) {
+    return v
+      .map((id) => prop.options?.find((o) => o.id === id)?.name ?? id)
+      .join(", ");
+  }
+  return v;
+}
+
+export function compareCells(a: unknown, b: unknown, prop?: PropertyDef): number {
   const ae = isEmpty(a);
   const be = isEmpty(b);
   if (ae && be) return 0;
   if (ae) return 1; // empties sort last
   if (be) return -1;
+  const type = prop?.type;
   if (type === "number") return Number(a) - Number(b);
   if (type === "date") return new Date(String(a)).getTime() - new Date(String(b)).getTime();
   if (type === "checkbox") return (a === true ? 1 : 0) - (b === true ? 1 : 0);
-  return String(a).localeCompare(String(b));
+  const ka = sortKey(a, prop);
+  const kb = sortKey(b, prop);
+  return String(ka).localeCompare(String(kb));
 }
 
 export function DatabaseBlock({
@@ -60,27 +75,29 @@ export function DatabaseBlock({
   store,
   embedded = false,
   lockSchema = false,
-  filters = [],
-  sort = null,
-  onChangeFilters,
-  onChangeSort,
+  minimal = false,
+  viewId = null,
+  onSelectView,
 }: Props) {
   const dialog = useDialog();
-  const showControls = Boolean(onChangeFilters && onChangeSort);
 
-  // Embeds track the active view locally so switching never mutates the source.
-  const [localViewId, setLocalViewId] = useState(db.activeViewId);
-  const activeViewId = lockSchema ? localViewId : db.activeViewId;
+  // Embeds control their own active view (persisted on the embed node) so
+  // switching in one place never changes what other pages show.
+  const activeViewId = embedded ? viewId ?? db.activeViewId : db.activeViewId;
   const active = db.views.find((v) => v.id === activeViewId) ?? db.views[0];
   const selectView = (id: string) =>
-    lockSchema ? setLocalViewId(id) : store.setActiveView(db.id, id);
+    embedded ? onSelectView?.(id) : store.setActiveView(db.id, id);
+
+  // View-owned config — shared everywhere this view is shown.
+  const filters = active.filters ?? [];
+  const sort = active.sort ?? null;
 
   const rows: DatabaseRow[] = useMemo(() => {
     let out = filters.length ? db.rows.filter((r) => matchesAll(db, r, filters)) : db.rows;
     if (sort && sort.propId) {
       const prop = db.properties.find((p) => p.id === sort.propId);
       out = [...out].sort((a, b) => {
-        const c = compareCells(a.cells[sort.propId], b.cells[sort.propId], prop?.type);
+        const c = compareCells(a.cells[sort.propId], b.cells[sort.propId], prop);
         return sort.dir === "asc" ? c : -c;
       });
     }
@@ -119,71 +136,73 @@ export function DatabaseBlock({
         </div>
       )}
 
-      <div className="db-views">
-        {db.views.map((v) => (
-          <div
-            key={v.id}
-            className={`view-tab${v.id === activeViewId ? " active" : ""}`}
-            title={lockSchema ? undefined : "double-click to rename"}
-            onClick={() => selectView(v.id)}
-            onDoubleClick={() => {
-              if (!lockSchema) renameViewPrompt(v.id, v.name);
-            }}
-          >
-            <span className="view-icon">{VIEW_ICON[v.type]}</span>
-            {v.name}
-            {!lockSchema && db.views.length > 1 && (
-              <button
-                className="view-del"
-                title="Remove view"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  store.deleteView(db.id, v.id);
-                }}
-              >
-                ×
-              </button>
-            )}
-          </div>
-        ))}
-        {!lockSchema && (
-          <select
-            className="view-add"
-            value=""
-            title="Add view"
-            onChange={(e) => {
-              if (e.target.value) store.addView(db.id, e.target.value as ViewType);
-            }}
-          >
-            <option value="">+ view</option>
-            {VIEW_TYPES.map((t) => (
-              <option key={t} value={t}>
-                {VIEW_ICON[t]} {t}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+      {!minimal && (
+        <div className="db-views">
+          {db.views.map((v) => (
+            <div
+              key={v.id}
+              className={`view-tab${v.id === active.id ? " active" : ""}`}
+              title={lockSchema ? undefined : "double-click to rename"}
+              onClick={() => selectView(v.id)}
+              onDoubleClick={() => {
+                if (!lockSchema) renameViewPrompt(v.id, v.name);
+              }}
+            >
+              <span className="view-icon">{VIEW_ICON[v.type]}</span>
+              {v.name}
+              {!lockSchema && db.views.length > 1 && (
+                <button
+                  className="view-del"
+                  title="Remove view"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    store.deleteView(db.id, v.id);
+                  }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          {!lockSchema && (
+            <select
+              className="view-add"
+              value=""
+              title="Add view"
+              onChange={(e) => {
+                if (e.target.value) store.addView(db.id, e.target.value as ViewType);
+              }}
+            >
+              <option value="">+ view</option>
+              {VIEW_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {VIEW_ICON[t]} {t}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
 
-      {showControls && (
+      {!minimal && (
         <FilterBar
           db={db}
           filters={filters}
           sort={sort}
-          onChangeFilters={onChangeFilters!}
-          onChangeSort={onChangeSort!}
+          onChangeFilters={(f) => store.updateView(db.id, active.id, { filters: f })}
+          onChangeSort={(s) => store.updateView(db.id, active.id, { sort: s })}
         />
       )}
 
       <div className="db-body">
         {active.type === "table" && (
-          <TableView db={db} store={store} rows={rows} lockSchema={lockSchema} />
+          <TableView db={db} store={store} rows={rows} lockSchema={lockSchema} minimal={minimal} />
         )}
         {active.type === "gallery" && (
-          <GalleryView db={db} store={store} rows={rows} />
+          <GalleryView db={db} store={store} rows={rows} minimal={minimal} />
         )}
         {active.type === "timeline" && (
-          <TimelineView db={db} store={store} rows={rows} lockSchema={lockSchema} />
+          <TimelineView db={db} store={store} rows={rows} lockSchema={lockSchema} minimal={minimal} />
         )}
       </div>
     </div>

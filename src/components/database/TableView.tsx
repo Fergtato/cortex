@@ -10,9 +10,11 @@ interface Props {
   rows: DatabaseRow[];
   /** Hide schema-editing controls (property name/type/delete, add property). */
   lockSchema?: boolean;
+  /** Minimal chrome: hide the new-row button and row-delete column. */
+  minimal?: boolean;
 }
 
-export function TableView({ db, store, rows, lockSchema }: Props) {
+export function TableView({ db, store, rows, lockSchema, minimal }: Props) {
   const dialog = useDialog();
   return (
     <div className="db-table-wrap">
@@ -101,22 +103,26 @@ export function TableView({ db, store, rows, lockSchema }: Props) {
                   />
                 </td>
               ))}
-              <td className="row-del-cell">
-                <button
-                  className="row-del"
-                  title="Delete row"
-                  onClick={() => store.deleteRow(db.id, row.id)}
-                >
-                  ×
-                </button>
-              </td>
+              {!minimal && (
+                <td className="row-del-cell">
+                  <button
+                    className="row-del"
+                    title="Delete row"
+                    onClick={() => store.deleteRow(db.id, row.id)}
+                  >
+                    ×
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
       </table>
-      <button className="add-row-btn" onClick={() => store.addRow(db.id)}>
-        + new row
-      </button>
+      {!minimal && (
+        <button className="add-row-btn" onClick={() => store.addRow(db.id)}>
+          + new row
+        </button>
+      )}
     </div>
   );
 }

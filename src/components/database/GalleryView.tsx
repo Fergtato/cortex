@@ -7,9 +7,11 @@ interface Props {
   db: Database;
   store: Store;
   rows: DatabaseRow[];
+  /** Minimal chrome: hide the new-card button and card-delete controls. */
+  minimal?: boolean;
 }
 
-export function GalleryView({ db, store, rows }: Props) {
+export function GalleryView({ db, store, rows, minimal }: Props) {
   const [titleProp, ...rest] = db.properties;
   // First image property becomes the card cover; the rest are listed below.
   const imageProp = db.properties.find((p) => p.type === "image");
@@ -36,13 +38,15 @@ export function GalleryView({ db, store, rows }: Props) {
                   store.updateCell(db.id, row.id, titleProp.id, e.target.value || null)
                 }
               />
-              <button
-                className="row-del"
-                title="Delete item"
-                onClick={() => store.deleteRow(db.id, row.id)}
-              >
-                ×
-              </button>
+              {!minimal && (
+                <button
+                  className="row-del"
+                  title="Delete item"
+                  onClick={() => store.deleteRow(db.id, row.id)}
+                >
+                  ×
+                </button>
+              )}
             </div>
             <div className="card-fields">
               {fieldProps.map((prop) => (
@@ -60,9 +64,11 @@ export function GalleryView({ db, store, rows }: Props) {
           </div>
         ))}
       </div>
-      <button className="add-row-btn" onClick={() => store.addRow(db.id)}>
-        + new card
-      </button>
+      {!minimal && (
+        <button className="add-row-btn" onClick={() => store.addRow(db.id)}>
+          + new card
+        </button>
+      )}
     </div>
   );
 }
