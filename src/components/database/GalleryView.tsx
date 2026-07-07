@@ -53,10 +53,11 @@ export function GalleryView({ db, store, rows, minimal }: Props) {
                 <div key={prop.id} className="card-field">
                   <span className="card-label">{prop.name}</span>
                   <Cell
+                    dbId={db.id}
                     prop={prop}
                     value={row.cells[prop.id] ?? null}
+                    store={store}
                     onChange={(v) => store.updateCell(db.id, row.id, prop.id, v)}
-                    onAddOption={(name) => store.addSelectOption(db.id, prop.id, name)}
                   />
                 </div>
               ))}
