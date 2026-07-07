@@ -4,7 +4,11 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - pt-data:/data
+      # Bind mount: the SQLite file lives in a real folder on the host
+      # (server/data/data.db), so it's visible, easy to back up, and portable
+      # to another machine by copying the folder. The container writes to /data
+      # (see DB_PATH=/data/data.db in server/Dockerfile).
+      - ./server/data:/data
     environment:
       # Set in a .env file (or the shell) to require a bearer token on the
       # API — do this whenever the API is reachable beyond localhost.
@@ -19,11 +23,3 @@ services:
     depends_on:
       - api
     restart: unless-stopped
-
-volumes:
-  pt-data:
-    # Use the volume created under the old project name so existing SQLite
-    # data survives the folder rename. Docker Compose prefixes named volumes
-    # with the project name, which changed from project-tracker -> cortex.
-    external: true
-    name: project-tracker_pt-data

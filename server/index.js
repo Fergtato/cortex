@@ -7,8 +7,10 @@ import Database from "better-sqlite3";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3001;
-// DB_PATH lets a container mount a volume for the SQLite file.
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data.db");
+// DB_PATH lets a container mount a volume for the SQLite file. The default
+// (server/data/data.db) is the same folder the docker-compose bind mount uses,
+// so `npm start` and `docker compose up` share one database file.
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, "data", "data.db");
 // CORTEX_TOKEN protects the API when exposed beyond localhost. When set,
 // every /api/* request (except the health check) must send
 // `Authorization: Bearer <token>`. Leave unset for open local use.

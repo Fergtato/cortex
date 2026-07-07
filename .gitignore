@@ -9,6 +9,8 @@ dist/
 server/data.db
 server/data.db-shm
 server/data.db-wal
+# docker bind-mount data folder (SQLite file lives here when run via compose)
+server/data/
 
 # logs
 *.log
