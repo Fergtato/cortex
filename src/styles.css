@@ -1600,6 +1600,11 @@ input[type="checkbox"]:disabled {
   color: var(--accent);
   border-color: var(--accent);
 }
+.db-control-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
 
 /* filter chips + type-aware popover */
 .filter-bar {
@@ -2271,6 +2276,15 @@ input[type="checkbox"]:disabled {
   justify-content: center;
   cursor: pointer;
   overflow: hidden;
+}
+.gallery-config {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.gallery-cover-img.cover-fit {
+  object-fit: contain;
 }
 .gallery-cover-img {
   width: 100%;

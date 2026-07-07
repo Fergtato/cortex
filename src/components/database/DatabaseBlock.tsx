@@ -200,7 +200,7 @@ export function DatabaseBlock({
           <TableView db={db} store={store} rows={rows} lockSchema={lockSchema} minimal={minimal} />
         )}
         {active.type === "gallery" && (
-          <GalleryView db={db} store={store} rows={rows} minimal={minimal} />
+          <GalleryView db={db} store={store} rows={rows} view={active} minimal={minimal} />
         )}
         {active.type === "timeline" && (
           <TimelineView db={db} store={store} rows={rows} lockSchema={lockSchema} minimal={minimal} />
