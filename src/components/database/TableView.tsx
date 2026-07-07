@@ -97,11 +97,7 @@ export function TableView({ db, store, rows, lockSchema }: Props) {
                     prop={prop}
                     value={row.cells[prop.id] ?? null}
                     onChange={(v) => store.updateCell(db.id, row.id, prop.id, v)}
-                    onAddOption={(opt) =>
-                      store.updateProperty(db.id, prop.id, {
-                        options: [...(prop.options ?? []), opt],
-                      })
-                    }
+                    onAddOption={(name) => store.addSelectOption(db.id, prop.id, name)}
                   />
                 </td>
               ))}

@@ -1,4 +1,5 @@
 import type { DatabaseRow, PropertyDef, PropertyType } from "../types";
+import { normalizeOptions } from "../storage/migrateDatabases";
 
 export interface ImportData {
   name: string;
@@ -15,10 +16,15 @@ function isPropertyType(t: unknown): t is PropertyType {
     t === "text" ||
     t === "number" ||
     t === "select" ||
+    t === "multiselect" ||
     t === "date" ||
     t === "checkbox" ||
     t === "url" ||
-    t === "image"
+    t === "image" ||
+    t === "formula" ||
+    t === "created_time" ||
+    t === "last_edited_time" ||
+    t === "auto_id"
   );
 }
 
@@ -32,6 +38,10 @@ export function importFromJSON(text: string): ImportData | null {
   if (!data || typeof data !== "object") return null;
   if (!Array.isArray(data.properties) || !Array.isArray(data.rows)) return null;
 
+  // Legacy exports carry string[] select options and option-*name* cell
+  // values; current exports carry SelectOption objects and option-id values.
+  // normalizeOptions handles both; nameToId remaps legacy values below.
+  const nameToId = new Map<string, Map<string, string>>();
   const properties: PropertyDef[] = data.properties.map((p: any, i: number) => {
     const type = isPropertyType(p.type) ? p.type : "text";
     const def: PropertyDef = {
@@ -39,30 +49,54 @@ export function importFromJSON(text: string): ImportData | null {
       name: typeof p.name === "string" && p.name ? p.name : `Column ${i + 1}`,
       type,
     };
-    if (type === "select") {
-      def.options = Array.isArray(p.options)
-        ? p.options.filter((o: any) => typeof o === "string")
-        : [];
+    if (type === "select" || type === "multiselect") {
+      const { options, byName } = normalizeOptions(p.options);
+      def.options = options;
+      nameToId.set(def.id, byName);
     }
+    if (typeof p.wrap === "boolean") def.wrap = p.wrap;
+    if (typeof p.formula === "string") def.formula = p.formula;
     return def;
   });
 
   if (properties.length === 0) return null;
 
+  const selectProps = new Map(
+    properties.filter((p) => p.options).map((p) => [p.id, p])
+  );
+  const remapSelect = (propId: string, v: string): string => {
+    const prop = selectProps.get(propId);
+    if (!prop) return v;
+    if (prop.options!.some((o) => o.id === v)) return v; // already an id
+    const byName = nameToId.get(propId);
+    const mapped = byName?.get(v);
+    if (mapped) return mapped;
+    // Unknown value — create an option for it so nothing is lost.
+    const opt = { id: uid(), name: v, color: "gray" as const };
+    prop.options!.push(opt);
+    byName?.set(v, opt.id);
+    return opt.id;
+  };
+
   const propIds = new Set(properties.map((p) => p.id));
-  const rows: DatabaseRow[] = data.rows.map((r: any) => {
+  const rows: DatabaseRow[] = data.rows.map((r: any, ri: number) => {
     const cells: Record<string, unknown> = {};
     if (r && typeof r === "object" && r.cells && typeof r.cells === "object") {
       for (const [k, v] of Object.entries(r.cells)) {
-        if (propIds.has(k)) {
-          if (
-            v === null ||
-            typeof v === "string" ||
-            typeof v === "number" ||
-            typeof v === "boolean"
-          ) {
-            cells[k] = v;
-          }
+        if (!propIds.has(k)) continue;
+        if (Array.isArray(v)) {
+          cells[k] = v
+            .filter((x): x is string => typeof x === "string")
+            .map((x) => remapSelect(k, x));
+        } else if (typeof v === "string" && v && selectProps.has(k)) {
+          cells[k] = remapSelect(k, v);
+        } else if (
+          v === null ||
+          typeof v === "string" ||
+          typeof v === "number" ||
+          typeof v === "boolean"
+        ) {
+          cells[k] = v;
         }
       }
     }
@@ -70,6 +104,8 @@ export function importFromJSON(text: string): ImportData | null {
       id: typeof r?.id === "string" ? r.id : uid(),
       cells: cells as DatabaseRow["cells"],
       createdAt: typeof r?.createdAt === "number" ? r.createdAt : Date.now(),
+      ...(typeof r?.updatedAt === "number" ? { updatedAt: r.updatedAt } : {}),
+      seq: typeof r?.seq === "number" ? r.seq : ri + 1,
     };
   });
 
@@ -160,6 +196,7 @@ export function importFromCSV(text: string, dbName?: string): ImportData | null 
       id: uid(),
       cells: rowCells,
       createdAt: Date.now() + ri,
+      seq: ri + 1,
     };
   });
 

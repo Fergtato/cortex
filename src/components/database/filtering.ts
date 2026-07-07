@@ -4,6 +4,7 @@ import type {
   DatabaseRow,
   FilterCondition,
   FilterOp,
+  PropertyDef,
   PropertyType,
 } from "../../types";
 
@@ -27,6 +28,7 @@ export function operatorsForType(type: PropertyType): OpDef[] {
         { value: "not_empty", label: "Is not empty" },
       ];
     case "select":
+    case "multiselect":
       return [
         { value: "select_is", label: "Is" },
         { value: "select_is_not", label: "Is not" },
@@ -82,14 +84,14 @@ export function valueKind(op: FilterOp, type: PropertyType): ValueKind {
   if (op === "empty" || op === "not_empty" || op === "checked" || op === "unchecked") {
     return "none";
   }
-  if (type === "select") return "select";
+  if (type === "select" || type === "multiselect") return "select";
   if (type === "number") return "number";
   if (type === "date") return "date";
   return "text";
 }
 
 function matchOne(cell: CellValue, cond: FilterCondition): boolean {
-  const s = cell == null ? "" : String(cell);
+  const s = cell == null ? "" : Array.isArray(cell) ? cell.join(",") : String(cell);
   const v = cond.value ?? "";
   const lower = s.toLowerCase();
   const lv = v.toLowerCase();
@@ -124,11 +126,17 @@ function matchOne(cell: CellValue, cond: FilterCondition): boolean {
       return v === "" ? true : Number(cell) >= Number(v);
     case "num_lte":
       return v === "" ? true : Number(cell) <= Number(v);
-    // select (ISO dates sort lexicographically, so string compare is fine)
-    case "select_is":
-      return (cond.values?.length ?? 0) === 0 ? true : cond.values!.includes(s);
-    case "select_is_not":
-      return (cond.values?.length ?? 0) === 0 ? true : !cond.values!.includes(s);
+    // select / multiselect — cell is an option id (or array of ids)
+    case "select_is": {
+      if ((cond.values?.length ?? 0) === 0) return true;
+      if (Array.isArray(cell)) return cell.some((id) => cond.values!.includes(id));
+      return cond.values!.includes(s);
+    }
+    case "select_is_not": {
+      if ((cond.values?.length ?? 0) === 0) return true;
+      if (Array.isArray(cell)) return !cell.some((id) => cond.values!.includes(id));
+      return !cond.values!.includes(s);
+    }
     // checkbox
     case "checked":
       return cell === true;
@@ -160,9 +168,14 @@ export function matchesAll(
 }
 
 /** Short value summary shown on a filter chip. */
-export function chipSummary(cond: FilterCondition, type: PropertyType): string {
-  const kind = valueKind(cond.op, type);
-  if (kind === "none") return opLabel(cond.op, type).toLowerCase();
-  if (kind === "select") return (cond.values ?? []).join(", ");
+export function chipSummary(cond: FilterCondition, prop: PropertyDef): string {
+  const kind = valueKind(cond.op, prop.type);
+  if (kind === "none") return opLabel(cond.op, prop.type).toLowerCase();
+  if (kind === "select") {
+    // Stored values are option ids — show the option names.
+    return (cond.values ?? [])
+      .map((id) => prop.options?.find((o) => o.id === id)?.name ?? id)
+      .join(", ");
+  }
   return cond.value ?? "";
 }

@@ -6,8 +6,8 @@ interface Props {
   prop: PropertyDef;
   value: CellValue;
   onChange: (value: CellValue) => void;
-  /** Lets a select property gain a new option on the fly. */
-  onAddOption?: (option: string) => void;
+  /** Lets a select property gain a new option on the fly; returns its id. */
+  onAddOption?: (name: string) => string;
 }
 
 export function Cell({ prop, value, onChange, onAddOption }: Props) {
@@ -68,10 +68,7 @@ export function Cell({ prop, value, onChange, onAddOption }: Props) {
             if (e.target.value === ADD) {
               dialog.prompt("New option:").then((raw) => {
                 const next = raw?.trim();
-                if (next) {
-                  onAddOption?.(next);
-                  onChange(next);
-                }
+                if (next && onAddOption) onChange(onAddOption(next));
               });
               return;
             }
@@ -80,12 +77,61 @@ export function Cell({ prop, value, onChange, onAddOption }: Props) {
         >
           <option value="">—</option>
           {options.map((o) => (
-            <option key={o} value={o}>
-              {o}
+            <option key={o.id} value={o.id}>
+              {o.name}
             </option>
           ))}
           <option value={ADD}>+ new option…</option>
         </select>
+      );
+    }
+
+    case "multiselect": {
+      const options = prop.options ?? [];
+      const selected = Array.isArray(value) ? value : [];
+      const toggle = (optId: string) =>
+        onChange(
+          selected.includes(optId)
+            ? selected.filter((x) => x !== optId)
+            : [...selected, optId]
+        );
+      return (
+        <span className="cell-multiselect">
+          {selected
+            .map((id) => options.find((o) => o.id === id))
+            .filter((o): o is NonNullable<typeof o> => Boolean(o))
+            .map((o) => (
+              <button
+                key={o.id}
+                className="cell-pill"
+                title="Remove"
+                onClick={() => toggle(o.id)}
+              >
+                {o.name} ×
+              </button>
+            ))}
+          <button
+            className="cell-pill-add"
+            title="Add option"
+            onClick={async () => {
+              const remaining = options.filter((o) => !selected.includes(o.id));
+              const choice = await dialog.choose("Add option:", [
+                ...remaining.map((o) => ({ label: o.name, value: o.id })),
+                { label: "＋ new option…", value: "__new__" },
+              ]);
+              if (!choice) return;
+              if (choice === "__new__") {
+                const raw = await dialog.prompt("New option:");
+                const name = raw?.trim();
+                if (name && onAddOption) onChange([...selected, onAddOption(name)]);
+              } else {
+                toggle(choice);
+              }
+            }}
+          >
+            +
+          </button>
+        </span>
       );
     }
 

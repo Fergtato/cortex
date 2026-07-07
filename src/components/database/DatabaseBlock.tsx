@@ -35,6 +35,8 @@ const VIEW_ICON: Record<ViewType, string> = {
   table: "▦",
   gallery: "▤",
   timeline: "▭",
+  kanban: "▥",
+  calendar: "▧",
 };
 
 function isEmpty(v: unknown) {

@@ -86,6 +86,7 @@ export default function App() {
           name: data.name,
           properties: data.properties,
           rows: data.rows,
+          nextSeq: data.rows.length + 1,
         }));
         openDatabase(id);
       } catch (err) {
