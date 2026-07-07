@@ -1412,6 +1412,19 @@ input[type="checkbox"]:disabled {
   display: flex;
   gap: 4px;
 }
+/* The edit toggle carries text ("✎ edit" / "✓ done") — let it size to fit
+   instead of inheriting .row-btn's fixed 18px square. */
+.db-embed-edit {
+  width: auto;
+  padding: 0 8px;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.db-embed-edit.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
 .db-embed .db-block {
   margin-top: 0;
   border: none;
