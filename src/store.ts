@@ -55,7 +55,10 @@ export interface Store {
   roots: Page[];
   childrenOf: (parentId: string | null) => Page[];
   createPage: (parentId: string | null, title?: string) => string;
-  updatePage: (id: string, patch: Partial<Pick<Page, "title" | "content">>) => void;
+  updatePage: (
+    id: string,
+    patch: Partial<Pick<Page, "title" | "content" | "icon" | "cover">>
+  ) => void;
   deletePage: (id: string) => void;
 
   /* databases */
@@ -188,7 +191,7 @@ export function useStore(): Store {
   }, []);
 
   const updatePage = useCallback(
-    (id: string, patch: Partial<Pick<Page, "title" | "content">>) => {
+    (id: string, patch: Partial<Pick<Page, "title" | "content" | "icon" | "cover">>) => {
       setPages((prev) => {
         const existing = prev[id];
         if (!existing) return prev;

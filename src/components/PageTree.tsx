@@ -93,7 +93,10 @@ function TreeNode({ store, page, depth, selectedId, onSelect, onCreatedSelect }:
         >
           {hasChildren ? (open ? "▼" : "▶") : "·"}
         </span>
-        <span className="tree-title">{page.title || "untitled"}</span>
+        <span className="tree-title">
+          {page.icon && <span className="tree-icon">{page.icon} </span>}
+          {page.title || "untitled"}
+        </span>
         <span className="tree-actions">
           <button
             className="row-btn"

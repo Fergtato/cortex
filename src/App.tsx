@@ -7,7 +7,9 @@ import { Editor } from "./components/Editor";
 import { DatabaseBlock } from "./components/database/DatabaseBlock";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { useDialog } from "./components/Dialog";
+import { IconPicker } from "./components/IconPicker";
 import { importFromCSV, importFromJSON } from "./lib/importDB";
+import { pickImage } from "./lib/image";
 import type { Page } from "./types";
 
 type Selection =
@@ -20,6 +22,7 @@ export default function App() {
   const settings = useSettings();
   const [sel, setSel] = useState<Selection>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [iconPickerOpen, setIconPickerOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     // Start collapsed on phones; otherwise honour the saved preference.
     if (typeof window !== "undefined" && window.innerWidth <= 768) return false;
@@ -254,27 +257,87 @@ export default function App() {
           <main className="main">
             {page ? (
               <div className="page">
+                {page.cover && (
+                  <div className="page-cover">
+                    <img src={page.cover} alt="" />
+                    <span className="page-cover-actions">
+                      <button
+                        className="meta-btn"
+                        onClick={async () => {
+                          const src = await pickImage();
+                          if (src) store.updatePage(page.id, { cover: src });
+                        }}
+                      >
+                        change
+                      </button>
+                      <button
+                        className="meta-btn"
+                        onClick={() => store.updatePage(page.id, { cover: undefined })}
+                      >
+                        × remove
+                      </button>
+                    </span>
+                  </div>
+                )}
+
                 <div className="breadcrumb">
                   {trail.map((p, i) => (
                     <span key={p.id}>
                       {i > 0 && <span className="crumb-sep"> / </span>}
                       <button className="crumb" onClick={() => openPage(p.id)}>
+                        {p.icon ? `${p.icon} ` : ""}
                         {p.title || "untitled"}
                       </button>
                     </span>
                   ))}
                 </div>
 
-                <input
-                  ref={titleRef}
-                  className="page-title"
-                  value={page.title}
-                  placeholder="untitled"
-                  onChange={(e) => store.updatePage(page.id, { title: e.target.value })}
-                />
+                <div className="page-title-row">
+                  {page.icon && (
+                    <button
+                      className="page-icon"
+                      title="Change icon"
+                      onClick={() => setIconPickerOpen(true)}
+                    >
+                      {page.icon}
+                    </button>
+                  )}
+                  <input
+                    ref={titleRef}
+                    className="page-title"
+                    value={page.title}
+                    placeholder="untitled"
+                    onChange={(e) => store.updatePage(page.id, { title: e.target.value })}
+                  />
+                </div>
+                {iconPickerOpen && (
+                  <div className="icon-picker-anchor">
+                    <IconPicker
+                      current={page.icon}
+                      onPick={(icon) => store.updatePage(page.id, { icon })}
+                      onClose={() => setIconPickerOpen(false)}
+                    />
+                  </div>
+                )}
 
                 <div className="page-meta">
                   <span>updated {new Date(page.updatedAt).toLocaleString()}</span>
+                  {!page.icon && (
+                    <button className="meta-btn" onClick={() => setIconPickerOpen(true)}>
+                      ☺ add icon
+                    </button>
+                  )}
+                  {!page.cover && (
+                    <button
+                      className="meta-btn"
+                      onClick={async () => {
+                        const src = await pickImage();
+                        if (src) store.updatePage(page.id, { cover: src });
+                      }}
+                    >
+                      ▣ add cover
+                    </button>
+                  )}
                 </div>
 
                 <Editor
