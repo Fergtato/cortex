@@ -102,7 +102,7 @@ export interface DatabaseRow {
 export type ViewType = "table" | "gallery" | "timeline" | "kanban" | "calendar";
 
 /** The types offered in the "+ view" dropdown. */
-export const VIEW_TYPES: ViewType[] = ["table", "gallery", "timeline", "kanban"];
+export const VIEW_TYPES: ViewType[] = ["table", "gallery", "timeline", "kanban", "calendar"];
 
 /** Footer aggregation for a column (table group-by / totals). */
 export type AggOp = "count" | "sum" | "avg" | "min" | "max" | "filled" | "empty";

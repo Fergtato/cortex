@@ -12,6 +12,7 @@ import { TableView } from "./TableView";
 import { GalleryView } from "./GalleryView";
 import { TimelineView } from "./TimelineView";
 import { KanbanView } from "./KanbanView";
+import { CalendarView } from "./CalendarView";
 import { FilterBar } from "./FilterBar";
 import { matchesAll } from "./filtering";
 import { ExportControls } from "./ExportControls";
@@ -237,6 +238,16 @@ export function DatabaseBlock({
         )}
         {active.type === "kanban" && (
           <KanbanView
+            db={db}
+            store={store}
+            rows={rows}
+            view={active}
+            lockSchema={lockSchema}
+            minimal={minimal}
+          />
+        )}
+        {active.type === "calendar" && (
+          <CalendarView
             db={db}
             store={store}
             rows={rows}
