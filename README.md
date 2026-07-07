@@ -21,17 +21,32 @@ Data lives either in the browser's `localStorage` or in a small local
 - **Rich-text editor** (Tiptap) — bold, italic, strikethrough, inline code,
   text colour and highlight, headings, bullet / ordered / task lists,
   blockquotes, code blocks, tables, horizontal rules, and external links.
+- **Slash commands** — type `/` to insert any block inline, with fuzzy filter
+  and keyboard navigation.
 - **Custom blocks** — collapsible toggle lists, 2–5 column layouts, and tabbed
-  content sections, all inserted from the toolbar.
+  content sections, from the toolbar or the `/` menu.
 - **Pages & subpages** — infinitely nestable tree with breadcrumbs, recursive
-  sidebar, in-place reordering, and recursive delete.
+  sidebar, in-place reordering, recursive delete, plus per-page **emoji icons**
+  and **cover images**.
 - **Databases** — standalone or embedded in any page, with text / number /
-  select / date / checkbox / url / image properties. Views:
-  - **Table** — sort and filter, inline cell editing.
-  - **Gallery** — card view with the first image property as cover.
+  select / multi-select / date / checkbox / url / image / **formula** /
+  created-time / last-edited-time / auto-id properties.
+  - **Coloured select options** — 9-colour palette; single select tints the
+    whole cell, multi-select renders coloured pills; options can be renamed,
+    recoloured, and deleted in-place.
+  - **Table** — sort, filter, group-by with collapsible sections, per-column
+    calculations (count/sum/avg/min/max/…), text-wrap toggle per column,
+    drag-to-reorder columns, row hover highlight.
+  - **Gallery** — card view with image cover and a fit/fill toggle.
+  - **Kanban** — drag cards between coloured option columns.
+  - **Calendar** — month grid on any date property; click a day to add.
   - **Timeline** — date-based layout.
-  - Notion-style **filter chips** with type-aware operators, plus per-embed
-    filters and sort.
+  - **Per-view config** — each view owns its filters, sort, grouping, and
+    display options, shared everywhere that view appears.
+  - **Formulas** — a small safe expression language (`{Price} * {Qty}`,
+    `if(...)`, `concat(...)`, …) computed live, sortable and filterable.
+  - Embeds render as a **simple titled table** with an edit toggle that
+    reveals view switching, filters, sort, and new-row controls.
 - **Images** — drag-to-resize with aspect-ratio crop, downscaled to data URLs
   on insert.
 - **Theming** — 7 accent colours, 3 dark themes (midnight / slate / carbon),
@@ -40,7 +55,9 @@ Data lives either in the browser's `localStorage` or in a small local
   phones; content goes full-width.
 - **Pluggable persistence** — `localStorage` for a zero-setup local app, or a
   tiny Express + SQLite API for data that survives the browser and can be
-  backed up as a single file.
+  backed up as a single file. The API supports **bearer-token auth**
+  (`CORTEX_TOKEN`) so it can be hosted remotely and reached from any device —
+  see [server/README.md](server/README.md) for the deploy guide.
 
 ---
 
@@ -99,8 +116,8 @@ docker compose up -d --build api   # backend only (run frontend via `npm run dev
 Single-page React app with an optional local API.
 
 ```
-┌──────────────────────────── Browser ────────────────────────────┐
-│  React (Vite + TS) + Tiptap editor                              │
+┌──────────────────────────── Browser ─────────────────────────────┐
+│  React (Vite + TS) + Tiptap editor                               │
 │    App.tsx ── Sidebar / PageTree + Editor / Toolbar              │
 │    useStore()  ← in-memory store (pages + databases, CRUD)       │
 │         │  read on load / debounced write (250ms)                │
@@ -110,7 +127,7 @@ Single-page React app with an optional local API.
 └──────────────────────────────────────────────────────────────────┘
                                   │ (when API mode)
                                   ▼
-┌──────────────────── Express + better-sqlite3 ───────────────────┐
+┌──────────────────── Express + better-sqlite3 ────────────────────┐
 │  GET/PATCH/PUT /api/pages   GET/PATCH/PUT /api/databases         │
 │  GET /api/health                                                 │
 │  one row per entity, JSON in a `data` column → server/data.db    │
