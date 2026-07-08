@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
   CellValue,
+  Dashboard,
+  DashboardMap,
+  DashItem,
   Database,
   DatabaseMap,
   DatabaseView,
@@ -14,7 +17,7 @@ import type {
   SelectOption,
   ViewType,
 } from "./types";
-import { isDatabase, isFolder } from "./types";
+import { isDashboard, isDatabase, isFolder } from "./types";
 import { getAdapter, type CollectionDelta } from "./storage/adapters";
 import { colorForIndex, migrateDatabases } from "./storage/migrateDatabases";
 
@@ -47,21 +50,23 @@ function normalizePageOrder(map: PageMap): PageMap {
 }
 
 /**
- * Assign a sequential `order` to top-level database items lacking one, seeded
- * from the current createdAt sort. Identity-preserving (same as pages). Only
- * legacy databases are touched (folders always carry an order).
+ * Assign a sequential `order` to top-level items lacking one, seeded from the
+ * current createdAt sort. Identity-preserving (same as pages). Shared by the
+ * databases and dashboards collections (folders always carry an order).
  */
-function normalizeDbOrder(map: DatabaseMap): DatabaseMap {
+function normalizeItemOrder<T extends DbItem | DashItem>(
+  map: Record<string, T>
+): Record<string, T> {
   const topLevel = Object.values(map).filter(
-    (it) => isFolder(it) || (it.folderId ?? null) === null
+    (it) => isFolder(it) || ((it as Database | Dashboard).folderId ?? null) === null
   );
   if (topLevel.every((it) => it.order !== undefined)) return map;
   topLevel.sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
   let changed = false;
-  const next: DatabaseMap = { ...map };
+  const next: Record<string, T> = { ...map };
   topLevel.forEach((it, i) => {
     if (it.order !== i) {
-      next[it.id] = { ...it, order: i } as DbItem;
+      next[it.id] = { ...it, order: i } as T;
       changed = true;
     }
   });
@@ -158,6 +163,21 @@ export interface Store {
   deleteRow: (dbId: string, rowId: string) => void;
   /** Apply an arbitrary immutable transform to a database (used by import). */
   updateDatabase: (dbId: string, fn: (db: Database) => Database) => void;
+
+  /* dashboards */
+  dashboards: Dashboard[];
+  topLevelDashItems: DashItem[];
+  dashboardsInFolder: (folderId: string) => Dashboard[];
+  getDashboard: (id: string) => Dashboard | undefined;
+  createDashboard: () => string;
+  renameDashboard: (dashId: string, name: string) => void;
+  /** Apply an arbitrary immutable transform to a dashboard (widgets, grid). */
+  updateDashboard: (dashId: string, fn: (d: Dashboard) => Dashboard) => void;
+  deleteDashboard: (dashId: string) => void;
+  createDashFolder: (name?: string) => string;
+  renameDashFolder: (folderId: string, name: string) => void;
+  deleteDashFolder: (folderId: string) => void;
+  moveDashItem: (id: string, folderId: string | null, index: number) => void;
 }
 
 export function useStore(): Store {
@@ -167,6 +187,7 @@ export function useStore(): Store {
 
   const [pages, setPages] = useState<PageMap>({});
   const [databases, setDatabases] = useState<DatabaseMap>({});
+  const [dashboards, setDashboards] = useState<DashboardMap>({});
   const [loaded, setLoaded] = useState(false);
 
   // Snapshots of what is currently persisted, used to diff for incremental
@@ -175,20 +196,23 @@ export function useStore(): Store {
   // flush re-sends the same delta (plus anything new).
   const savedPages = useRef<PageMap>({});
   const savedDbs = useRef<DatabaseMap>({});
+  const savedDashes = useRef<DashboardMap>({});
 
   // Initial load from the configured data source.
   useEffect(() => {
     let cancelled = false;
-    Promise.all([adapter.loadPages(), adapter.loadDatabases()])
-      .then(([p, d]) => {
+    Promise.all([adapter.loadPages(), adapter.loadDatabases(), adapter.loadDashboards()])
+      .then(([p, d, dash]) => {
         if (cancelled) return;
         // One-time normalizations (page order; string select options -> coloured
         // objects). The saved snapshots keep the *raw* maps so the first
         // debounced flush persists exactly the entities that changed.
         setPages(normalizePageOrder(p));
-        setDatabases(normalizeDbOrder(migrateDatabases(d)));
+        setDatabases(normalizeItemOrder(migrateDatabases(d)));
+        setDashboards(normalizeItemOrder(dash));
         savedPages.current = p;
         savedDbs.current = d;
+        savedDashes.current = dash;
       })
       .catch((err) => console.error("[cortex] failed to load data:", err))
       .finally(() => {
@@ -236,6 +260,23 @@ export function useStore(): Store {
     }, 250);
     return () => window.clearTimeout(dbTimer.current);
   }, [databases, loaded, adapter]);
+
+  const dashTimer = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!loaded) return;
+    window.clearTimeout(dashTimer.current);
+    dashTimer.current = window.setTimeout(() => {
+      const delta = diffMap(savedDashes.current, dashboards);
+      if (!delta) return;
+      adapter
+        .saveDashboards(delta)
+        .then(() => {
+          savedDashes.current = dashboards;
+        })
+        .catch((err) => console.error("[cortex] failed to save dashboards:", err));
+    }, 250);
+    return () => window.clearTimeout(dashTimer.current);
+  }, [dashboards, loaded, adapter]);
 
   /* ------------------------------- pages ------------------------------- */
 
@@ -369,7 +410,7 @@ export function useStore(): Store {
     });
   }, []);
 
-  const byOrder = (a: DbItem, b: DbItem) =>
+  const byOrder = (a: DbItem | DashItem, b: DbItem | DashItem) =>
     (a.order ?? a.createdAt) - (b.order ?? b.createdAt);
 
   const databasesList = useCallback(
@@ -779,6 +820,171 @@ export function useStore(): Store {
     [patchDb]
   );
 
+  /* ----------------------------- dashboards ---------------------------- */
+
+  const dashboardsList = useCallback(
+    () => Object.values(dashboards).filter(isDashboard).sort(byOrder),
+    [dashboards]
+  );
+
+  // Interleaved top level: folders + dashboards with no folderId, by order.
+  const topLevelDashItems = useCallback(
+    () =>
+      Object.values(dashboards)
+        .filter((it) => isFolder(it) || (it.folderId ?? null) === null)
+        .sort(byOrder),
+    [dashboards]
+  );
+
+  const dashboardsInFolder = useCallback(
+    (folderId: string) =>
+      Object.values(dashboards)
+        .filter((it): it is Dashboard => isDashboard(it) && it.folderId === folderId)
+        .sort(byOrder),
+    [dashboards]
+  );
+
+  const getDashboard = useCallback(
+    (id: string): Dashboard | undefined => {
+      const it = dashboards[id];
+      return it && isDashboard(it) ? it : undefined;
+    },
+    [dashboards]
+  );
+
+  /** Immutable transform on one dashboard; bumps updatedAt. */
+  const patchDash = useCallback(
+    (dashId: string, fn: (d: Dashboard) => Dashboard) => {
+      setDashboards((prev) => {
+        const it = prev[dashId];
+        if (!it || !isDashboard(it)) return prev;
+        return { ...prev, [dashId]: { ...fn(it), updatedAt: Date.now() } };
+      });
+    },
+    []
+  );
+
+  const createDashboard = useCallback(() => {
+    const id = uid();
+    const now = Date.now();
+    const dash: Dashboard = {
+      id,
+      name: "new dashboard",
+      widgets: [],
+      columns: 8,
+      rows: 6,
+      rowHeight: 60,
+      sizing: "fit",
+      folderId: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setDashboards((prev) => {
+      const maxOrder = Object.values(prev)
+        .filter((it) => isFolder(it) || (it.folderId ?? null) === null)
+        .reduce((m, it) => Math.max(m, it.order ?? -1), -1);
+      return { ...prev, [id]: { ...dash, order: maxOrder + 1 } };
+    });
+    return id;
+  }, []);
+
+  const renameDashboard = useCallback(
+    (dashId: string, name: string) => patchDash(dashId, (d) => ({ ...d, name })),
+    [patchDash]
+  );
+
+  const updateDashboard = useCallback(
+    (dashId: string, fn: (d: Dashboard) => Dashboard) => patchDash(dashId, fn),
+    [patchDash]
+  );
+
+  const deleteDashboard = useCallback((dashId: string) => {
+    setDashboards((prev) => {
+      if (!isDashboard(prev[dashId])) return prev;
+      const next = { ...prev };
+      delete next[dashId];
+      return next;
+    });
+  }, []);
+
+  const createDashFolder = useCallback((name = "New folder") => {
+    const id = uid();
+    const now = Date.now();
+    setDashboards((prev) => {
+      const maxOrder = Object.values(prev)
+        .filter((it) => isFolder(it) || (it.folderId ?? null) === null)
+        .reduce((m, it) => Math.max(m, it.order ?? -1), -1);
+      const folder: Folder = { kind: "folder", id, name, order: maxOrder + 1, createdAt: now };
+      return { ...prev, [id]: folder };
+    });
+    return id;
+  }, []);
+
+  const renameDashFolder = useCallback((folderId: string, name: string) => {
+    setDashboards((prev) => {
+      const f = prev[folderId];
+      if (!f || !isFolder(f)) return prev;
+      return { ...prev, [folderId]: { ...f, name } };
+    });
+  }, []);
+
+  const deleteDashFolder = useCallback((folderId: string) => {
+    setDashboards((prev) => {
+      const f = prev[folderId];
+      if (!f || !isFolder(f)) return prev;
+      const next = { ...prev };
+      delete next[folderId];
+      // Pop contained dashboards back to the top level, appended after existing.
+      let maxTop = Object.values(next)
+        .filter((it) => isFolder(it) || (it.folderId ?? null) === null)
+        .reduce((m, it) => Math.max(m, it.order ?? -1), -1);
+      for (const it of Object.values(prev)) {
+        if (isDashboard(it) && it.folderId === folderId) {
+          maxTop += 1;
+          next[it.id] = { ...it, folderId: null, order: maxTop };
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  const moveDashItem = useCallback(
+    (id: string, folderId: string | null, index: number) => {
+      setDashboards((prev) => {
+        const moved = prev[id];
+        if (!moved) return prev;
+        // Folders can only live at the top level (no nesting).
+        if (isFolder(moved) && folderId !== null) return prev;
+        // A dashboard's target folder must actually be a folder.
+        if (folderId !== null && !isFolder(prev[folderId])) return prev;
+
+        const inContainer = (it: DashItem) =>
+          folderId === null
+            ? isFolder(it) || (it.folderId ?? null) === null
+            : isDashboard(it) && it.folderId === folderId;
+
+        const siblings = Object.values(prev)
+          .filter((it) => it.id !== id && inContainer(it))
+          .sort(byOrder);
+        const clamped = Math.max(0, Math.min(index, siblings.length));
+        siblings.splice(clamped, 0, moved);
+
+        const next = { ...prev };
+        siblings.forEach((it, i) => {
+          if (it.id === id) {
+            next[id] = isFolder(moved)
+              ? { ...moved, order: i }
+              : { ...(moved as Dashboard), folderId, order: i, updatedAt: Date.now() };
+          } else if (it.order !== i) {
+            next[it.id] = { ...it, order: i } as DashItem;
+          }
+        });
+        return next;
+      });
+    },
+    []
+  );
+
   return {
     loaded,
     pages,
@@ -816,5 +1022,17 @@ export function useStore(): Store {
     updateCell,
     deleteRow,
     updateDatabase,
+    dashboards: dashboardsList(),
+    topLevelDashItems: topLevelDashItems(),
+    dashboardsInFolder,
+    getDashboard,
+    createDashboard,
+    renameDashboard,
+    updateDashboard,
+    deleteDashboard,
+    createDashFolder,
+    renameDashFolder,
+    deleteDashFolder,
+    moveDashItem,
   };
 }

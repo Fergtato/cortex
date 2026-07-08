@@ -25,7 +25,7 @@ db.pragma("journal_mode = WAL");
 
 // One row per entity. `data` holds the entity's JSON exactly as the app
 // produces it, so the schema never has to change when the app's shape does.
-for (const table of ["pages", "databases"]) {
+for (const table of ["pages", "databases", "dashboards"]) {
   db.exec(
     `CREATE TABLE IF NOT EXISTS ${table} (id TEXT PRIMARY KEY, data TEXT NOT NULL)`
   );
@@ -97,6 +97,7 @@ function collectionRoutes(table) {
 
 collectionRoutes("pages");
 collectionRoutes("databases");
+collectionRoutes("dashboards");
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

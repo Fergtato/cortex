@@ -1,4 +1,4 @@
-import type { DatabaseMap, DbItem, Page, PageMap } from "../types";
+import type { DashboardMap, DashItem, DatabaseMap, DbItem, Page, PageMap } from "../types";
 import { getDataSource } from "./datasource";
 
 /**
@@ -23,10 +23,13 @@ export interface StorageAdapter {
   savePages(delta: CollectionDelta<Page>): Promise<void>;
   loadDatabases(): Promise<DatabaseMap>;
   saveDatabases(delta: CollectionDelta<DbItem>): Promise<void>;
+  loadDashboards(): Promise<DashboardMap>;
+  saveDashboards(delta: CollectionDelta<DashItem>): Promise<void>;
 }
 
 const PAGES_KEY = "cortex:pages:v1";
 const DB_KEY = "cortex:databases:v1";
+const DASH_KEY = "cortex:dashboards:v1";
 
 class LocalStorageAdapter implements StorageAdapter {
   private read<T>(key: string): Record<string, T> {
@@ -61,6 +64,12 @@ class LocalStorageAdapter implements StorageAdapter {
   }
   async saveDatabases(delta: CollectionDelta<DbItem>) {
     this.applyDelta(DB_KEY, delta);
+  }
+  async loadDashboards() {
+    return this.read<DashItem>(DASH_KEY) as DashboardMap;
+  }
+  async saveDashboards(delta: CollectionDelta<DashItem>) {
+    this.applyDelta(DASH_KEY, delta);
   }
 }
 
@@ -104,6 +113,12 @@ class ApiAdapter implements StorageAdapter {
   }
   saveDatabases(delta: CollectionDelta<DbItem>) {
     return this.patch("databases", delta);
+  }
+  loadDashboards() {
+    return this.get<DashboardMap>("dashboards");
+  }
+  saveDashboards(delta: CollectionDelta<DashItem>) {
+    return this.patch("dashboards", delta);
   }
 }
 

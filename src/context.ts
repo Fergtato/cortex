@@ -13,6 +13,7 @@ export function useStoreContext(): Store {
 export interface Nav {
   openPage: (id: string) => void;
   openDatabase: (id: string) => void;
+  openDashboard: (id: string) => void;
 }
 
 export const NavContext = createContext<Nav | null>(null);

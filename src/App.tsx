@@ -4,8 +4,10 @@ import { useSettings } from "./settings";
 import { StoreContext, NavContext, type Nav } from "./context";
 import { PageTree } from "./components/PageTree";
 import { DatabaseTree } from "./components/DatabaseTree";
+import { DashboardTree } from "./components/DashboardTree";
 import { Editor } from "./components/Editor";
 import { DatabaseBlock } from "./components/database/DatabaseBlock";
+import { DashboardView } from "./components/dashboard/DashboardView";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { useDialog } from "./components/Dialog";
 import { Icon, isIconName } from "./components/Icon";
@@ -17,6 +19,7 @@ import type { Page } from "./types";
 type Selection =
   | { kind: "page"; id: string }
   | { kind: "database"; id: string }
+  | { kind: "dashboard"; id: string }
   | null;
 
 export default function App() {
@@ -25,8 +28,9 @@ export default function App() {
   const [sel, setSel] = useState<Selection>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  // Freshly-created sidebar folder whose name opens in inline-rename.
+  // Freshly-created sidebar folders whose names open in inline-rename.
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
+  const [renamingDashFolderId, setRenamingDashFolderId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     // Start collapsed on phones; otherwise honour the saved preference.
     if (typeof window !== "undefined" && window.innerWidth <= 768) return false;
@@ -55,6 +59,13 @@ export default function App() {
   const openDatabase = useCallback(
     (id: string) => {
       setSel({ kind: "database", id });
+      closeSidebarOnMobile();
+    },
+    [closeSidebarOnMobile]
+  );
+  const openDashboard = useCallback(
+    (id: string) => {
+      setSel({ kind: "dashboard", id });
       closeSidebarOnMobile();
     },
     [closeSidebarOnMobile]
@@ -116,6 +127,8 @@ export default function App() {
     sel?.kind === "page" ? store.pages[sel.id] ?? null : null;
   const database =
     sel?.kind === "database" ? store.getDatabase(sel.id) ?? null : null;
+  const dashboard =
+    sel?.kind === "dashboard" ? store.getDashboard(sel.id) ?? null : null;
 
   useEffect(() => {
     if (justCreated.current) {
@@ -125,13 +138,17 @@ export default function App() {
     }
   }, [page?.id]);
 
-  const nav: Nav = useMemo(() => ({ openPage, openDatabase }), [openPage, openDatabase]);
+  const nav: Nav = useMemo(
+    () => ({ openPage, openDatabase, openDashboard }),
+    [openPage, openDatabase, openDashboard]
+  );
 
-  // Keep selection valid: clear it if the selected page/database was deleted.
+  // Keep selection valid: clear it if the selected item was deleted.
   useEffect(() => {
     if (!sel) return;
     if (sel.kind === "page" && !store.pages[sel.id]) setSel(null);
     if (sel.kind === "database" && !store.getDatabase(sel.id)) setSel(null);
+    if (sel.kind === "dashboard" && !store.getDashboard(sel.id)) setSel(null);
   }, [sel, store.pages, store]);
 
   // Breadcrumb trail from root to the selected page.
@@ -238,6 +255,33 @@ export default function App() {
                 renamingId={renamingFolderId}
                 onRenameEnd={() => setRenamingFolderId(null)}
               />
+
+              <div className="sidebar-section-label db-label">
+                <span>dashboards</span>
+                <span className="db-section-actions">
+                  <button
+                    className="section-add"
+                    title="New dashboard"
+                    onClick={() => openDashboard(store.createDashboard())}
+                  >
+                    +
+                  </button>
+                  <button
+                    className="section-add"
+                    title="New folder"
+                    onClick={() => setRenamingDashFolderId(store.createDashFolder())}
+                  >
+                    ⊞
+                  </button>
+                </span>
+              </div>
+              <DashboardTree
+                store={store}
+                selectedId={sel?.kind === "dashboard" ? sel.id : null}
+                onOpenDashboard={openDashboard}
+                renamingId={renamingDashFolderId}
+                onRenameEnd={() => setRenamingDashFolderId(null)}
+              />
             </nav>
 
             <footer className="sidebar-foot">
@@ -245,7 +289,8 @@ export default function App() {
                 ⚙ settings
               </button>
               <span className="foot-count">
-                {Object.keys(store.pages).length}p · {store.databases.length}db
+                {Object.keys(store.pages).length}p · {store.databases.length}db ·{" "}
+                {store.dashboards.length}dash
               </span>
             </footer>
           </aside>
@@ -363,6 +408,8 @@ export default function App() {
                 </div>
                 <DatabaseBlock db={database} store={store} />
               </div>
+            ) : dashboard ? (
+              <DashboardView dash={dashboard} store={store} />
             ) : (
               <div className="placeholder-screen">
                 <pre className="ascii">{`

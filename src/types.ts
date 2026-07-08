@@ -192,7 +192,62 @@ export interface Database {
   updatedAt: number;
 }
 
-/** A sidebar folder that groups databases (one level only; no nesting). */
+/* ----------------------------- dashboards ---------------------------- */
+
+/** Widget kinds available in the dashboard widget picker. Grows per stage. */
+export type WidgetType = "text" | "clock";
+
+export interface Widget {
+  id: string;
+  type: WidgetType;
+  /** Top-left grid cell (0-based column/row). */
+  x: number;
+  y: number;
+  /** Span in grid columns/rows (min 1×1). */
+  w: number;
+  h: number;
+  /** Per-type settings; each widget component owns its own shape. */
+  config: Record<string, unknown>;
+}
+
+export interface Dashboard {
+  /** Absent/"dashboard" for a real dashboard; folders share the collection. */
+  kind?: "dashboard";
+  id: string;
+  /** Sidebar label only — dashboards render no in-body title. */
+  name: string;
+  /** Optional icon (see ICON_REGISTRY) shown in the sidebar. */
+  icon?: string;
+  iconColor?: SelectColor;
+  widgets: Widget[];
+  /** Grid column count. */
+  columns: number;
+  /** Grid row count. */
+  rows: number;
+  /** Row height in px (scroll mode); fit mode divides the viewport evenly. */
+  rowHeight: number;
+  /** "fit" fills the viewport with no scrolling; "scroll" grows downward. */
+  sizing: "fit" | "scroll";
+  /** Containing folder id (null/absent = top level). */
+  folderId?: string | null;
+  /** Sort position within its container (top level or a folder). */
+  order?: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** The dashboards collection holds both dashboards and folders, keyed by id. */
+export type DashItem = Dashboard | Folder;
+
+export type DashboardMap = Record<string, DashItem>;
+
+export function isDashboard(item: DashItem | undefined): item is Dashboard {
+  return item !== undefined && item.kind !== "folder";
+}
+
+/* ------------------------------ folders ------------------------------ */
+
+/** A sidebar folder grouping databases or dashboards (one level; no nesting). */
 export interface Folder {
   kind: "folder";
   id: string;
@@ -207,7 +262,7 @@ export type DbItem = Database | Folder;
 
 export type DatabaseMap = Record<string, DbItem>;
 
-export function isFolder(item: DbItem | undefined): item is Folder {
+export function isFolder(item: DbItem | DashItem | undefined): item is Folder {
   return item?.kind === "folder";
 }
 
