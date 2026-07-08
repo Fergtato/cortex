@@ -233,7 +233,8 @@ export type WidgetType =
   | "metric"
   | "habit"
   | "chart"
-  | "form";
+  | "form"
+  | "button";
 
 export interface Widget {
   id: string;

@@ -13,6 +13,7 @@ import { MetricWidget, MetricConfigForm } from "./MetricWidget";
 import { HabitWidget, HabitConfigForm } from "./HabitWidget";
 import { ChartWidget, ChartConfigForm } from "./ChartWidget";
 import { FormWidget, FormConfigForm } from "./FormWidget";
+import { ActionButtonWidget, ActionButtonConfigForm } from "./ActionButtonWidget";
 
 /** Props every widget component receives from the grid. */
 export interface WidgetProps {
@@ -155,6 +156,26 @@ export const WIDGET_DEFS: Record<WidgetType, WidgetDef> = {
     defaultConfig: { databaseId: "", fields: [], title: "", submitLabel: "" },
     Component: FormWidget,
     ConfigForm: FormConfigForm,
+  },
+  button: {
+    type: "button",
+    label: "action button",
+    glyph: "◉",
+    defaultSize: { w: 1, h: 1 },
+    defaultConfig: {
+      label: "button",
+      icon: "",
+      appearance: "icon-text",
+      action: "none",
+      targetWidgetId: "",
+      showStatus: false,
+      databaseId: "",
+      defaults: [],
+      swapAId: "",
+      swapBId: "",
+    },
+    Component: ActionButtonWidget,
+    ConfigForm: ActionButtonConfigForm,
   },
 };
 
