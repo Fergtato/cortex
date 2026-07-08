@@ -219,6 +219,51 @@ input[type="checkbox"]:disabled {
   border-left-color: var(--accent);
 }
 
+/* drag-and-drop reorder / re-parent */
+.tree-row[draggable="true"] {
+  cursor: grab;
+}
+.tree-dragging {
+  opacity: 0.4;
+}
+.tree-row.drop-inside {
+  background: var(--accent-dim);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.tree-row.drop-before,
+.tree-row.drop-after {
+  position: relative;
+}
+.tree-row.drop-before::before,
+.tree-row.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.tree-row.drop-before::before {
+  top: -1px;
+}
+.tree-row.drop-after::after {
+  bottom: -1px;
+}
+.tree-root-pad {
+  margin: 2px 8px 4px;
+  padding: 4px 8px;
+  border: 1px dashed var(--line);
+  color: var(--dim);
+  font-size: 10px;
+  text-align: center;
+}
+.tree-root-pad.over {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
 .tree-toggle {
   width: 12px;
   color: var(--dim);

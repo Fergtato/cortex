@@ -15,6 +15,34 @@ import type {
 import { getAdapter, type CollectionDelta } from "./storage/adapters";
 import { colorForIndex, migrateDatabases } from "./storage/migrateDatabases";
 
+/**
+ * Assign a sequential `order` to every page that lacks one, grouped by parent
+ * and seeded from the existing createdAt sort. Identity-preserving: pages that
+ * already have an order keep their exact object, so the debounced diff-save
+ * only re-persists the ones this actually numbered.
+ */
+function normalizePageOrder(map: PageMap): PageMap {
+  const byParent = new Map<string | null, Page[]>();
+  for (const p of Object.values(map)) {
+    const list = byParent.get(p.parentId) ?? [];
+    list.push(p);
+    byParent.set(p.parentId, list);
+  }
+  let changed = false;
+  const next: PageMap = { ...map };
+  for (const siblings of byParent.values()) {
+    if (siblings.every((p) => p.order !== undefined)) continue;
+    siblings.sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
+    siblings.forEach((p, i) => {
+      if (p.order !== i) {
+        next[p.id] = { ...p, order: i };
+        changed = true;
+      }
+    });
+  }
+  return changed ? next : map;
+}
+
 function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
@@ -55,6 +83,8 @@ export interface Store {
   roots: Page[];
   childrenOf: (parentId: string | null) => Page[];
   createPage: (parentId: string | null, title?: string) => string;
+  /** Reorder/re-parent a page: place `id` under `newParentId` at `index`. */
+  movePage: (id: string, newParentId: string | null, index: number) => void;
   updatePage: (
     id: string,
     patch: Partial<Pick<Page, "title" | "content" | "icon" | "iconColor" | "cover">>
@@ -117,10 +147,10 @@ export function useStore(): Store {
     Promise.all([adapter.loadPages(), adapter.loadDatabases()])
       .then(([p, d]) => {
         if (cancelled) return;
-        setPages(p);
-        // One-time v2 migration (string select options -> coloured objects).
-        // The saved snapshot keeps the *raw* map so the first debounced flush
-        // persists exactly the entities the migration touched.
+        // One-time normalizations (page order; string select options -> coloured
+        // objects). The saved snapshots keep the *raw* maps so the first
+        // debounced flush persists exactly the entities that changed.
+        setPages(normalizePageOrder(p));
         setDatabases(migrateDatabases(d));
         savedPages.current = p;
         savedDbs.current = d;
@@ -178,17 +208,68 @@ export function useStore(): Store {
     (parentId: string | null) =>
       Object.values(pages)
         .filter((p) => p.parentId === parentId)
-        .sort((a, b) => a.createdAt - b.createdAt),
+        // `order` is authoritative once assigned (normalizePageOrder / moves);
+        // createdAt is the fallback for any not-yet-numbered page.
+        .sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt)),
     [pages]
   );
 
   const createPage = useCallback((parentId: string | null, title = "untitled") => {
     const id = uid();
     const now = Date.now();
-    const page: Page = { id, title, content: "", parentId, createdAt: now, updatedAt: now };
-    setPages((prev) => ({ ...prev, [id]: page }));
+    setPages((prev) => {
+      // Append after existing siblings.
+      const maxOrder = Object.values(prev)
+        .filter((p) => p.parentId === parentId)
+        .reduce((m, p) => Math.max(m, p.order ?? -1), -1);
+      const page: Page = {
+        id,
+        title,
+        content: "",
+        parentId,
+        order: maxOrder + 1,
+        createdAt: now,
+        updatedAt: now,
+      };
+      return { ...prev, [id]: page };
+    });
     return id;
   }, []);
+
+  const movePage = useCallback(
+    (id: string, newParentId: string | null, index: number) => {
+      setPages((prev) => {
+        const moved = prev[id];
+        if (!moved) return prev;
+        if (newParentId === id) return prev;
+        // Cycle guard: can't drop a page inside its own subtree.
+        if (newParentId !== null) {
+          let cursor: string | null = newParentId;
+          while (cursor !== null) {
+            if (cursor === id) return prev;
+            cursor = prev[cursor]?.parentId ?? null;
+          }
+        }
+        // Ordered siblings of the destination, excluding the moved page.
+        const siblings = Object.values(prev)
+          .filter((p) => p.parentId === newParentId && p.id !== id)
+          .sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
+        const clamped = Math.max(0, Math.min(index, siblings.length));
+        siblings.splice(clamped, 0, moved);
+
+        const next = { ...prev };
+        siblings.forEach((p, i) => {
+          if (p.id === id) {
+            next[id] = { ...moved, parentId: newParentId, order: i, updatedAt: Date.now() };
+          } else if (p.order !== i) {
+            next[p.id] = { ...p, order: i };
+          }
+        });
+        return next;
+      });
+    },
+    []
+  );
 
   const updatePage = useCallback(
     (
@@ -549,6 +630,7 @@ export function useStore(): Store {
     roots,
     childrenOf,
     createPage,
+    movePage,
     updatePage,
     deletePage,
     databases: databasesList(),

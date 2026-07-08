@@ -11,6 +11,8 @@ export interface Page {
   iconColor?: SelectColor;
   /** Optional cover image (data URL) shown as a banner above the title. */
   cover?: string;
+  /** Sort position among siblings (same parentId). Lower shows first. */
+  order?: number;
   createdAt: number;
   updatedAt: number;
 }
