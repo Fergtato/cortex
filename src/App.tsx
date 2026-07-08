@@ -25,6 +25,8 @@ export default function App() {
   const [sel, setSel] = useState<Selection>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
+  // Freshly-created sidebar folder whose name opens in inline-rename.
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     // Start collapsed on phones; otherwise honour the saved preference.
     if (typeof window !== "undefined" && window.innerWidth <= 768) return false;
@@ -209,7 +211,7 @@ export default function App() {
                   <button
                     className="section-add"
                     title="New folder"
-                    onClick={() => store.createFolder()}
+                    onClick={() => setRenamingFolderId(store.createFolder())}
                   >
                     ⊞
                   </button>
@@ -233,6 +235,8 @@ export default function App() {
                 store={store}
                 selectedId={sel?.kind === "database" ? sel.id : null}
                 onOpenDatabase={openDatabase}
+                renamingId={renamingFolderId}
+                onRenameEnd={() => setRenamingFolderId(null)}
               />
             </nav>
 

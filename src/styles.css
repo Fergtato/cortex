@@ -1426,6 +1426,16 @@ input[type="checkbox"]:disabled {
 .db-folder-row {
   font-weight: 600;
 }
+.db-rename-input {
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  color: var(--fg);
+  font: inherit;
+  padding: 0 3px;
+  margin: -1px 0;
+  min-width: 0;
+  outline: none;
+}
 .db-folder-toggle {
   color: var(--dim);
 }

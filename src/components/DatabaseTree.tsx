@@ -7,7 +7,7 @@ import {
 import { isFolder, type Database, type DbItem, type Folder } from "../types";
 import type { Store } from "../store";
 import { useDialog } from "./Dialog";
-import { Icon } from "./Icon";
+import { InlineRename } from "./InlineRename";
 
 type DropZone = "before" | "inside" | "after";
 
@@ -28,9 +28,18 @@ interface Props {
   store: Store;
   selectedId: string | null;
   onOpenDatabase: (id: string) => void;
+  /** Folder id whose name should open in inline-rename (freshly created). */
+  renamingId?: string | null;
+  onRenameEnd?: () => void;
 }
 
-export function DatabaseTree({ store, selectedId, onOpenDatabase }: Props) {
+export function DatabaseTree({
+  store,
+  selectedId,
+  onOpenDatabase,
+  renamingId = null,
+  onRenameEnd,
+}: Props) {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draggingFolder, setDraggingFolder] = useState(false);
   const [target, setTarget] = useState<{ id: string; zone: DropZone } | null>(null);
@@ -68,6 +77,8 @@ export function DatabaseTree({ store, selectedId, onOpenDatabase }: Props) {
               folder={item}
               selectedId={selectedId}
               onOpenDatabase={onOpenDatabase}
+              autoRename={renamingId === item.id}
+              onRenameEnd={onRenameEnd}
             />
           ) : (
             <DbRow
@@ -169,16 +180,26 @@ function FolderRow({
   folder,
   selectedId,
   onOpenDatabase,
+  autoRename = false,
+  onRenameEnd,
 }: {
   store: Store;
   folder: Folder;
   selectedId: string | null;
   onOpenDatabase: (id: string) => void;
+  autoRename?: boolean;
+  onRenameEnd?: () => void;
 }) {
   const dnd = useContext(DbDnd)!;
   const dialog = useDialog();
   const [open, setOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const editing = renaming || autoRename;
+  const endRename = () => {
+    setRenaming(false);
+    onRenameEnd?.();
+  };
   const children = store.databasesInFolder(folder.id);
   const dragging = dnd.draggingId === folder.id;
   const zone = dnd.target?.id === folder.id ? dnd.target.zone : null;
@@ -219,8 +240,7 @@ function FolderRow({
       danger: false,
       async action() {
         setMenuOpen(false);
-        const name = await dialog.prompt("Rename folder:", folder.name);
-        if (name !== null && name.trim() !== "") store.renameFolder(folder.id, name.trim());
+        setRenaming(true);
       },
     },
     {
@@ -249,8 +269,10 @@ function FolderRow({
           `db-list-row db-folder-row${dragging ? " tree-dragging" : ""}` +
           `${showZone ? ` drop-${showZone}` : ""}`
         }
-        draggable
-        onClick={() => setOpen((o) => !o)}
+        draggable={!editing}
+        onClick={() => {
+          if (!editing) setOpen((o) => !o);
+        }}
         onDragStart={(e) => {
           e.stopPropagation();
           e.dataTransfer.effectAllowed = "move";
@@ -263,8 +285,28 @@ function FolderRow({
         onDrop={onDrop}
       >
         <span className="tree-toggle db-folder-toggle">{open ? "▼" : "▶"}</span>
-        <Icon name="folder" size={13} className="db-list-icon" />
-        <span className="db-list-name">{folder.name}</span>
+        {editing ? (
+          <InlineRename
+            value={folder.name}
+            className="db-list-name db-rename-input"
+            onCommit={(name) => {
+              store.renameFolder(folder.id, name);
+              endRename();
+            }}
+            onCancel={endRename}
+          />
+        ) : (
+          <span
+            className="db-list-name"
+            title="double-click to rename"
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setRenaming(true);
+            }}
+          >
+            {folder.name}
+          </span>
+        )}
         <span className="tree-actions">
           <span className="tree-menu-wrap">
             <button
