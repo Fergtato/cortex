@@ -11,6 +11,8 @@ import { DbViewWidget, DbViewConfigForm } from "./DbViewWidget";
 import { DbListWidget, DbListConfigForm } from "./DbListWidget";
 import { MetricWidget, MetricConfigForm } from "./MetricWidget";
 import { HabitWidget, HabitConfigForm } from "./HabitWidget";
+import { ChartWidget, ChartConfigForm } from "./ChartWidget";
+import { FormWidget, FormConfigForm } from "./FormWidget";
 
 /** Props every widget component receives from the grid. */
 export interface WidgetProps {
@@ -126,6 +128,33 @@ export const WIDGET_DEFS: Record<WidgetType, WidgetDef> = {
     defaultConfig: { databaseId: "", datePropId: "", viewId: "", weeks: 16, label: "" },
     Component: HabitWidget,
     ConfigForm: HabitConfigForm,
+  },
+  chart: {
+    type: "chart",
+    label: "chart",
+    glyph: "▨",
+    defaultSize: { w: 4, h: 2 },
+    defaultConfig: {
+      databaseId: "",
+      viewId: "",
+      kind: "bar",
+      xPropId: "",
+      yPropId: "",
+      yAgg: "sum",
+      seriesPropId: "",
+      label: "",
+    },
+    Component: ChartWidget,
+    ConfigForm: ChartConfigForm,
+  },
+  form: {
+    type: "form",
+    label: "form",
+    glyph: "⌨",
+    defaultSize: { w: 2, h: 3 },
+    defaultConfig: { databaseId: "", fields: [], title: "", submitLabel: "" },
+    Component: FormWidget,
+    ConfigForm: FormConfigForm,
   },
 };
 

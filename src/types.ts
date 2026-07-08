@@ -103,10 +103,34 @@ export interface DatabaseRow {
   seq?: number;
 }
 
-export type ViewType = "table" | "gallery" | "timeline" | "kanban" | "calendar";
+export type ViewType = "table" | "gallery" | "timeline" | "kanban" | "calendar" | "chart";
 
 /** The types offered in the "+ view" dropdown. */
-export const VIEW_TYPES: ViewType[] = ["table", "gallery", "timeline", "kanban", "calendar"];
+export const VIEW_TYPES: ViewType[] = ["table", "gallery", "timeline", "kanban", "calendar", "chart"];
+
+/* ------------------------------- charts ------------------------------ */
+
+export type ChartKind = "bar" | "line" | "multiline" | "pie";
+
+export const CHART_KINDS: ChartKind[] = ["bar", "line", "multiline", "pie"];
+
+/** How y values combine within one x bucket (count ignores yPropId). */
+export type ChartAgg = "sum" | "avg" | "min" | "max";
+
+/**
+ * Chart settings, shared by the database "chart" view (stored on the view)
+ * and the dashboard chart widget (stored in the widget's config).
+ */
+export interface ChartConfig {
+  kind: ChartKind;
+  /** Property that buckets rows along the x axis / pie slices. */
+  xPropId?: string | null;
+  /** Numeric property aggregated per bucket; null/absent = row count. */
+  yPropId?: string | null;
+  yAgg?: ChartAgg;
+  /** Select property that splits a multiline chart into series. */
+  seriesPropId?: string | null;
+}
 
 /** Footer aggregation for a column (table group-by / totals). */
 export type AggOp = "count" | "sum" | "avg" | "min" | "max" | "filled" | "empty";
@@ -126,6 +150,8 @@ export interface DatabaseView {
   datePropId?: string | null;
   /** propertyId -> aggregation shown in the table footer. */
   aggregations?: Record<string, AggOp>;
+  /** Chart settings (chart views only). */
+  chart?: ChartConfig;
 }
 
 export type FilterOp =
@@ -205,7 +231,9 @@ export type WidgetType =
   | "db-view"
   | "db-list"
   | "metric"
-  | "habit";
+  | "habit"
+  | "chart"
+  | "form";
 
 export interface Widget {
   id: string;

@@ -12,6 +12,7 @@ import { GalleryView } from "./GalleryView";
 import { TimelineView } from "./TimelineView";
 import { KanbanView } from "./KanbanView";
 import { CalendarView } from "./CalendarView";
+import { ChartView } from "./ChartView";
 import { FilterBar } from "./FilterBar";
 import { ExportControls } from "./ExportControls";
 import { viewRows } from "./viewRows";
@@ -36,6 +37,7 @@ const VIEW_ICON: Record<ViewType, string> = {
   timeline: "▭",
   kanban: "▥",
   calendar: "▧",
+  chart: "▨",
 };
 
 export function DatabaseBlock({
@@ -200,6 +202,9 @@ export function DatabaseBlock({
             lockSchema={lockSchema}
             minimal={minimal}
           />
+        )}
+        {active.type === "chart" && (
+          <ChartView db={db} store={store} rows={rows} view={active} minimal={minimal} />
         )}
       </div>
     </div>
