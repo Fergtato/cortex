@@ -195,7 +195,17 @@ export interface Database {
 /* ----------------------------- dashboards ---------------------------- */
 
 /** Widget kinds available in the dashboard widget picker. Grows per stage. */
-export type WidgetType = "text" | "clock" | "timer" | "image" | "list" | "scifi";
+export type WidgetType =
+  | "text"
+  | "clock"
+  | "timer"
+  | "image"
+  | "list"
+  | "scifi"
+  | "db-view"
+  | "db-list"
+  | "metric"
+  | "habit";
 
 export interface Widget {
   id: string;

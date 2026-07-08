@@ -7,6 +7,10 @@ import { TimerWidget, TimerConfigForm, DEFAULT_PRESETS } from "./TimerWidget";
 import { ImageWidget, ImageConfigForm } from "./ImageWidget";
 import { ListWidget, ListConfigForm } from "./ListWidget";
 import { ScifiWidget, ScifiConfigForm } from "./ScifiWidget";
+import { DbViewWidget, DbViewConfigForm } from "./DbViewWidget";
+import { DbListWidget, DbListConfigForm } from "./DbListWidget";
+import { MetricWidget, MetricConfigForm } from "./MetricWidget";
+import { HabitWidget, HabitConfigForm } from "./HabitWidget";
 
 /** Props every widget component receives from the grid. */
 export interface WidgetProps {
@@ -86,6 +90,42 @@ export const WIDGET_DEFS: Record<WidgetType, WidgetDef> = {
     defaultConfig: { mode: "telemetry", label: "TELEMETRY" },
     Component: ScifiWidget,
     ConfigForm: ScifiConfigForm,
+  },
+  "db-view": {
+    type: "db-view",
+    label: "database view",
+    glyph: "▦",
+    defaultSize: { w: 4, h: 3 },
+    defaultConfig: { databaseId: "", viewId: "" },
+    Component: DbViewWidget,
+    ConfigForm: DbViewConfigForm,
+  },
+  "db-list": {
+    type: "db-list",
+    label: "database list",
+    glyph: "☷",
+    defaultSize: { w: 2, h: 3 },
+    defaultConfig: { databaseId: "", viewId: "", checkPropId: "" },
+    Component: DbListWidget,
+    ConfigForm: DbListConfigForm,
+  },
+  metric: {
+    type: "metric",
+    label: "metric",
+    glyph: "Σ",
+    defaultSize: { w: 2, h: 1 },
+    defaultConfig: { databaseId: "", viewId: "", propId: "", op: "count", label: "" },
+    Component: MetricWidget,
+    ConfigForm: MetricConfigForm,
+  },
+  habit: {
+    type: "habit",
+    label: "habit tracker",
+    glyph: "▩",
+    defaultSize: { w: 3, h: 2 },
+    defaultConfig: { databaseId: "", datePropId: "", viewId: "", weeks: 16, label: "" },
+    Component: HabitWidget,
+    ConfigForm: HabitConfigForm,
   },
 };
 

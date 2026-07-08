@@ -3,7 +3,6 @@ import {
   VIEW_TYPES,
   type Database,
   type DatabaseRow,
-  type PropertyDef,
   type ViewType,
 } from "../../types";
 import type { Store } from "../../store";
@@ -14,9 +13,8 @@ import { TimelineView } from "./TimelineView";
 import { KanbanView } from "./KanbanView";
 import { CalendarView } from "./CalendarView";
 import { FilterBar } from "./FilterBar";
-import { matchesAll } from "./filtering";
 import { ExportControls } from "./ExportControls";
-import { computedCellValue } from "../../lib/formula";
+import { viewRows } from "./viewRows";
 
 interface Props {
   db: Database;
@@ -40,50 +38,6 @@ const VIEW_ICON: Record<ViewType, string> = {
   calendar: "▧",
 };
 
-function isEmpty(v: unknown) {
-  return v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0);
-}
-
-/** Sort key for a cell; select values sort by option *name*, not id. */
-function sortKey(v: unknown, prop?: PropertyDef): unknown {
-  if (!prop) return v;
-  if (prop.type === "select" && typeof v === "string") {
-    return prop.options?.find((o) => o.id === v)?.name ?? v;
-  }
-  if (prop.type === "multiselect" && Array.isArray(v)) {
-    return v
-      .map((id) => prop.options?.find((o) => o.id === id)?.name ?? id)
-      .join(", ");
-  }
-  return v;
-}
-
-export function compareCells(a: unknown, b: unknown, prop?: PropertyDef): number {
-  const ae = isEmpty(a);
-  const be = isEmpty(b);
-  if (ae && be) return 0;
-  if (ae) return 1; // empties sort last
-  if (be) return -1;
-  const type = prop?.type;
-  if (
-    type === "number" ||
-    type === "auto_id" ||
-    type === "created_time" ||
-    type === "last_edited_time"
-  ) {
-    return Number(a) - Number(b);
-  }
-  if (type === "date") return new Date(String(a)).getTime() - new Date(String(b)).getTime();
-  if (type === "checkbox") return (a === true ? 1 : 0) - (b === true ? 1 : 0);
-  // Formulas: numeric when both sides are numeric, string otherwise.
-  if (type === "formula" && typeof a === "number" && typeof b === "number") {
-    return a - b;
-  }
-  const ka = sortKey(a, prop);
-  const kb = sortKey(b, prop);
-  return String(ka).localeCompare(String(kb));
-}
-
 export function DatabaseBlock({
   db,
   store,
@@ -106,20 +60,11 @@ export function DatabaseBlock({
   const filters = active.filters ?? [];
   const sort = active.sort ?? null;
 
-  const rows: DatabaseRow[] = useMemo(() => {
-    let out = filters.length ? db.rows.filter((r) => matchesAll(db, r, filters)) : db.rows;
-    if (sort && sort.propId) {
-      const prop = db.properties.find((p) => p.id === sort.propId);
-      out = [...out].sort((a, b) => {
-        const av = prop ? computedCellValue(db, a, prop) : a.cells[sort.propId];
-        const bv = prop ? computedCellValue(db, b, prop) : b.cells[sort.propId];
-        const c = compareCells(av, bv, prop);
-        return sort.dir === "asc" ? c : -c;
-      });
-    }
-    return out;
+  const rows: DatabaseRow[] = useMemo(
+    () => viewRows(db, active),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db.rows, db.properties, filters, sort]);
+    [db.rows, db.properties, filters, sort]
+  );
 
   async function renameViewPrompt(viewId: string, current: string) {
     const name = await dialog.prompt("Rename view:", current);
