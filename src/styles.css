@@ -1484,6 +1484,304 @@ input[type="checkbox"]:disabled {
   color: var(--dim);
 }
 
+/* ---------- dashboards ---------- */
+.dash-view {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px 14px;
+}
+.dash-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.dash-crumb {
+  margin-bottom: 0;
+}
+.dash-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dash-dim-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  color: var(--dim);
+  font-size: 11px;
+}
+.dash-dim-label {
+  min-width: 26px;
+  text-align: center;
+}
+.dash-icon-wrap {
+  position: relative;
+}
+/* The 320px picker opens from the toolbar's right edge — keep it on-screen. */
+.dash-icon-wrap .icon-picker {
+  left: auto;
+  right: 0;
+  top: calc(100% + 4px);
+}
+
+.dash-grid-wrap {
+  flex: 1;
+  min-height: 0;
+}
+.dash-grid-wrap.dash-scroll {
+  overflow-y: auto;
+}
+.dash-grid {
+  display: grid;
+  height: 100%;
+}
+.dash-grid.dash-scroll {
+  height: auto;
+}
+.dash-grid-hint,
+.dash-empty-hint {
+  color: var(--dim);
+  font-size: 11px;
+  padding: 10px;
+  text-align: center;
+}
+
+/* empty-cell add affordance (edit mode) */
+.dash-cell {
+  position: relative;
+  border: 1px dashed var(--line);
+  min-width: 0;
+  min-height: 0;
+}
+.dash-cell-add {
+  width: 100%;
+  height: 100%;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  opacity: 0;
+}
+.dash-cell:hover .dash-cell-add {
+  opacity: 1;
+}
+.dash-cell-add:hover {
+  background: var(--selection);
+}
+
+/* widget picker popover */
+.widget-picker {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 100;
+  min-width: 130px;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+.widget-picker-head {
+  padding: 4px 8px;
+  color: var(--dim);
+  font-size: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.widget-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  background: none;
+  border: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.widget-picker-item:hover {
+  background: var(--selection);
+}
+.widget-picker-glyph {
+  color: var(--accent);
+}
+
+/* widget frame */
+.dash-widget {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--line-bright);
+  background: var(--panel);
+}
+.dash-widget.dragging {
+  opacity: 0.4;
+}
+.dash-widget-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 10px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+.dash-widget-head:active {
+  cursor: grabbing;
+}
+.dash-widget-glyph {
+  color: var(--accent);
+}
+.dash-widget-head-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 2px;
+}
+.dash-widget-config {
+  position: absolute;
+  top: 22px;
+  right: 4px;
+  z-index: 100;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.5);
+  padding: 8px 10px;
+}
+.dw-config-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dw-config-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dash-widget-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+  container-type: size;
+}
+
+/* resize handles */
+.dash-rs {
+  position: absolute;
+  z-index: 5;
+  touch-action: none;
+}
+.dash-rs-e {
+  top: 0;
+  right: -2px;
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+}
+.dash-rs-s {
+  left: 0;
+  bottom: -2px;
+  width: 100%;
+  height: 6px;
+  cursor: ns-resize;
+}
+.dash-rs-se {
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+.dash-rs-se::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 5px;
+  height: 5px;
+  border-right: 2px solid var(--dim);
+  border-bottom: 2px solid var(--dim);
+}
+.dash-widget:hover .dash-rs-se::after {
+  border-color: var(--accent);
+}
+
+/* move/resize ghost */
+.dash-ghost {
+  z-index: 4;
+  border: 1px dashed var(--accent);
+  background: var(--accent-dim);
+  opacity: 0.6;
+  pointer-events: none;
+}
+.dash-ghost.invalid {
+  border-color: var(--danger);
+  background: rgba(209, 127, 127, 0.15);
+}
+
+/* ---------- dashboard widgets ---------- */
+.dw-text {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow: auto;
+}
+.dw-text-empty {
+  color: var(--line-bright);
+  font-style: italic;
+}
+.dw-text-input {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  padding: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  border: none;
+  outline: none;
+  resize: none;
+  font: inherit;
+  font-size: 12px;
+}
+.dw-clock {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px;
+  overflow: hidden;
+}
+.dw-clock-time {
+  color: var(--accent);
+  font-size: clamp(12px, 28cqmin, 72px);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.dw-clock-date {
+  color: var(--dim);
+  font-size: clamp(9px, 9cqmin, 14px);
+  white-space: nowrap;
+}
+
 /* ---------- database embed (in a page) ---------- */
 .db-embed {
   margin: 16px 0;
