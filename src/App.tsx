@@ -3,6 +3,7 @@ import { useStore } from "./store";
 import { useSettings } from "./settings";
 import { StoreContext, NavContext, type Nav } from "./context";
 import { PageTree } from "./components/PageTree";
+import { DatabaseTree } from "./components/DatabaseTree";
 import { Editor } from "./components/Editor";
 import { DatabaseBlock } from "./components/database/DatabaseBlock";
 import { SettingsPanel } from "./components/SettingsPanel";
@@ -206,6 +207,13 @@ export default function App() {
                     +
                   </button>
                   <button
+                    className="section-add"
+                    title="New folder"
+                    onClick={() => store.createFolder()}
+                  >
+                    ⊞
+                  </button>
+                  <button
                     className="section-add section-import"
                     title="Import database (.json or .csv)"
                     onClick={() => importInputRef.current?.click()}
@@ -221,24 +229,11 @@ export default function App() {
                   onChange={handleImport}
                 />
               </div>
-              {store.databases.length === 0 ? (
-                <p className="empty-hint">no databases yet</p>
-              ) : (
-                <ul className="db-list">
-                  {store.databases.map((db) => (
-                    <li
-                      key={db.id}
-                      className={`db-list-row${
-                        sel?.kind === "database" && sel.id === db.id ? " selected" : ""
-                      }`}
-                      onClick={() => openDatabase(db.id)}
-                    >
-                      <span className="db-list-icon">▤</span>
-                      <span className="db-list-name">{db.name || "untitled"}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <DatabaseTree
+                store={store}
+                selectedId={sel?.kind === "database" ? sel.id : null}
+                onOpenDatabase={openDatabase}
+              />
             </nav>
 
             <footer className="sidebar-foot">

@@ -1,4 +1,4 @@
-import type { Database, DatabaseMap, Page, PageMap } from "../types";
+import type { DatabaseMap, DbItem, Page, PageMap } from "../types";
 import { getDataSource } from "./datasource";
 
 /**
@@ -22,7 +22,7 @@ export interface StorageAdapter {
   loadPages(): Promise<PageMap>;
   savePages(delta: CollectionDelta<Page>): Promise<void>;
   loadDatabases(): Promise<DatabaseMap>;
-  saveDatabases(delta: CollectionDelta<Database>): Promise<void>;
+  saveDatabases(delta: CollectionDelta<DbItem>): Promise<void>;
 }
 
 const PAGES_KEY = "cortex:pages:v1";
@@ -57,9 +57,9 @@ class LocalStorageAdapter implements StorageAdapter {
     this.applyDelta(PAGES_KEY, delta);
   }
   async loadDatabases() {
-    return this.read<Database>(DB_KEY) as DatabaseMap;
+    return this.read<DbItem>(DB_KEY) as DatabaseMap;
   }
-  async saveDatabases(delta: CollectionDelta<Database>) {
+  async saveDatabases(delta: CollectionDelta<DbItem>) {
     this.applyDelta(DB_KEY, delta);
   }
 }
@@ -102,7 +102,7 @@ class ApiAdapter implements StorageAdapter {
   loadDatabases() {
     return this.get<DatabaseMap>("databases");
   }
-  saveDatabases(delta: CollectionDelta<Database>) {
+  saveDatabases(delta: CollectionDelta<DbItem>) {
     return this.patch("databases", delta);
   }
 }

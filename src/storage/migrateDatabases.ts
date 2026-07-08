@@ -2,11 +2,12 @@ import type {
   CellValue,
   Database,
   DatabaseMap,
+  DbItem,
   PropertyDef,
   SelectColor,
   SelectOption,
 } from "../types";
-import { SELECT_COLORS } from "../types";
+import { isFolder, SELECT_COLORS } from "../types";
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
@@ -155,9 +156,14 @@ export function migrateDatabase(db: Database): Database {
 export function migrateDatabases(map: DatabaseMap): DatabaseMap {
   let changed = false;
   const next: DatabaseMap = {};
-  for (const [id, db] of Object.entries(map)) {
-    const migrated = migrateDatabase(db);
-    if (migrated !== db) changed = true;
+  for (const [id, item] of Object.entries(map)) {
+    // Folders share the collection but have no schema to migrate.
+    if (isFolder(item)) {
+      next[id] = item;
+      continue;
+    }
+    const migrated: DbItem = migrateDatabase(item);
+    if (migrated !== item) changed = true;
     next[id] = migrated;
   }
   return changed ? next : map;

@@ -4,6 +4,8 @@ import type {
   Database,
   DatabaseMap,
   DatabaseView,
+  DbItem,
+  Folder,
   Page,
   PageMap,
   PropertyDef,
@@ -12,6 +14,7 @@ import type {
   SelectOption,
   ViewType,
 } from "./types";
+import { isDatabase, isFolder } from "./types";
 import { getAdapter, type CollectionDelta } from "./storage/adapters";
 import { colorForIndex, migrateDatabases } from "./storage/migrateDatabases";
 
@@ -40,6 +43,28 @@ function normalizePageOrder(map: PageMap): PageMap {
       }
     });
   }
+  return changed ? next : map;
+}
+
+/**
+ * Assign a sequential `order` to top-level database items lacking one, seeded
+ * from the current createdAt sort. Identity-preserving (same as pages). Only
+ * legacy databases are touched (folders always carry an order).
+ */
+function normalizeDbOrder(map: DatabaseMap): DatabaseMap {
+  const topLevel = Object.values(map).filter(
+    (it) => isFolder(it) || (it.folderId ?? null) === null
+  );
+  if (topLevel.every((it) => it.order !== undefined)) return map;
+  topLevel.sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
+  let changed = false;
+  const next: DatabaseMap = { ...map };
+  topLevel.forEach((it, i) => {
+    if (it.order !== i) {
+      next[it.id] = { ...it, order: i } as DbItem;
+      changed = true;
+    }
+  });
   return changed ? next : map;
 }
 
@@ -93,8 +118,18 @@ export interface Store {
 
   /* databases */
   databases: Database[];
+  /** Interleaved top-level sidebar items (folders + un-foldered databases). */
+  topLevelDbItems: DbItem[];
+  folders: Folder[];
+  databasesInFolder: (folderId: string) => Database[];
   getDatabase: (id: string) => Database | undefined;
   createDatabase: () => string;
+  createFolder: (name?: string) => string;
+  renameFolder: (folderId: string, name: string) => void;
+  /** Delete a folder; its databases pop back to the top level. */
+  deleteFolder: (folderId: string) => void;
+  /** Reorder/move a database or folder: place `id` in `folderId` at `index`. */
+  moveDbItem: (id: string, folderId: string | null, index: number) => void;
   renameDatabase: (dbId: string, name: string) => void;
   deleteDatabase: (dbId: string) => void;
   setActiveView: (dbId: string, viewId: string) => void;
@@ -151,7 +186,7 @@ export function useStore(): Store {
         // objects). The saved snapshots keep the *raw* maps so the first
         // debounced flush persists exactly the entities that changed.
         setPages(normalizePageOrder(p));
-        setDatabases(migrateDatabases(d));
+        setDatabases(normalizeDbOrder(migrateDatabases(d)));
         savedPages.current = p;
         savedDbs.current = d;
       })
@@ -325,22 +360,52 @@ export function useStore(): Store {
 
   /* ----------------------------- databases ----------------------------- */
 
-  // Immutably patch a single database through the updater.
+  // Immutably patch a single database through the updater. No-op on folders.
   const patchDb = useCallback((dbId: string, fn: (db: Database) => Database) => {
     setDatabases((prev) => {
       const db = prev[dbId];
-      if (!db) return prev;
+      if (!db || !isDatabase(db)) return prev;
       return { ...prev, [dbId]: { ...fn(db), updatedAt: Date.now() } };
     });
   }, []);
 
+  const byOrder = (a: DbItem, b: DbItem) =>
+    (a.order ?? a.createdAt) - (b.order ?? b.createdAt);
+
   const databasesList = useCallback(
-    () =>
-      Object.values(databases).sort((a, b) => a.createdAt - b.createdAt),
+    () => Object.values(databases).filter(isDatabase).sort(byOrder),
     [databases]
   );
 
-  const getDatabase = useCallback((id: string) => databases[id], [databases]);
+  const foldersList = useCallback(
+    () => Object.values(databases).filter(isFolder).sort(byOrder),
+    [databases]
+  );
+
+  // Interleaved top level: folders + databases with no folderId, by order.
+  const topLevelDbItems = useCallback(
+    () =>
+      Object.values(databases)
+        .filter((it) => isFolder(it) || (it.folderId ?? null) === null)
+        .sort(byOrder),
+    [databases]
+  );
+
+  const databasesInFolder = useCallback(
+    (folderId: string) =>
+      Object.values(databases)
+        .filter((it): it is Database => isDatabase(it) && it.folderId === folderId)
+        .sort(byOrder),
+    [databases]
+  );
+
+  const getDatabase = useCallback(
+    (id: string) => {
+      const it = databases[id];
+      return it && isDatabase(it) ? it : undefined;
+    },
+    [databases]
+  );
 
   const createDatabase = useCallback(() => {
     const id = uid();
@@ -368,12 +433,102 @@ export function useStore(): Store {
       views: [tableView],
       activeViewId: tableView.id,
       nextSeq: 2,
+      folderId: null,
       createdAt: now,
       updatedAt: now,
     };
-    setDatabases((prev) => ({ ...prev, [id]: db }));
+    setDatabases((prev) => {
+      const maxOrder = Object.values(prev)
+        .filter((it) => isFolder(it) || (it.folderId ?? null) === null)
+        .reduce((m, it) => Math.max(m, it.order ?? -1), -1);
+      return { ...prev, [id]: { ...db, order: maxOrder + 1 } };
+    });
     return id;
   }, []);
+
+  const createFolder = useCallback((name = "New folder") => {
+    const id = uid();
+    const now = Date.now();
+    setDatabases((prev) => {
+      const maxOrder = Object.values(prev)
+        .filter((it) => isFolder(it) || (it.folderId ?? null) === null)
+        .reduce((m, it) => Math.max(m, it.order ?? -1), -1);
+      const folder: Folder = {
+        kind: "folder",
+        id,
+        name,
+        order: maxOrder + 1,
+        createdAt: now,
+      };
+      return { ...prev, [id]: folder };
+    });
+    return id;
+  }, []);
+
+  const renameFolder = useCallback((folderId: string, name: string) => {
+    setDatabases((prev) => {
+      const f = prev[folderId];
+      if (!f || !isFolder(f)) return prev;
+      return { ...prev, [folderId]: { ...f, name } };
+    });
+  }, []);
+
+  const deleteFolder = useCallback((folderId: string) => {
+    setDatabases((prev) => {
+      const f = prev[folderId];
+      if (!f || !isFolder(f)) return prev;
+      const next = { ...prev };
+      delete next[folderId];
+      // Pop contained databases back to the top level, appended after existing.
+      let maxTop = Object.values(next)
+        .filter((it) => isFolder(it) || (it.folderId ?? null) === null)
+        .reduce((m, it) => Math.max(m, it.order ?? -1), -1);
+      for (const it of Object.values(prev)) {
+        if (isDatabase(it) && it.folderId === folderId) {
+          maxTop += 1;
+          next[it.id] = { ...it, folderId: null, order: maxTop };
+        }
+      }
+      return next;
+    });
+  }, []);
+
+  const moveDbItem = useCallback(
+    (id: string, folderId: string | null, index: number) => {
+      setDatabases((prev) => {
+        const moved = prev[id];
+        if (!moved) return prev;
+        // Folders can only live at the top level (no nesting).
+        if (isFolder(moved) && folderId !== null) return prev;
+        // A database's target folder must actually be a folder.
+        if (folderId !== null && !isFolder(prev[folderId])) return prev;
+
+        const inContainer = (it: DbItem) =>
+          folderId === null
+            ? isFolder(it) || (it.folderId ?? null) === null
+            : isDatabase(it) && it.folderId === folderId;
+
+        const siblings = Object.values(prev)
+          .filter((it) => it.id !== id && inContainer(it))
+          .sort(byOrder);
+        const clamped = Math.max(0, Math.min(index, siblings.length));
+        siblings.splice(clamped, 0, moved);
+
+        const next = { ...prev };
+        siblings.forEach((it, i) => {
+          if (it.id === id) {
+            next[id] = isFolder(moved)
+              ? { ...moved, order: i }
+              : { ...(moved as Database), folderId, order: i, updatedAt: Date.now() };
+          } else if (it.order !== i) {
+            next[it.id] = { ...it, order: i } as DbItem;
+          }
+        });
+        return next;
+      });
+    },
+    []
+  );
 
   const renameDatabase = useCallback(
     (dbId: string, name: string) => patchDb(dbId, (db) => ({ ...db, name })),
@@ -634,8 +789,15 @@ export function useStore(): Store {
     updatePage,
     deletePage,
     databases: databasesList(),
+    topLevelDbItems: topLevelDbItems(),
+    folders: foldersList(),
+    databasesInFolder,
     getDatabase,
     createDatabase,
+    createFolder,
+    renameFolder,
+    deleteFolder,
+    moveDbItem,
     renameDatabase,
     deleteDatabase,
     setActiveView,

@@ -173,6 +173,8 @@ export interface DbSort {
 }
 
 export interface Database {
+  /** Absent/"database" for a real database; folders share the collection. */
+  kind?: "database";
   id: string;
   name: string;
   /** First property is always the "title" property and cannot be deleted. */
@@ -182,8 +184,33 @@ export interface Database {
   activeViewId: string;
   /** Next sequential row number (auto-id property). */
   nextSeq?: number;
+  /** Containing folder id (null/absent = top level). */
+  folderId?: string | null;
+  /** Sort position within its container (top level or a folder). */
+  order?: number;
   createdAt: number;
   updatedAt: number;
 }
 
-export type DatabaseMap = Record<string, Database>;
+/** A sidebar folder that groups databases (one level only; no nesting). */
+export interface Folder {
+  kind: "folder";
+  id: string;
+  name: string;
+  /** Sort position in the interleaved top-level list. */
+  order: number;
+  createdAt: number;
+}
+
+/** The databases collection holds both databases and folders, keyed by id. */
+export type DbItem = Database | Folder;
+
+export type DatabaseMap = Record<string, DbItem>;
+
+export function isFolder(item: DbItem | undefined): item is Folder {
+  return item?.kind === "folder";
+}
+
+export function isDatabase(item: DbItem | undefined): item is Database {
+  return item !== undefined && item.kind !== "folder";
+}

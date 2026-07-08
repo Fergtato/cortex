@@ -1418,6 +1418,57 @@ input[type="checkbox"]:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+}
+.db-list-row[draggable="true"] {
+  cursor: grab;
+}
+.db-folder-row {
+  font-weight: 600;
+}
+.db-folder-toggle {
+  color: var(--dim);
+}
+.db-in-folder {
+  padding-left: 26px;
+}
+.db-folder-empty {
+  padding: 3px 8px 3px 26px;
+  color: var(--line-bright);
+  font-size: 10px;
+  font-style: italic;
+}
+.db-list-row .tree-actions {
+  margin-left: auto;
+  visibility: hidden;
+}
+.db-list-row:hover .tree-actions {
+  visibility: visible;
+}
+/* reuse the page tree's drop indicators for the databases list */
+.db-list-row.drop-inside {
+  background: var(--accent-dim);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.db-list-row.drop-before,
+.db-list-row.drop-after {
+  position: relative;
+}
+.db-list-row.drop-before::before,
+.db-list-row.drop-after::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.db-list-row.drop-before::before {
+  top: -1px;
+}
+.db-list-row.drop-after::after {
+  bottom: -1px;
 }
 .crumb-static {
   color: var(--dim);
