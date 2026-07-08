@@ -1782,6 +1782,260 @@ input[type="checkbox"]:disabled {
   white-space: nowrap;
 }
 
+/* shared config-form bits */
+.dw-config-label {
+  color: var(--dim);
+  font-size: 10px;
+}
+.dw-config-input {
+  width: 170px;
+}
+.dw-config-hint {
+  color: var(--line-bright);
+  font-size: 9px;
+}
+.dw-config-row-btns {
+  display: flex;
+  gap: 4px;
+}
+.dw-config-danger {
+  color: var(--danger);
+}
+
+/* timer */
+.dw-timer {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px;
+  overflow: hidden;
+}
+.dw-timer-time {
+  color: var(--fg);
+  font-size: clamp(14px, 26cqmin, 64px);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.dw-timer-time.running {
+  color: var(--accent);
+}
+.dw-timer.flashing .dw-timer-time {
+  animation: dw-flash 0.5s steps(1) infinite;
+}
+@keyframes dw-flash {
+  50% {
+    color: var(--danger);
+  }
+}
+.dw-timer-presets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+.dw-timer-controls {
+  display: flex;
+  gap: 8px;
+}
+
+/* image */
+.dw-image {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.dw-image img {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.dw-image-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* list */
+.dw-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.dw-list-title {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+.dw-list-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.dw-list-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
+  position: relative;
+}
+.dw-list-item.drop-before::before,
+.dw-list-tail.drop-before::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+.dw-list-tail {
+  height: 10px;
+  position: relative;
+}
+.dw-list-item.done .dw-list-text {
+  color: var(--dim);
+  text-decoration: line-through;
+}
+.dw-list-grip {
+  color: var(--line-bright);
+  cursor: grab;
+  font-size: 9px;
+  user-select: none;
+}
+.dw-list-grip:hover {
+  color: var(--dim);
+}
+.dw-list-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dw-list-del {
+  visibility: hidden;
+}
+.dw-list-item:hover .dw-list-del {
+  visibility: visible;
+}
+.dw-list-input {
+  margin-top: 4px;
+  padding: 3px 4px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  font: inherit;
+  font-size: 11px;
+  outline: none;
+}
+.dw-list-input:focus {
+  border-color: var(--accent);
+}
+
+/* sci-fi dummy panel */
+.dw-scifi {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px;
+  font-size: 11px;
+  overflow: hidden;
+}
+.dw-scifi-head {
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 3px;
+  margin-bottom: 4px;
+}
+.dw-scifi-blink {
+  animation: dw-blink 1.2s steps(1) infinite;
+}
+@keyframes dw-blink {
+  50% {
+    opacity: 0.15;
+  }
+}
+.dw-scifi-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  overflow: hidden;
+}
+.dw-scifi-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  white-space: nowrap;
+}
+.dw-scifi-name {
+  color: var(--dim);
+  font-size: 9px;
+  width: 8ch;
+  flex: none;
+}
+.dw-scifi-bar {
+  color: var(--accent);
+  letter-spacing: -1px;
+  overflow: hidden;
+  flex: 1;
+}
+.dw-scifi-row.warn .dw-scifi-bar,
+.dw-scifi-row.warn .dw-scifi-val {
+  color: var(--danger);
+}
+.dw-scifi-val {
+  color: var(--fg);
+  font-size: 10px;
+  flex: none;
+}
+.dw-scifi-foot {
+  color: var(--line-bright);
+  font-size: 9px;
+  letter-spacing: 1px;
+  padding-top: 3px;
+}
+.dw-scifi-hex {
+  justify-content: flex-end;
+  font-size: 9px;
+  line-height: 1.35;
+}
+.dw-scifi-hexline {
+  color: var(--dim);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.dw-scifi-hexline:last-child {
+  color: var(--accent);
+}
+.dw-scifi-wave svg {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+.dw-scifi-wave {
+  display: flex;
+  flex-direction: column;
+}
+
 /* ---------- database embed (in a page) ---------- */
 .db-embed {
   margin: 16px 0;

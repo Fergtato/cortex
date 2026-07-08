@@ -3,6 +3,10 @@ import type { Dashboard, Widget, WidgetType } from "../../../types";
 import type { Store } from "../../../store";
 import { TextWidget } from "./TextWidget";
 import { ClockWidget, ClockConfigForm } from "./ClockWidget";
+import { TimerWidget, TimerConfigForm, DEFAULT_PRESETS } from "./TimerWidget";
+import { ImageWidget, ImageConfigForm } from "./ImageWidget";
+import { ListWidget, ListConfigForm } from "./ListWidget";
+import { ScifiWidget, ScifiConfigForm } from "./ScifiWidget";
 
 /** Props every widget component receives from the grid. */
 export interface WidgetProps {
@@ -46,6 +50,42 @@ export const WIDGET_DEFS: Record<WidgetType, WidgetDef> = {
     defaultConfig: { h24: true, seconds: true, date: true },
     Component: ClockWidget,
     ConfigForm: ClockConfigForm,
+  },
+  timer: {
+    type: "timer",
+    label: "timer",
+    glyph: "◔",
+    defaultSize: { w: 2, h: 2 },
+    defaultConfig: { presets: DEFAULT_PRESETS },
+    Component: TimerWidget,
+    ConfigForm: TimerConfigForm,
+  },
+  image: {
+    type: "image",
+    label: "image",
+    glyph: "▣",
+    defaultSize: { w: 2, h: 2 },
+    defaultConfig: { src: null, fit: "fill" },
+    Component: ImageWidget,
+    ConfigForm: ImageConfigForm,
+  },
+  list: {
+    type: "list",
+    label: "list",
+    glyph: "☑",
+    defaultSize: { w: 2, h: 3 },
+    defaultConfig: { title: "", items: [] },
+    Component: ListWidget,
+    ConfigForm: ListConfigForm,
+  },
+  scifi: {
+    type: "scifi",
+    label: "sci-fi",
+    glyph: "⌁",
+    defaultSize: { w: 3, h: 2 },
+    defaultConfig: { mode: "telemetry", label: "TELEMETRY" },
+    Component: ScifiWidget,
+    ConfigForm: ScifiConfigForm,
   },
 };
 
