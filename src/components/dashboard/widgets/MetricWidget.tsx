@@ -11,16 +11,22 @@ function opOf(config: Record<string, unknown>): AggOp {
   return AGG_OPS.some((o) => o.value === v) ? (v as AggOp) : "count";
 }
 
+/** Property types counted by matching a value instead of numeric AggOps. */
+function isMatchType(type: string | undefined): boolean {
+  return type === "select" || type === "multiselect" || type === "checkbox";
+}
+
 /**
- * Big-number readout: an aggregation over a database, optionally through a
- * view's filters (e.g. "count of tasks in the *todo today* view"). With no
- * property chosen it counts rows; otherwise it runs the chosen AggOp over the
- * property's (computed) values.
+ * Big-number readout over a database, optionally through a view's filters.
+ * No property = row count; numeric-ish properties aggregate (sum/avg/…);
+ * select/multiselect/checkbox properties count rows matching a chosen value
+ * (e.g. "how many todos have Status = done").
  */
 export function MetricWidget({ widget, store }: WidgetProps) {
   const dbId = strConf(widget.config, "databaseId");
   const viewId = strConf(widget.config, "viewId");
   const propId = strConf(widget.config, "propId");
+  const matchValue = strConf(widget.config, "matchValue");
   const label = strConf(widget.config, "label");
   const db = dbId ? store.getDatabase(dbId) : undefined;
 
@@ -32,15 +38,33 @@ export function MetricWidget({ widget, store }: WidgetProps) {
   const rows = viewRows(db, view);
   const prop = db.properties.find((p) => p.id === propId);
 
-  const value = prop
-    ? aggregate(opOf(widget.config), rows.map((r) => computedCellValue(db, r, prop)))
-    : String(rows.length);
+  let value: string;
+  let auto: string;
+  if (!prop) {
+    value = String(rows.length);
+    auto = `rows · ${db.name}${view ? ` / ${view.name}` : ""}`;
+  } else if (isMatchType(prop.type)) {
+    // Count rows whose value matches the chosen option / checked state.
+    const matches = rows.filter((r) => {
+      const v = r.cells[prop.id];
+      if (prop.type === "checkbox") return (v === true) === (matchValue !== "false");
+      if (prop.type === "multiselect") return Array.isArray(v) && v.includes(matchValue);
+      return v === matchValue;
+    });
+    value = String(matches.length);
+    const optName =
+      prop.type === "checkbox"
+        ? matchValue === "false"
+          ? "unchecked"
+          : "checked"
+        : prop.options?.find((o) => o.id === matchValue)?.name ?? "?";
+    auto = `${prop.name} = ${optName} · ${db.name}`;
+  } else {
+    value = aggregate(opOf(widget.config), rows.map((r) => computedCellValue(db, r, prop)));
+    auto = `${opOf(widget.config)} of ${prop.name} · ${db.name}`;
+  }
 
-  const caption =
-    label ||
-    (prop
-      ? `${opOf(widget.config)} of ${prop.name} · ${db.name}`
-      : `rows · ${db.name}${view ? ` / ${view.name}` : ""}`);
+  const caption = label || auto;
 
   return (
     <div className="dw-metric">
@@ -56,6 +80,7 @@ export function MetricConfigForm({ widget, dash, store }: WidgetProps) {
   const dbId = strConf(widget.config, "databaseId");
   const db = dbId ? store.getDatabase(dbId) : undefined;
   const propId = strConf(widget.config, "propId");
+  const prop = db?.properties.find((p) => p.id === propId);
 
   return (
     <div className="dw-config-form">
@@ -63,7 +88,7 @@ export function MetricConfigForm({ widget, dash, store }: WidgetProps) {
       <DbSelect
         store={store}
         value={dbId}
-        onChange={(id) => set({ databaseId: id, viewId: "", propId: "" })}
+        onChange={(id) => set({ databaseId: id, viewId: "", propId: "", matchValue: "" })}
       />
       <label className="dw-config-label">view (filters rows)</label>
       <ViewSelect
@@ -76,10 +101,43 @@ export function MetricConfigForm({ widget, dash, store }: WidgetProps) {
       <PropSelect
         db={db}
         value={propId}
-        onChange={(id) => set({ propId: id })}
+        onChange={(id) => set({ propId: id, matchValue: "" })}
         emptyLabel="row count"
       />
-      {propId && (
+      {prop && isMatchType(prop.type) && (
+        <>
+          <label className="dw-config-label">count rows where value is</label>
+          {prop.type === "checkbox" ? (
+            <div className="dw-config-row-btns">
+              {(["true", "false"] as const).map((v) => (
+                <button
+                  key={v}
+                  className={`opt-btn${
+                    (strConf(widget.config, "matchValue") || "true") === v ? " active" : ""
+                  }`}
+                  onClick={() => set({ matchValue: v })}
+                >
+                  {v === "true" ? "checked" : "unchecked"}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <select
+              className="dw-config-select"
+              value={strConf(widget.config, "matchValue")}
+              onChange={(e) => set({ matchValue: e.target.value })}
+            >
+              <option value="">— choose option —</option>
+              {prop.options?.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </>
+      )}
+      {prop && !isMatchType(prop.type) && (
         <>
           <label className="dw-config-label">aggregation</label>
           <select

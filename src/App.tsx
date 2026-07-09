@@ -28,9 +28,9 @@ export default function App() {
   const [sel, setSel] = useState<Selection>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [iconPickerOpen, setIconPickerOpen] = useState(false);
-  // Freshly-created sidebar folders whose names open in inline-rename.
+  // Freshly-created sidebar items whose names open in inline-rename.
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
-  const [renamingDashFolderId, setRenamingDashFolderId] = useState<string | null>(null);
+  const [renamingDashItemId, setRenamingDashItemId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(() => {
     // Start collapsed on phones; otherwise honour the saved preference.
     if (typeof window !== "undefined" && window.innerWidth <= 768) return false;
@@ -193,15 +193,45 @@ export default function App() {
               </button>
             </header>
 
-            <button
-              className="new-project-btn"
-              onClick={() => openPage(store.createPage(null, "new project"))}
-            >
-              [ + new project ]
-            </button>
-
             <nav className="sidebar-tree">
-              <div className="sidebar-section-label">pages</div>
+              <div className="sidebar-section-label db-label">
+                <span>dashboards</span>
+                <span className="db-section-actions">
+                  <button
+                    className="section-add"
+                    title="New dashboard"
+                    onClick={() => {
+                      const id = store.createDashboard();
+                      openDashboard(id);
+                      setRenamingDashItemId(id);
+                    }}
+                  >
+                    +
+                  </button>
+                  <button
+                    className="section-add"
+                    title="New folder"
+                    onClick={() => setRenamingDashItemId(store.createDashFolder())}
+                  >
+                    ⊞
+                  </button>
+                </span>
+              </div>
+              <DashboardTree
+                store={store}
+                selectedId={sel?.kind === "dashboard" ? sel.id : null}
+                onOpenDashboard={openDashboard}
+                renamingId={renamingDashItemId}
+                onRenameEnd={() => setRenamingDashItemId(null)}
+              />
+
+              <div className="sidebar-section-label db-label">pages</div>
+              <button
+                className="new-project-btn"
+                onClick={() => openPage(store.createPage(null, "new project"))}
+              >
+                [ + new project ]
+              </button>
               {store.roots.length === 0 ? (
                 <p className="empty-hint">no projects yet ↑</p>
               ) : (
@@ -254,33 +284,6 @@ export default function App() {
                 onOpenDatabase={openDatabase}
                 renamingId={renamingFolderId}
                 onRenameEnd={() => setRenamingFolderId(null)}
-              />
-
-              <div className="sidebar-section-label db-label">
-                <span>dashboards</span>
-                <span className="db-section-actions">
-                  <button
-                    className="section-add"
-                    title="New dashboard"
-                    onClick={() => openDashboard(store.createDashboard())}
-                  >
-                    +
-                  </button>
-                  <button
-                    className="section-add"
-                    title="New folder"
-                    onClick={() => setRenamingDashFolderId(store.createDashFolder())}
-                  >
-                    ⊞
-                  </button>
-                </span>
-              </div>
-              <DashboardTree
-                store={store}
-                selectedId={sel?.kind === "dashboard" ? sel.id : null}
-                onOpenDashboard={openDashboard}
-                renamingId={renamingDashFolderId}
-                onRenameEnd={() => setRenamingDashFolderId(null)}
               />
             </nav>
 

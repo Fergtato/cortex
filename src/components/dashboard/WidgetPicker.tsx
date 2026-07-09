@@ -13,7 +13,7 @@ export function WidgetPicker({ onPick, onClose }: Props) {
       <div className="tree-menu-backdrop" onClick={onClose} />
       <div className="widget-picker" onPointerDown={(e) => e.stopPropagation()}>
         <div className="widget-picker-head">add widget</div>
-        {WIDGET_TYPES.map((t) => {
+        {WIDGET_TYPES.filter((t) => !WIDGET_DEFS[t].hidden).map((t) => {
           const def = WIDGET_DEFS[t];
           return (
             <button key={t} className="widget-picker-item" onClick={() => onPick(t)}>

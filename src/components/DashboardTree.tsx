@@ -88,6 +88,8 @@ export function DashboardTree({
               dash={item}
               selectedId={selectedId}
               onOpenDashboard={onOpenDashboard}
+              autoRename={renamingId === item.id}
+              onRenameEnd={onRenameEnd}
             />
           )
         )}
@@ -110,17 +112,26 @@ function DashRow({
   selectedId,
   onOpenDashboard,
   inFolder,
+  autoRename = false,
+  onRenameEnd,
 }: {
   store: Store;
   dash: Dashboard;
   selectedId: string | null;
   onOpenDashboard: (id: string) => void;
   inFolder?: boolean;
+  autoRename?: boolean;
+  onRenameEnd?: () => void;
 }) {
   const dnd = useContext(DashDnd)!;
   const dialog = useDialog();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [renaming, setRenaming] = useState(false);
+  const [renamingLocal, setRenamingLocal] = useState(false);
+  const renaming = renamingLocal || autoRename;
+  const endRename = () => {
+    setRenamingLocal(false);
+    onRenameEnd?.();
+  };
   const dragging = dnd.draggingId === dash.id;
   const zone = dnd.target?.id === dash.id ? dnd.target.zone : null;
   // Dashboards never accept an "inside" drop (no nesting under a dashboard).
@@ -186,9 +197,9 @@ function DashRow({
           className="db-list-name db-rename-input"
           onCommit={(name) => {
             store.renameDashboard(dash.id, name);
-            setRenaming(false);
+            endRename();
           }}
-          onCancel={() => setRenaming(false)}
+          onCancel={endRename}
         />
       ) : (
         <span
@@ -196,7 +207,7 @@ function DashRow({
           title="double-click to rename"
           onDoubleClick={(e) => {
             e.stopPropagation();
-            setRenaming(true);
+            setRenamingLocal(true);
           }}
         >
           {dash.name || "untitled"}
@@ -230,7 +241,7 @@ function DashRow({
                   onClick={(e) => {
                     e.stopPropagation();
                     setMenuOpen(false);
-                    setRenaming(true);
+                    setRenamingLocal(true);
                   }}
                 >
                   Rename

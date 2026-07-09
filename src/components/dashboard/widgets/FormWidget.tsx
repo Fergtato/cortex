@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { CellValue, PropertyDef } from "../../../types";
 import type { WidgetProps } from "./registry";
 import { patchWidgetConfig } from "./registry";
-import { DbSelect, strConf } from "./dbShared";
+import { DbSelect, strConf, resolveDefaultValue, TODAY_SENTINEL } from "./dbShared";
 import { Cell } from "../../database/Cell";
 import { isComputedType } from "../../../lib/formula";
 
@@ -53,7 +53,9 @@ export function FormWidget({ widget, store }: WidgetProps) {
     if (!db) return;
     const cells: Record<string, CellValue> = {};
     for (const f of fields) {
-      if (f.mode === "default" && !isBlank(f.value)) cells[f.propId] = f.value!;
+      if (f.mode === "default" && !isBlank(f.value)) {
+        cells[f.propId] = resolveDefaultValue(f.value!);
+      }
       if (f.mode === "input" && !isBlank(draft[f.propId])) cells[f.propId] = draft[f.propId];
     }
     if (Object.keys(cells).length === 0) return;
@@ -150,13 +152,28 @@ export function FormConfigForm({ widget, dash, store }: WidgetProps) {
                 </select>
                 {f.mode === "default" && (
                   <div className="dw-form-default">
-                    <Cell
-                      dbId={db.id}
-                      prop={p}
-                      value={f.value ?? null}
-                      store={store}
-                      onChange={(v) => patchField(p.id, { value: v })}
-                    />
+                    {p.type === "date" && (
+                      <button
+                        className={`opt-btn${f.value === TODAY_SENTINEL ? " active" : ""}`}
+                        title="Always use the date at submit time"
+                        onClick={() =>
+                          patchField(p.id, {
+                            value: f.value === TODAY_SENTINEL ? null : TODAY_SENTINEL,
+                          })
+                        }
+                      >
+                        current date
+                      </button>
+                    )}
+                    {f.value !== TODAY_SENTINEL && (
+                      <Cell
+                        dbId={db.id}
+                        prop={p}
+                        value={f.value ?? null}
+                        store={store}
+                        onChange={(v) => patchField(p.id, { value: v })}
+                      />
+                    )}
                   </div>
                 )}
               </div>

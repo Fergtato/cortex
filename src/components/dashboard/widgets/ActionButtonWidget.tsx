@@ -3,7 +3,7 @@ import type { CellValue, Dashboard, PropertyDef, Widget } from "../../../types";
 import type { Store } from "../../../store";
 import type { WidgetProps } from "./registry";
 import { patchWidgetConfig, WIDGET_DEFS } from "./registry";
-import { DbSelect, strConf } from "./dbShared";
+import { DbSelect, strConf, resolveDefaultValue, TODAY_SENTINEL } from "./dbShared";
 import { viewRows } from "../../database/viewRows";
 import { Cell } from "../../database/Cell";
 import { isComputedType } from "../../../lib/formula";
@@ -71,6 +71,7 @@ export function ActionButtonWidget({ widget, dash, store, editing }: WidgetProps
   const cfg = widget.config;
   const action = (cfg.action as ButtonAction) ?? "none";
   const appearance = (cfg.appearance as Appearance) ?? "icon-text";
+  const scale = cfg.scale === "s" || cfg.scale === "l" ? cfg.scale : "m";
   const label = strConf(cfg, "label") || "button";
   const icon = strConf(cfg, "icon");
   const showStatus = cfg.showStatus === true;
@@ -115,7 +116,7 @@ export function ActionButtonWidget({ widget, dash, store, editing }: WidgetProps
     const defaults = Array.isArray(cfg.defaults) ? (cfg.defaults as RowDefault[]) : [];
     const cells: Record<string, CellValue> = {};
     for (const d of defaults) {
-      if (!isBlank(d.value)) cells[d.propId] = d.value;
+      if (!isBlank(d.value)) cells[d.propId] = resolveDefaultValue(d.value);
     }
     if (!db || Object.keys(cells).length === 0) return false;
     store.addRow(db.id, cells);
@@ -163,7 +164,10 @@ export function ActionButtonWidget({ widget, dash, store, editing }: WidgetProps
 
   return (
     <button
-      className={`dw-button${flash ? ` flash-${flash}` : ""}${editing ? " editing" : ""}`}
+      className={
+        `dw-button scale-${scale}` +
+        `${flash ? ` flash-${flash}` : ""}${editing ? " editing" : ""}`
+      }
       disabled={editing}
       title={editing ? "buttons fire in view mode" : label}
       onClick={run}
@@ -171,14 +175,16 @@ export function ActionButtonWidget({ widget, dash, store, editing }: WidgetProps
     >
       {flash === "ok" && <span className="dw-button-flash">✓</span>}
       {flash === "fail" && <span className="dw-button-flash fail">✗</span>}
-      {appearance !== "text" && isIconName(icon) && (
-        <Icon
-          name={icon}
-          color={(cfg.iconColor as SelectColor | undefined) ?? undefined}
-          className="dw-button-icon"
-        />
-      )}
-      {appearance !== "icon" && <span className="dw-button-label">{label}</span>}
+      <span className="dw-button-main">
+        {appearance !== "text" && isIconName(icon) && (
+          <Icon
+            name={icon}
+            color={(cfg.iconColor as SelectColor | undefined) ?? undefined}
+            className="dw-button-icon"
+          />
+        )}
+        {appearance !== "icon" && <span className="dw-button-label">{label}</span>}
+      </span>
       {status && <span className="dw-button-status">{status}</span>}
     </button>
   );
@@ -315,13 +321,26 @@ export function ActionButtonConfigForm({ widget, dash, store }: WidgetProps) {
                     </span>
                     {d !== undefined && (
                       <div className="dw-form-default">
-                        <Cell
-                          dbId={db.id}
-                          prop={p}
-                          value={d.value ?? null}
-                          store={store}
-                          onChange={(v) => patchDefault(p.id, v)}
-                        />
+                        {p.type === "date" && (
+                          <button
+                            className={`opt-btn${d.value === TODAY_SENTINEL ? " active" : ""}`}
+                            title="Always use the date at press time"
+                            onClick={() =>
+                              patchDefault(p.id, d.value === TODAY_SENTINEL ? null : TODAY_SENTINEL)
+                            }
+                          >
+                            current date
+                          </button>
+                        )}
+                        {d.value !== TODAY_SENTINEL && (
+                          <Cell
+                            dbId={db.id}
+                            prop={p}
+                            value={d.value ?? null}
+                            store={store}
+                            onChange={(v) => patchDefault(p.id, v)}
+                          />
+                        )}
                       </div>
                     )}
                   </div>
@@ -363,6 +382,18 @@ export function ActionButtonConfigForm({ widget, dash, store }: WidgetProps) {
           </button>
         ))}
       </div>
+      <label className="dw-config-label">size</label>
+      <div className="dw-config-row-btns">
+        {(["s", "m", "l"] as const).map((s) => (
+          <button
+            key={s}
+            className={`opt-btn${(cfg.scale ?? "m") === s ? " active" : ""}`}
+            onClick={() => set({ scale: s })}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
       <label className="dw-config-label">label</label>
       <input
         className="cell-input dw-config-input"
@@ -372,7 +403,7 @@ export function ActionButtonConfigForm({ widget, dash, store }: WidgetProps) {
         onKeyDown={(e) => e.stopPropagation()}
       />
       {appearance !== "text" && (
-        <span className="dash-icon-wrap">
+        <span className="dw-icon-modal">
           <button className="meta-btn" onClick={() => setIconOpen((o) => !o)}>
             {isIconName(icon) ? (
               <Icon name={icon} size={12} color={cfg.iconColor as SelectColor | undefined} />

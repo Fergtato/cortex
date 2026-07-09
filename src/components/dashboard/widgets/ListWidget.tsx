@@ -1,6 +1,9 @@
 import { useState, type DragEvent as ReactDragEvent } from "react";
 import type { WidgetProps } from "./registry";
 import { patchWidgetConfig } from "./registry";
+import { DbSelect, ViewSelect, PropSelect, strConf } from "./dbShared";
+import { viewRows } from "../../database/viewRows";
+import { useNav } from "../../../context";
 
 interface ListItem {
   id: string;
@@ -16,12 +19,26 @@ function itemsOf(config: Record<string, unknown>): ListItem[] {
   return Array.isArray(config.items) ? (config.items as ListItem[]) : [];
 }
 
+/** Old standalone "db-list" widgets default to database mode. */
+function isDbMode(widget: WidgetProps["widget"]): boolean {
+  if (widget.config.source === "database") return true;
+  if (widget.config.source === "basic") return false;
+  return widget.type === "db-list";
+}
+
 /**
- * Standalone checklist stored in `config.items`. Check/add/delete work in
- * both modes (ticking a habit is the point of a dashboard); drag the handle
- * to reorder. A Stage-7 action button will be able to reset all checks.
+ * The list widget, in two flavours chosen in ⚙: a basic checklist stored in
+ * `config.items`, or a database-connected one whose rows come through a
+ * chosen view's filters with a checkbox property to toggle. Checking works in
+ * view mode — ticking habits is the point of a dashboard.
  */
-export function ListWidget({ widget, dash, store, editing }: WidgetProps) {
+export function ListWidget(props: WidgetProps) {
+  return isDbMode(props.widget) ? <DbList {...props} /> : <LocalList {...props} />;
+}
+
+/* ------------------------------ basic list ----------------------------- */
+
+function LocalList({ widget, dash, store, editing }: WidgetProps) {
   const items = itemsOf(widget.config);
   const title = typeof widget.config.title === "string" ? widget.config.title : "";
   const [draft, setDraft] = useState("");
@@ -130,29 +147,158 @@ export function ListWidget({ widget, dash, store, editing }: WidgetProps) {
   );
 }
 
+/* --------------------------- database-backed --------------------------- */
+
+function DbList({ widget, store }: WidgetProps) {
+  const nav = useNav();
+  const [draft, setDraft] = useState("");
+  const dbId = strConf(widget.config, "databaseId");
+  const viewId = strConf(widget.config, "viewId");
+  const checkPropId = strConf(widget.config, "checkPropId");
+  const db = dbId ? store.getDatabase(dbId) : undefined;
+
+  if (!db) {
+    return <div className="dw-unconfigured">choose a database in ⚙</div>;
+  }
+
+  const view = db.views.find((v) => v.id === viewId); // undefined = all rows
+  const rows = viewRows(db, view);
+  const titleProp = db.properties[0];
+  const checkProp = db.properties.find((p) => p.id === checkPropId && p.type === "checkbox");
+
+  function add() {
+    const text = draft.trim();
+    if (!text || !db) return;
+    store.addRow(db.id, { [titleProp.id]: text });
+    setDraft("");
+  }
+
+  return (
+    <div className="dw-list" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="dw-list-title">
+        <button
+          className="dw-dbview-link"
+          title="Open database"
+          onClick={() => nav.openDatabase(db.id)}
+        >
+          {db.name || "untitled"}
+          {view ? ` / ${view.name}` : ""} ↗
+        </button>
+      </div>
+      <ul className="dw-list-items">
+        {rows.map((row) => {
+          const done = checkProp ? row.cells[checkProp.id] === true : false;
+          return (
+            <li key={row.id} className={`dw-list-item${done ? " done" : ""}`}>
+              {checkProp && (
+                <span className="cell-checkbox-wrap">
+                  <input
+                    type="checkbox"
+                    checked={done}
+                    onChange={() => store.updateCell(db.id, row.id, checkProp.id, !done)}
+                  />
+                </span>
+              )}
+              <span className="dw-list-text">
+                {String(row.cells[titleProp.id] ?? "") || "untitled"}
+              </span>
+              <button
+                className="row-btn dw-list-del"
+                title="Delete row"
+                onClick={() => store.deleteRow(db.id, row.id)}
+              >
+                ×
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      {rows.length === 0 && <div className="dw-text-empty">no matching rows</div>}
+      <input
+        className="dw-list-input"
+        value={draft}
+        placeholder="+ add row"
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Enter") add();
+        }}
+      />
+    </div>
+  );
+}
+
+/* ------------------------------ config form ---------------------------- */
+
 export function ListConfigForm({ widget, dash, store }: WidgetProps) {
-  const title = typeof widget.config.title === "string" ? widget.config.title : "";
-  const items = itemsOf(widget.config);
   const set = (patch: Record<string, unknown>) =>
     patchWidgetConfig(store, dash.id, widget.id, patch);
+  const dbMode = isDbMode(widget);
+  const title = typeof widget.config.title === "string" ? widget.config.title : "";
+  const items = itemsOf(widget.config);
+  const dbId = strConf(widget.config, "databaseId");
+  const db = dbId ? store.getDatabase(dbId) : undefined;
 
   return (
     <div className="dw-config-form">
-      <label className="dw-config-label">list title</label>
-      <input
-        className="cell-input dw-config-input"
-        value={title}
-        placeholder="e.g. daily habits"
-        onChange={(e) => set({ title: e.target.value })}
-        onKeyDown={(e) => e.stopPropagation()}
-      />
-      <button
-        className="meta-btn"
-        disabled={items.every((it) => !it.done)}
-        onClick={() => set({ items: items.map((it) => ({ ...it, done: false })) })}
-      >
-        ↺ uncheck all
-      </button>
+      <label className="dw-config-label">source</label>
+      <div className="dw-config-row-btns">
+        {(["basic", "database"] as const).map((s) => (
+          <button
+            key={s}
+            className={`opt-btn${(dbMode ? "database" : "basic") === s ? " active" : ""}`}
+            onClick={() => set({ source: s })}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      {!dbMode && (
+        <>
+          <label className="dw-config-label">list title</label>
+          <input
+            className="cell-input dw-config-input"
+            value={title}
+            placeholder="e.g. daily habits"
+            onChange={(e) => set({ title: e.target.value })}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+          <button
+            className="meta-btn"
+            disabled={items.every((it) => !it.done)}
+            onClick={() => set({ items: items.map((it) => ({ ...it, done: false })) })}
+          >
+            ↺ uncheck all
+          </button>
+        </>
+      )}
+
+      {dbMode && (
+        <>
+          <label className="dw-config-label">database</label>
+          <DbSelect
+            store={store}
+            value={dbId}
+            onChange={(id) => set({ databaseId: id, viewId: "", checkPropId: "" })}
+          />
+          <label className="dw-config-label">view (filters rows)</label>
+          <ViewSelect
+            db={db}
+            value={strConf(widget.config, "viewId")}
+            onChange={(id) => set({ viewId: id })}
+            allowAll
+          />
+          <label className="dw-config-label">checkbox property</label>
+          <PropSelect
+            db={db}
+            value={strConf(widget.config, "checkPropId")}
+            onChange={(id) => set({ checkPropId: id })}
+            types={["checkbox"]}
+            emptyLabel="none (read-only list)"
+          />
+        </>
+      )}
     </div>
   );
 }

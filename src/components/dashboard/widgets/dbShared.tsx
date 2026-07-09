@@ -1,4 +1,4 @@
-import type { Database, PropertyType } from "../../../types";
+import type { CellValue, Database, PropertyType } from "../../../types";
 import type { Store } from "../../../store";
 
 /**
@@ -96,4 +96,17 @@ export function PropSelect({
 export function strConf(config: Record<string, unknown>, key: string): string {
   const v = config[key];
   return typeof v === "string" ? v : "";
+}
+
+/**
+ * Preset date values can be the literal sentinel "@today", resolved to the
+ * local date at submit time (form widget + action-button row defaults).
+ */
+export const TODAY_SENTINEL = "@today";
+
+export function resolveDefaultValue(v: CellValue): CellValue {
+  if (v !== TODAY_SENTINEL) return v;
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }

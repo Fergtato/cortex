@@ -165,7 +165,9 @@ input[type="checkbox"]:disabled {
 }
 
 .new-project-btn {
-  margin: 10px 12px;
+  display: block;
+  width: calc(100% - 24px);
+  margin: 4px 12px 8px;
   padding: 6px 8px;
   text-align: left;
   border: 1px solid var(--line-bright);
@@ -1372,6 +1374,12 @@ input[type="checkbox"]:disabled {
   border-top: 1px solid var(--line);
   padding-top: 12px;
 }
+/* the first section sits directly under the header — no separator */
+.sidebar-tree > .sidebar-section-label:first-child {
+  margin-top: 0;
+  border-top: none;
+  padding-top: 6px;
+}
 .section-add {
   width: 18px;
   height: 18px;
@@ -1738,10 +1746,20 @@ input[type="checkbox"]:disabled {
 /* ---------- dashboard widgets ---------- */
 .dw-text {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
   padding: 8px;
   font-size: 12px;
   white-space: pre-wrap;
   overflow: auto;
+}
+.dw-text.valign-middle {
+  justify-content: center;
+}
+.dw-text.valign-bottom {
+  justify-content: flex-end;
 }
 .dw-text-empty {
   color: var(--line-bright);
@@ -1753,12 +1771,17 @@ input[type="checkbox"]:disabled {
   min-height: 0;
   padding: 8px;
   background: var(--bg);
-  color: var(--fg);
+  color: inherit;
   border: none;
   outline: none;
   resize: none;
   font: inherit;
-  font-size: 12px;
+  font-size: inherit;
+}
+.dw-text-colors {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 .dw-clock {
   flex: 1;
@@ -1982,46 +2005,76 @@ input[type="checkbox"]:disabled {
 }
 .dw-scifi-row {
   display: flex;
-  gap: 8px;
-  align-items: baseline;
+  gap: 1.5cqw;
+  align-items: center;
   white-space: nowrap;
+  flex: 1;
+  min-height: 0;
+  max-height: 34px;
 }
 .dw-scifi-name {
   color: var(--dim);
-  font-size: 9px;
+  font-size: clamp(8px, 8cqh, 15px);
   width: 8ch;
   flex: none;
 }
-.dw-scifi-bar {
-  color: var(--accent);
-  letter-spacing: -1px;
-  overflow: hidden;
+/* CSS meter bar — fills whatever width/height the cell gives it */
+.dw-scifi-meter {
   flex: 1;
+  min-width: 0;
+  height: clamp(6px, 55%, 18px);
+  border: 1px solid var(--line);
+  background: var(--bg);
+  overflow: hidden;
 }
-.dw-scifi-row.warn .dw-scifi-bar,
+.dw-scifi-meter-fill {
+  display: block;
+  height: 100%;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--accent) 0,
+    var(--accent) 5px,
+    transparent 5px,
+    transparent 7px
+  );
+  transition: width 0.12s linear;
+}
+.dw-scifi-row.warn .dw-scifi-meter-fill {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--danger) 0,
+    var(--danger) 5px,
+    transparent 5px,
+    transparent 7px
+  );
+}
 .dw-scifi-row.warn .dw-scifi-val {
   color: var(--danger);
 }
 .dw-scifi-val {
   color: var(--fg);
-  font-size: 10px;
+  font-size: clamp(8px, 8cqh, 15px);
   flex: none;
+  min-width: 4ch;
+  text-align: right;
 }
 .dw-scifi-foot {
   color: var(--line-bright);
-  font-size: 9px;
+  font-size: clamp(8px, 6cqh, 12px);
   letter-spacing: 1px;
   padding-top: 3px;
 }
 .dw-scifi-hex {
   justify-content: flex-end;
   font-size: 9px;
-  line-height: 1.35;
+  line-height: 13px;
 }
 .dw-scifi-hexline {
+  flex: none;
   color: var(--dim);
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: clip;
 }
 .dw-scifi-hexline:last-child {
   color: var(--accent);
@@ -2102,11 +2155,43 @@ input[type="checkbox"]:disabled {
   padding: 4px;
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* table views scroll inside the wrap (its overflow already hijacks sticky
+   positioning, so pin the header against it) */
+.dw-dbview-body .db-table-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 /* a chart view inside a grid cell fills the cell, not the page's 60vh */
 .dw-dbview-body .chart-view {
   height: 100%;
   min-height: 0;
+}
+/* keep the header row pinned while scrolling — also hides the 1px border
+   remnant the collapsed table borders leave at the clip edge */
+.dw-dbview-body .db-table th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  border-top: none;
+  border-bottom: none;
+  box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line);
+}
+
+/* icon picker opened from inside a scrolling widget-config popover would be
+   clipped — surface it as a fixed overlay instead */
+.dw-icon-modal {
+  position: relative;
+}
+.dw-icon-modal .icon-picker {
+  position: fixed;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 120;
 }
 
 /* metric */
@@ -2424,12 +2509,19 @@ input[type="checkbox"]:disabled {
   cursor: default;
   opacity: 0.75;
 }
+.dw-button-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  max-width: 100%;
+  min-width: 0;
+}
 .dw-button-icon {
-  width: clamp(14px, 30cqmin, 42px);
-  height: clamp(14px, 30cqmin, 42px);
+  flex: none;
+  display: block;
 }
 .dw-button-label {
-  font-size: clamp(10px, 12cqmin, 16px);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2437,7 +2529,37 @@ input[type="checkbox"]:disabled {
 }
 .dw-button-status {
   color: var(--accent);
-  font-size: clamp(9px, 10cqmin, 13px);
+}
+/* size presets — everything scales with the cell via container queries */
+.dw-button.scale-s .dw-button-icon {
+  width: clamp(11px, 14cqmin, 22px);
+  height: clamp(11px, 14cqmin, 22px);
+}
+.dw-button.scale-s .dw-button-label {
+  font-size: clamp(9px, 9cqmin, 13px);
+}
+.dw-button.scale-s .dw-button-status {
+  font-size: clamp(8px, 7cqmin, 11px);
+}
+.dw-button.scale-m .dw-button-icon {
+  width: clamp(14px, 24cqmin, 38px);
+  height: clamp(14px, 24cqmin, 38px);
+}
+.dw-button.scale-m .dw-button-label {
+  font-size: clamp(10px, 13cqmin, 18px);
+}
+.dw-button.scale-m .dw-button-status {
+  font-size: clamp(9px, 9cqmin, 13px);
+}
+.dw-button.scale-l .dw-button-icon {
+  width: clamp(20px, 38cqmin, 64px);
+  height: clamp(20px, 38cqmin, 64px);
+}
+.dw-button.scale-l .dw-button-label {
+  font-size: clamp(12px, 19cqmin, 28px);
+}
+.dw-button.scale-l .dw-button-status {
+  font-size: clamp(10px, 12cqmin, 17px);
 }
 .dw-button-flash {
   position: absolute;

@@ -38,15 +38,22 @@ function aggNumbers(agg: ChartConfig["yAgg"], ns: number[]): number {
   }
 }
 
-/** Bucket key + display label for a row's x value. */
-function xKey(db: Database, row: DatabaseRow, cfg: ChartConfig): string {
+/**
+ * Bucket key(s) for a row's x value. Multiselect rows land in one bucket per
+ * chosen tag (so "how many rows carry each tag" charts work); everything
+ * else maps to a single bucket.
+ */
+function xKeys(db: Database, row: DatabaseRow, cfg: ChartConfig): string[] {
   const prop = db.properties.find((p) => p.id === cfg.xPropId);
-  if (!prop) return "—";
+  if (!prop) return ["—"];
   const v = computedCellValue(db, row, prop);
-  if (v === null || v === undefined || v === "") return "—";
-  if (prop.type === "select" && typeof v === "string") return v; // option id
-  if (prop.type === "date" && typeof v === "string") return v.slice(0, 10);
-  return String(v);
+  if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) {
+    return ["—"];
+  }
+  if (prop.type === "multiselect" && Array.isArray(v)) return v.map(String); // option ids
+  if (prop.type === "select" && typeof v === "string") return [v]; // option id
+  if (prop.type === "date" && typeof v === "string") return [v.slice(0, 10)];
+  return [String(v)];
 }
 
 /**
@@ -68,22 +75,24 @@ export function buildChartData(
       : undefined;
 
   // ---- buckets, in a stable order ----
+  const optionBuckets = xProp.type === "select" || xProp.type === "multiselect";
   const keys: string[] = [];
   const seen = new Set<string>();
-  if (xProp.type === "select") {
+  if (optionBuckets) {
     for (const o of xProp.options ?? []) {
       keys.push(o.id);
       seen.add(o.id);
     }
   }
   for (const row of rows) {
-    const k = xKey(db, row, cfg);
-    if (!seen.has(k)) {
-      seen.add(k);
-      keys.push(k);
+    for (const k of xKeys(db, row, cfg)) {
+      if (!seen.has(k)) {
+        seen.add(k);
+        keys.push(k);
+      }
     }
   }
-  if (xProp.type !== "select") {
+  if (!optionBuckets) {
     const numeric = keys.every((k) => k === "—" || !Number.isNaN(Number(k)));
     keys.sort((a, b) => {
       if (a === "—") return 1;
@@ -93,11 +102,11 @@ export function buildChartData(
   }
 
   const bucketLabel = (k: string) =>
-    xProp.type === "select"
+    optionBuckets
       ? xProp.options?.find((o) => o.id === k)?.name ?? (k === "—" ? "—" : k)
       : k;
   const bucketColor = (k: string, i: number): SelectColor =>
-    xProp.type === "select"
+    optionBuckets
       ? xProp.options?.find((o) => o.id === k)?.color ?? "gray"
       : colorForIndex(i);
   const buckets = keys.map((k, i) => ({ label: bucketLabel(k), color: bucketColor(k, i) }));
@@ -120,19 +129,21 @@ export function buildChartData(
   // Collect raw numbers per bucket/series, then aggregate.
   const cells: number[][][] = seriesKeys.map(() => keys.map(() => []));
   for (const row of rows) {
-    const bi = idx.get(xKey(db, row, cfg));
-    if (bi === undefined) continue;
     let si = 0;
     if (seriesProp) {
       const sv = row.cells[seriesProp.id];
       si = seriesKeys.findIndex((s) => s.key === (typeof sv === "string" && sv ? sv : null));
       if (si < 0) continue;
     }
-    if (yProp) {
-      const v = Number(computedCellValue(db, row, yProp));
-      if (!Number.isNaN(v)) cells[si][bi].push(v);
-    } else {
-      cells[si][bi].push(1); // row count
+    for (const k of xKeys(db, row, cfg)) {
+      const bi = idx.get(k);
+      if (bi === undefined) continue;
+      if (yProp) {
+        const v = Number(computedCellValue(db, row, yProp));
+        if (!Number.isNaN(v)) cells[si][bi].push(v);
+      } else {
+        cells[si][bi].push(1); // row count
+      }
     }
   }
   for (let si = 0; si < series.length; si++) {
@@ -156,10 +167,18 @@ function useSize<T extends HTMLElement>() {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => {
-      const { width, height } = entry.contentRect;
-      setSize({ w: Math.round(width), h: Math.round(height) });
-    });
+    // Read the laid-out size synchronously — the observer's initial delivery
+    // can be missed during a mount storm, leaving the size stuck at 0.
+    const read = () => {
+      const r = el.getBoundingClientRect();
+      setSize((s) => {
+        const w = Math.round(r.width);
+        const h = Math.round(r.height);
+        return s.w === w && s.h === h ? s : { w, h };
+      });
+    };
+    read();
+    const ro = new ResizeObserver(read);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);

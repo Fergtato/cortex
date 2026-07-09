@@ -1,14 +1,13 @@
 import type { ComponentType } from "react";
 import type { Dashboard, Widget, WidgetType } from "../../../types";
 import type { Store } from "../../../store";
-import { TextWidget } from "./TextWidget";
+import { TextWidget, TextConfigForm } from "./TextWidget";
 import { ClockWidget, ClockConfigForm } from "./ClockWidget";
 import { TimerWidget, TimerConfigForm, DEFAULT_PRESETS } from "./TimerWidget";
 import { ImageWidget, ImageConfigForm } from "./ImageWidget";
 import { ListWidget, ListConfigForm } from "./ListWidget";
 import { ScifiWidget, ScifiConfigForm } from "./ScifiWidget";
 import { DbViewWidget, DbViewConfigForm } from "./DbViewWidget";
-import { DbListWidget, DbListConfigForm } from "./DbListWidget";
 import { MetricWidget, MetricConfigForm } from "./MetricWidget";
 import { HabitWidget, HabitConfigForm } from "./HabitWidget";
 import { ChartWidget, ChartConfigForm } from "./ChartWidget";
@@ -38,6 +37,8 @@ export interface WidgetDef {
   Component: ComponentType<WidgetProps>;
   /** Optional settings form shown from the frame's ⚙ button in edit mode. */
   ConfigForm?: ComponentType<WidgetProps>;
+  /** Legacy types still render but are left out of the widget picker. */
+  hidden?: boolean;
 }
 
 export const WIDGET_DEFS: Record<WidgetType, WidgetDef> = {
@@ -46,8 +47,9 @@ export const WIDGET_DEFS: Record<WidgetType, WidgetDef> = {
     label: "text",
     glyph: "¶",
     defaultSize: { w: 2, h: 2 },
-    defaultConfig: { text: "" },
+    defaultConfig: { text: "", align: "left", valign: "top", size: "m", color: null },
     Component: TextWidget,
+    ConfigForm: TextConfigForm,
   },
   clock: {
     type: "clock",
@@ -81,7 +83,14 @@ export const WIDGET_DEFS: Record<WidgetType, WidgetDef> = {
     label: "list",
     glyph: "☑",
     defaultSize: { w: 2, h: 3 },
-    defaultConfig: { title: "", items: [] },
+    defaultConfig: {
+      source: "basic",
+      title: "",
+      items: [],
+      databaseId: "",
+      viewId: "",
+      checkPropId: "",
+    },
     Component: ListWidget,
     ConfigForm: ListConfigForm,
   },
@@ -103,14 +112,16 @@ export const WIDGET_DEFS: Record<WidgetType, WidgetDef> = {
     Component: DbViewWidget,
     ConfigForm: DbViewConfigForm,
   },
+  // Legacy: merged into "list" (source: database); old widgets still render.
   "db-list": {
     type: "db-list",
-    label: "database list",
-    glyph: "☷",
+    label: "list",
+    glyph: "☑",
     defaultSize: { w: 2, h: 3 },
     defaultConfig: { databaseId: "", viewId: "", checkPropId: "" },
-    Component: DbListWidget,
-    ConfigForm: DbListConfigForm,
+    Component: ListWidget,
+    ConfigForm: ListConfigForm,
+    hidden: true,
   },
   metric: {
     type: "metric",
