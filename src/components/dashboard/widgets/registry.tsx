@@ -13,6 +13,8 @@ import { HabitWidget, HabitConfigForm } from "./HabitWidget";
 import { ChartWidget, ChartConfigForm } from "./ChartWidget";
 import { FormWidget, FormConfigForm } from "./FormWidget";
 import { ActionButtonWidget, ActionButtonConfigForm } from "./ActionButtonWidget";
+import { ApiMetricWidget, ApiMetricConfigForm } from "./ApiMetricWidget";
+import { ApiPanelWidget, ApiPanelConfigForm } from "./ApiPanelWidget";
 
 /** Props every widget component receives from the grid. */
 export interface WidgetProps {
@@ -187,6 +189,40 @@ export const WIDGET_DEFS: Record<WidgetType, WidgetDef> = {
     },
     Component: ActionButtonWidget,
     ConfigForm: ActionButtonConfigForm,
+  },
+  "api-metric": {
+    type: "api-metric",
+    label: "API metric",
+    glyph: "↯",
+    defaultSize: { w: 2, h: 1 },
+    defaultConfig: {
+      connectionId: "",
+      path: "",
+      valuePath: "",
+      label: "",
+      suffix: "",
+      refreshSec: 60,
+    },
+    Component: ApiMetricWidget,
+    ConfigForm: ApiMetricConfigForm,
+  },
+  "api-panel": {
+    type: "api-panel",
+    label: "API panel",
+    glyph: "☍",
+    defaultSize: { w: 3, h: 2 },
+    defaultConfig: {
+      connectionId: "",
+      path: "",
+      itemsPath: "",
+      labelPath: "",
+      statusPath: "",
+      okValue: "",
+      label: "",
+      refreshSec: 30,
+    },
+    Component: ApiPanelWidget,
+    ConfigForm: ApiPanelConfigForm,
   },
 };
 

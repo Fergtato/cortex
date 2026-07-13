@@ -234,7 +234,9 @@ export type WidgetType =
   | "habit"
   | "chart"
   | "form"
-  | "button";
+  | "button"
+  | "api-metric"
+  | "api-panel";
 
 export interface Widget {
   id: string;

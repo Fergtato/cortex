@@ -10,6 +10,8 @@ import { isComputedType } from "../../../lib/formula";
 import { Icon, isIconName } from "../../Icon";
 import { IconPicker } from "../../IconPicker";
 import type { SelectColor } from "../../../types";
+import { getPath, proxyFetch } from "../../../lib/connections";
+import { ConnectionSelect, useApiPoll } from "./apiShared";
 
 type ButtonAction = "none" | "reset-list" | "create-row" | "swap-widgets" | "run-api";
 type Appearance = "icon-text" | "text" | "icon";
@@ -77,7 +79,26 @@ export function ActionButtonWidget({ widget, dash, store, editing }: WidgetProps
   const showStatus = cfg.showStatus === true;
 
   const target = dash.widgets.find((w) => w.id === strConf(cfg, "targetWidgetId"));
-  const status = showStatus && action === "reset-list" ? listProgress(store, target) : null;
+
+  // Live status: reset-list shows checked/total; run-api can poll an endpoint
+  // and show a value from the response (e.g. a light's on/off state).
+  const statusPoll = useApiPoll(
+    action === "run-api" && showStatus ? strConf(cfg, "connectionId") : "",
+    strConf(cfg, "statusPath"),
+    30
+  );
+  let status: string | null = null;
+  let statusHealth: "ok" | "bad" | null = null;
+  if (showStatus && action === "reset-list") {
+    status = listProgress(store, target);
+  } else if (showStatus && action === "run-api" && strConf(cfg, "statusPath")) {
+    const v = statusPoll.error
+      ? "—"
+      : getPath(statusPoll.data, strConf(cfg, "statusValuePath"));
+    status = v === undefined || v === null ? "…" : String(v);
+    const ok = strConf(cfg, "statusOkValue");
+    if (ok && !statusPoll.error) statusHealth = status === ok ? "ok" : "bad";
+  }
 
   function feedback(ok: boolean) {
     setFlash(ok ? "ok" : "fail");
@@ -148,7 +169,29 @@ export function ActionButtonWidget({ widget, dash, store, editing }: WidgetProps
     return true;
   }
 
-  function run() {
+  async function runApi(): Promise<boolean> {
+    const connectionId = strConf(cfg, "connectionId");
+    const path = strConf(cfg, "apiPath");
+    if (!connectionId || !path) return false;
+    const method = strConf(cfg, "apiMethod") || "POST";
+    let body: unknown = undefined;
+    const bodyText = strConf(cfg, "apiBody").trim();
+    if (bodyText && method !== "GET") {
+      try {
+        body = JSON.parse(bodyText);
+      } catch {
+        return false; // malformed JSON body
+      }
+    }
+    try {
+      const res = await proxyFetch(connectionId, path, { method, body });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async function run() {
     if (editing) return;
     switch (action) {
       case "reset-list":
@@ -157,6 +200,8 @@ export function ActionButtonWidget({ widget, dash, store, editing }: WidgetProps
         return feedback(createRow());
       case "swap-widgets":
         return feedback(swapWidgets());
+      case "run-api":
+        return feedback(await runApi());
       default:
         return feedback(false);
     }
@@ -185,19 +230,23 @@ export function ActionButtonWidget({ widget, dash, store, editing }: WidgetProps
         )}
         {appearance !== "icon" && <span className="dw-button-label">{label}</span>}
       </span>
-      {status && <span className="dw-button-status">{status}</span>}
+      {status && (
+        <span className={`dw-button-status${statusHealth ? ` status-${statusHealth}` : ""}`}>
+          {status}
+        </span>
+      )}
     </button>
   );
 }
 
 /* ------------------------------ config form ---------------------------- */
 
-const ACTIONS: { value: ButtonAction; label: string; disabled?: boolean }[] = [
+const ACTIONS: { value: ButtonAction; label: string }[] = [
   { value: "none", label: "— choose action —" },
   { value: "reset-list", label: "reset a list" },
   { value: "create-row", label: "add a database row" },
   { value: "swap-widgets", label: "swap two widgets" },
-  { value: "run-api", label: "run API call (soon)", disabled: true },
+  { value: "run-api", label: "run API call" },
 ];
 
 function writableProps(props: PropertyDef[]): PropertyDef[] {
@@ -265,7 +314,7 @@ export function ActionButtonConfigForm({ widget, dash, store }: WidgetProps) {
         onChange={(e) => set({ action: e.target.value })}
       >
         {ACTIONS.map((a) => (
-          <option key={a.value} value={a.value} disabled={a.disabled}>
+          <option key={a.value} value={a.value}>
             {a.label}
           </option>
         ))}
@@ -367,6 +416,86 @@ export function ActionButtonConfigForm({ widget, dash, store }: WidgetProps) {
             onChange={(id) => set({ swapBId: id })}
             excludeId={widget.id}
           />
+        </>
+      )}
+
+      {action === "run-api" && (
+        <>
+          <label className="dw-config-label">connection</label>
+          <ConnectionSelect
+            value={strConf(cfg, "connectionId")}
+            onChange={(id) => set({ connectionId: id })}
+          />
+          <label className="dw-config-label">method</label>
+          <div className="dw-config-row-btns">
+            {(["GET", "POST", "PUT", "DELETE"] as const).map((m) => (
+              <button
+                key={m}
+                className={`opt-btn${(strConf(cfg, "apiMethod") || "POST") === m ? " active" : ""}`}
+                onClick={() => set({ apiMethod: m })}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+          <label className="dw-config-label">path</label>
+          <input
+            className="cell-input dw-config-input"
+            value={strConf(cfg, "apiPath")}
+            placeholder="e.g. flow/abc123/trigger"
+            onChange={(e) => set({ apiPath: e.target.value })}
+            onKeyDown={(e) => e.stopPropagation()}
+          />
+          {(strConf(cfg, "apiMethod") || "POST") !== "GET" && (
+            <>
+              <label className="dw-config-label">JSON body (optional)</label>
+              <textarea
+                className="cell-input dw-config-input dw-config-textarea"
+                value={strConf(cfg, "apiBody")}
+                placeholder='{"on": true}'
+                onChange={(e) => set({ apiBody: e.target.value })}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+            </>
+          )}
+          <label className="dw-config-row dw-config-label">
+            <span className="cell-checkbox-wrap">
+              <input
+                type="checkbox"
+                checked={cfg.showStatus === true}
+                onChange={(e) => set({ showStatus: e.target.checked })}
+              />
+            </span>
+            live status from the API
+          </label>
+          {cfg.showStatus === true && (
+            <>
+              <label className="dw-config-label">status path (GET, polled 30s)</label>
+              <input
+                className="cell-input dw-config-input"
+                value={strConf(cfg, "statusPath")}
+                placeholder="e.g. devices/lamp/state"
+                onChange={(e) => set({ statusPath: e.target.value })}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+              <label className="dw-config-label">status value (dot path)</label>
+              <input
+                className="cell-input dw-config-input"
+                value={strConf(cfg, "statusValuePath")}
+                placeholder="e.g. onoff — blank = whole response"
+                onChange={(e) => set({ statusValuePath: e.target.value })}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+              <label className="dw-config-label">healthy when value is</label>
+              <input
+                className="cell-input dw-config-input"
+                value={strConf(cfg, "statusOkValue")}
+                placeholder="e.g. true (blank = neutral)"
+                onChange={(e) => set({ statusOkValue: e.target.value })}
+                onKeyDown={(e) => e.stopPropagation()}
+              />
+            </>
+          )}
         </>
       )}
 
