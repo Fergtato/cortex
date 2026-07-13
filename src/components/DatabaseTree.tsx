@@ -117,6 +117,9 @@ function DbRow({
   inFolder?: boolean;
 }) {
   const dnd = useContext(DbDnd)!;
+  const dialog = useDialog();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const dragging = dnd.draggingId === db.id;
   const zone = dnd.target?.id === db.id ? dnd.target.zone : null;
   // Databases never accept an "inside" drop (no nesting under a database).
@@ -156,8 +159,10 @@ function DbRow({
         `${dragging ? " tree-dragging" : ""}` +
         `${showZone ? ` drop-${showZone}` : ""}`
       }
-      draggable
-      onClick={() => onOpenDatabase(db.id)}
+      draggable={!renaming}
+      onClick={() => {
+        if (!renaming) onOpenDatabase(db.id);
+      }}
       onDragStart={(e) => {
         e.stopPropagation();
         e.dataTransfer.effectAllowed = "move";
@@ -170,7 +175,80 @@ function DbRow({
       onDrop={onDrop}
     >
       <span className="db-list-icon">▤</span>
-      <span className="db-list-name">{db.name || "untitled"}</span>
+      {renaming ? (
+        <InlineRename
+          value={db.name}
+          className="db-list-name db-rename-input"
+          onCommit={(name) => {
+            store.renameDatabase(db.id, name);
+            setRenaming(false);
+          }}
+          onCancel={() => setRenaming(false)}
+        />
+      ) : (
+        <span
+          className="db-list-name"
+          title="double-click to rename"
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            setRenaming(true);
+          }}
+        >
+          {db.name || "untitled"}
+        </span>
+      )}
+      <span className="tree-actions">
+        <span className="tree-menu-wrap">
+          <button
+            className="row-btn row-btn-menu"
+            title="Database menu"
+            draggable={false}
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((o) => !o);
+            }}
+          >
+            ⋯
+          </button>
+          {menuOpen && (
+            <>
+              <div
+                className="tree-menu-backdrop"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuOpen(false);
+                }}
+              />
+              <div className="tree-menu">
+                <button
+                  className="tree-menu-item"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    setRenaming(true);
+                  }}
+                >
+                  Rename
+                </button>
+                <button
+                  className="tree-menu-item danger"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setMenuOpen(false);
+                    const ok = await dialog.confirm(
+                      `Delete database "${db.name || "untitled"}"?`,
+                      { confirmLabel: "delete", danger: true }
+                    );
+                    if (ok) store.deleteDatabase(db.id);
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </>
+          )}
+        </span>
+      </span>
     </li>
   );
 }

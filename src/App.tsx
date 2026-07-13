@@ -225,13 +225,18 @@ export default function App() {
                 onRenameEnd={() => setRenamingDashItemId(null)}
               />
 
-              <div className="sidebar-section-label db-label">pages</div>
-              <button
-                className="new-project-btn"
-                onClick={() => openPage(store.createPage(null, "new project"))}
-              >
-                [ + new project ]
-              </button>
+              <div className="sidebar-section-label db-label">
+                <span>pages</span>
+                <span className="db-section-actions">
+                  <button
+                    className="section-add"
+                    title="New page"
+                    onClick={() => navigateToNew(store.createPage(null, "new project"))}
+                  >
+                    +
+                  </button>
+                </span>
+              </div>
               {store.roots.length === 0 ? (
                 <p className="empty-hint">no projects yet ↑</p>
               ) : (

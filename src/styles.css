@@ -164,21 +164,6 @@ input[type="checkbox"]:disabled {
   font-weight: 700;
 }
 
-.new-project-btn {
-  display: block;
-  width: calc(100% - 24px);
-  margin: 4px 12px 8px;
-  padding: 6px 8px;
-  text-align: left;
-  border: 1px solid var(--line-bright);
-  color: var(--accent);
-  transition: background 0.1s, border-color 0.1s;
-}
-.new-project-btn:hover {
-  background: var(--accent-dim);
-  border-color: var(--accent);
-}
-
 .sidebar-tree {
   flex: 1;
   overflow-y: auto;
@@ -1458,10 +1443,12 @@ input[type="checkbox"]:disabled {
 }
 .db-list-row .tree-actions {
   margin-left: auto;
-  visibility: hidden;
 }
+/* the global `.tree-actions { display: none }` also hides these rows' menus;
+   restore them on hover the same way the page tree does (display, not
+   visibility — visibility alone can't beat display:none). */
 .db-list-row:hover .tree-actions {
-  visibility: visible;
+  display: flex;
 }
 /* reuse the page tree's drop indicators for the databases list */
 .db-list-row.drop-inside {
