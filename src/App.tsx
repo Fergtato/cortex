@@ -16,12 +16,8 @@ import { Logo } from "./components/Logo";
 import { importFromCSV, importFromJSON } from "./lib/importDB";
 import { pickImage } from "./lib/image";
 import type { Page } from "./types";
+import { buildPath, parsePath, selectionTitle, type Selection } from "./lib/routes";
 
-type Selection =
-  | { kind: "page"; id: string }
-  | { kind: "database"; id: string }
-  | { kind: "dashboard"; id: string }
-  | null;
 
 export default function App() {
   const store = useStore();
@@ -143,6 +139,45 @@ export default function App() {
     () => ({ openPage, openDatabase, openDashboard }),
     [openPage, openDatabase, openDashboard]
   );
+
+  // URL routing (see lib/routes.ts). Once the store has loaded, resolve the
+  // initial URL; after that, keep the URL in sync with the selection — push a
+  // history entry when the selection changes, replace it in place when only
+  // the slug changed (rename / move). Back/forward re-resolve the URL.
+  const routeData = store.snapshot();
+  const [routeReady, setRouteReady] = useState(false);
+  useEffect(() => {
+    if (!store.loaded || routeReady) return;
+    setSel(parsePath(window.location.pathname, routeData));
+    setRouteReady(true);
+  }, [store.loaded, routeReady, routeData]);
+
+  useEffect(() => {
+    const onPop = () => setSel(parsePath(window.location.pathname, store.snapshot()));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [store]);
+
+  const path = useMemo(() => buildPath(sel, routeData), [sel, routeData]);
+  const selKey = sel ? `${sel.kind}:${sel.id}` : "";
+  const lastSelKey = useRef<string | null>(null);
+  useEffect(() => {
+    if (!routeReady) return;
+    if (path !== window.location.pathname) {
+      const sameItem = lastSelKey.current === selKey;
+      if (sameItem || lastSelKey.current === null) {
+        window.history.replaceState(null, "", path);
+      } else {
+        window.history.pushState(null, "", path);
+      }
+    }
+    lastSelKey.current = selKey;
+  }, [path, selKey, routeReady]);
+
+  const docTitle = selectionTitle(sel, routeData);
+  useEffect(() => {
+    document.title = docTitle ? `${docTitle} · Cortex` : "Cortex";
+  }, [docTitle]);
 
   // Keep selection valid: clear it if the selected item was deleted.
   useEffect(() => {

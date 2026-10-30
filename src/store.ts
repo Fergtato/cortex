@@ -987,10 +987,12 @@ export function useStore(): Store {
     []
   );
 
-  const snapshot = useCallback(
+  // Memoized so callers get a stable object until an entity map changes.
+  const snapshotData = useMemo(
     () => ({ pages, databases, dashboards }),
     [pages, databases, dashboards]
   );
+  const snapshot = useCallback(() => snapshotData, [snapshotData]);
 
   return {
     snapshot,
