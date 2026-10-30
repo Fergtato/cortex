@@ -1,5 +1,6 @@
 import { useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
+import { EditorState } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskList from "@tiptap/extension-task-list";
@@ -110,6 +111,19 @@ export function Editor({
     if (editor.getHTML() !== incoming) {
       editor.commands.setContent(incoming, false);
     }
+    // Start each page with a fresh undo history, so undo can never reach back
+    // into the previous page's content (setContent alone is undoable).
+    const { state } = editor;
+    editor.view.updateState(
+      EditorState.create({ doc: state.doc, plugins: state.plugins, selection: state.selection })
+    );
+    // updateState bypasses tiptap's dispatch, so nudge listeners (toolbar
+    // undo/redo enabled state) with a no-op transaction.
+    queueMicrotask(() => {
+      if (!editor.isDestroyed) {
+        editor.view.dispatch(editor.state.tr.setMeta("addToHistory", false));
+      }
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, page.id]);
 

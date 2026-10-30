@@ -164,6 +164,24 @@ export function Toolbar({
 
   return (
     <div className="toolbar">
+      <button
+        className="tool-btn"
+        title="Undo (⌘Z)"
+        disabled={!editor.can().undo()}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => editor.chain().focus().undo().run()}
+      >
+        ↶
+      </button>
+      <button
+        className="tool-btn tool-sep-after"
+        title="Redo (⇧⌘Z)"
+        disabled={!editor.can().redo()}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => editor.chain().focus().redo().run()}
+      >
+        ↷
+      </button>
       {buttons.map((b) => (
         <button
           key={b.title}

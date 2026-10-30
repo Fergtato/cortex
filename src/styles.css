@@ -449,6 +449,15 @@ input[type="checkbox"]:disabled {
   background: #181818;
   color: var(--fg);
 }
+.tool-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: none;
+  color: var(--dim);
+}
+.tool-btn.tool-sep-after {
+  border-right-color: var(--line-bright);
+}
 .tool-btn.active {
   background: var(--accent-dim);
   color: var(--accent);
