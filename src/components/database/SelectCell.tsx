@@ -183,11 +183,22 @@ export function SelectCell({ dbId, prop, value, store, onChange }: Props) {
                           setEditingId(null);
                         }
                       }}
+                      isDefault={prop.defaultOptionId === o.id}
+                      onToggleDefault={() =>
+                        store.updateProperty(dbId, prop.id, {
+                          defaultOptionId: prop.defaultOptionId === o.id ? undefined : o.id,
+                        })
+                      }
                       onClose={() => setEditingId(null)}
                     />
                   ) : (
                     <div key={o.id} className="select-pop-row" onClick={() => setOption(o.id)}>
                       <span className={`cell-pill selc-${o.color}`}>{o.name}</span>
+                      {prop.defaultOptionId === o.id && (
+                        <span className="select-pop-default" title="Default for new rows">
+                          default
+                        </span>
+                      )}
                       {selectedIds.includes(o.id) && (
                         <span className="select-pop-check">✓</span>
                       )}
@@ -232,12 +243,16 @@ function OptionEditor({
   onRename,
   onRecolor,
   onDelete,
+  isDefault,
+  onToggleDefault,
   onClose,
 }: {
   option: SelectOption;
   onRename: (name: string) => void;
   onRecolor: (color: SelectOption["color"]) => void;
   onDelete: () => void;
+  isDefault: boolean;
+  onToggleDefault: () => void;
   onClose: () => void;
 }) {
   return (
@@ -269,6 +284,13 @@ function OptionEditor({
           />
         ))}
       </div>
+      <button
+        className={`select-opt-default${isDefault ? " active" : ""}`}
+        title="Pre-fill this option on new rows"
+        onClick={onToggleDefault}
+      >
+        {isDefault ? "★ default for new rows" : "☆ set as default"}
+      </button>
     </div>
   );
 }

@@ -78,6 +78,8 @@ export interface PropertyDef {
   type: PropertyType;
   /** Available choices for `select` / `multiselect` properties. */
   options?: SelectOption[];
+  /** Option pre-filled on new rows (`select` / `multiselect`). */
+  defaultOptionId?: string;
   /** Text wrap: the cell auto-grows to show all content instead of clipping. */
   wrap?: boolean;
   /** Optional fixed column width in px (table view). */

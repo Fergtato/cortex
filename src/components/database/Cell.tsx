@@ -13,15 +13,19 @@ interface Props {
   onChange: (value: CellValue) => void;
   /** The row, for computed cells (created/edited time, auto id, formulas). */
   row?: DatabaseRow;
+  /** Focus the text input on mount (the name cell of a freshly added row). */
+  autoFocus?: boolean;
 }
 
 /** Auto-growing textarea for wrapped text columns: shows all content. */
 function WrapTextCell({
   value,
   onChange,
+  autoFocus,
 }: {
   value: string;
   onChange: (v: string | null) => void;
+  autoFocus?: boolean;
 }) {
   const ref = useRef<HTMLTextAreaElement>(null);
   useLayoutEffect(() => {
@@ -34,6 +38,7 @@ function WrapTextCell({
     <textarea
       ref={ref}
       rows={1}
+      autoFocus={autoFocus}
       className="cell-input cell-textarea"
       value={value}
       onChange={(e) => onChange(e.target.value || null)}
@@ -41,7 +46,7 @@ function WrapTextCell({
   );
 }
 
-export function Cell({ dbId, prop, value, store, onChange, row }: Props) {
+export function Cell({ dbId, prop, value, store, onChange, row, autoFocus }: Props) {
   switch (prop.type) {
     case "formula":
     case "created_time":
@@ -95,12 +100,17 @@ export function Cell({ dbId, prop, value, store, onChange, row }: Props) {
     case "url":
       if (prop.wrap) {
         return (
-          <WrapTextCell value={typeof value === "string" ? value : ""} onChange={onChange} />
+          <WrapTextCell
+            value={typeof value === "string" ? value : ""}
+            onChange={onChange}
+            autoFocus={autoFocus}
+          />
         );
       }
       return (
         <input
           type="text"
+          autoFocus={autoFocus}
           className="cell-input"
           placeholder="https://…"
           value={typeof value === "string" ? value : ""}
@@ -140,12 +150,17 @@ export function Cell({ dbId, prop, value, store, onChange, row }: Props) {
     default:
       if (prop.wrap) {
         return (
-          <WrapTextCell value={typeof value === "string" ? value : ""} onChange={onChange} />
+          <WrapTextCell
+            value={typeof value === "string" ? value : ""}
+            onChange={onChange}
+            autoFocus={autoFocus}
+          />
         );
       }
       return (
         <input
           type="text"
+          autoFocus={autoFocus}
           className="cell-input"
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value || null)}

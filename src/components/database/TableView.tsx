@@ -33,6 +33,8 @@ export function TableView({ db, store, rows, view, lockSchema, minimal }: Props)
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [overIdx, setOverIdx] = useState<number | null>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Row just added via "+ new row": its name cell grabs focus on mount.
+  const [focusRowId, setFocusRowId] = useState<string | null>(null);
 
   const canWrap = (type: string) => type === "text" || type === "url";
 
@@ -92,6 +94,7 @@ export function TableView({ db, store, rows, view, lockSchema, minimal }: Props)
             value={row.cells[prop.id] ?? null}
             row={row}
             store={store}
+            autoFocus={row.id === focusRowId && prop.id === db.properties[0]?.id}
             onChange={(v) => store.updateCell(db.id, row.id, prop.id, v)}
           />
         </td>
@@ -324,7 +327,7 @@ export function TableView({ db, store, rows, view, lockSchema, minimal }: Props)
         )}
       </table>
       {!minimal && (
-        <button className="add-row-btn" onClick={() => store.addRow(db.id)}>
+        <button className="add-row-btn" onClick={() => setFocusRowId(store.addRow(db.id))}>
           + new row
         </button>
       )}

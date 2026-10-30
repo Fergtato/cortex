@@ -160,7 +160,8 @@ export interface Store {
   deleteSelectOption: (dbId: string, propId: string, optId: string) => void;
   /** Patch per-view config (filters, sort, grouping, cover fit, …). */
   updateView: (dbId: string, viewId: string, patch: Partial<DatabaseView>) => void;
-  addRow: (dbId: string, cells?: Record<string, CellValue>) => void;
+  /** Appends a row and returns its id. */
+  addRow: (dbId: string, cells?: Record<string, CellValue>) => string;
   updateCell: (dbId: string, rowId: string, propId: string, value: CellValue) => void;
   deleteRow: (dbId: string, rowId: string) => void;
   /** Apply an arbitrary immutable transform to a database (used by import). */
@@ -741,7 +742,11 @@ export function useStore(): Store {
         ...db,
         properties: db.properties.map((p) =>
           p.id === propId
-            ? { ...p, options: (p.options ?? []).filter((o) => o.id !== optId) }
+            ? {
+                ...p,
+                options: (p.options ?? []).filter((o) => o.id !== optId),
+                defaultOptionId: p.defaultOptionId === optId ? undefined : p.defaultOptionId,
+              }
             : p
         ),
         // Strip the deleted option from every row that referenced it.
@@ -785,16 +790,29 @@ export function useStore(): Store {
   );
 
   const addRow = useCallback(
-    (dbId: string, cells: Record<string, CellValue> = {}) =>
+    (dbId: string, cells: Record<string, CellValue> = {}) => {
+      const id = uid();
       patchDb(dbId, (db) => {
         const seq = db.nextSeq ?? db.rows.length + 1;
         const now = Date.now();
+        // Pre-fill select defaults; explicitly passed cells (e.g. a kanban
+        // column's group value) win.
+        const filled = { ...cells };
+        for (const p of db.properties) {
+          const def = p.defaultOptionId;
+          if (!def || p.id in filled) continue;
+          if (!(p.options ?? []).some((o) => o.id === def)) continue;
+          if (p.type === "select") filled[p.id] = def;
+          else if (p.type === "multiselect") filled[p.id] = [def];
+        }
         return {
           ...db,
           nextSeq: seq + 1,
-          rows: [...db.rows, { id: uid(), cells, createdAt: now, updatedAt: now, seq }],
+          rows: [...db.rows, { id, cells: filled, createdAt: now, updatedAt: now, seq }],
         };
-      }),
+      });
+      return id;
+    },
     [patchDb]
   );
 

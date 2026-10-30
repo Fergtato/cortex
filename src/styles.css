@@ -3547,6 +3547,32 @@ input[type="checkbox"]:disabled {
 .select-pop-check {
   color: var(--accent);
 }
+.select-pop-default {
+  color: var(--dim);
+  font-size: 10px;
+  border: 1px solid var(--line);
+  padding: 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.select-opt-default {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 3px 6px;
+  text-align: left;
+  font-size: 11px;
+  color: var(--dim);
+  border: 1px solid var(--line);
+}
+.select-opt-default:hover,
+.select-opt-default.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.select-opt-default.active {
+  background: var(--accent-dim);
+}
 .select-pop-edit {
   margin-left: auto;
   color: var(--dim);
