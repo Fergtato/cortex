@@ -2909,6 +2909,9 @@ input[type="checkbox"]:disabled {
 
 .export-wrap {
   position: relative;
+  /* flex so the button isn't offset by the wrapper's line box (kept it ~1px
+     lower than the sibling delete button) */
+  display: flex;
 }
 .export-btn {
   color: var(--dim);
