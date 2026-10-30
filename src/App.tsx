@@ -12,6 +12,7 @@ import { SettingsPanel } from "./components/SettingsPanel";
 import { useDialog } from "./components/Dialog";
 import { Icon, isIconName } from "./components/Icon";
 import { IconPicker } from "./components/IconPicker";
+import { Logo } from "./components/Logo";
 import { importFromCSV, importFromJSON } from "./lib/importDB";
 import { pickImage } from "./lib/image";
 import type { Page } from "./types";
@@ -183,7 +184,10 @@ export default function App() {
           )}
           <aside className="sidebar">
             <header className="sidebar-head">
-              <span className="logo">▚ CORTEX</span>
+              <span className="logo">
+                <Logo size={18} />
+                CORTEX
+              </span>
               <button
                 className="sidebar-hide-btn"
                 title="Hide sidebar"
