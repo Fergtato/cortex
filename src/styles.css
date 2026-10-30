@@ -1335,6 +1335,10 @@ input[type="checkbox"]:disabled {
   color: var(--dim);
   font-size: 11px;
 }
+.ds-apply-row .dialog-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 .dialog-btn.primary:disabled {
   opacity: 0.4;
   cursor: default;

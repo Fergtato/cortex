@@ -24,6 +24,8 @@ import {
 } from "../lib/connections";
 import { invalidateConnectionsCache } from "./dashboard/widgets/apiShared";
 import { useDialog } from "./Dialog";
+import { useStoreContext } from "../context";
+import { buildBackup, downloadBackup } from "../lib/backup";
 
 export function SettingsPanel({
   settings,
@@ -126,6 +128,7 @@ export function SettingsPanel({
             </div>
           </section>
 
+          <BackupSection settings={settings} />
           <DataSourceSection />
           <ConnectionsSection />
         </div>
@@ -137,6 +140,29 @@ export function SettingsPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+function BackupSection({ settings }: { settings: SettingsApi["settings"] }) {
+  const store = useStoreContext();
+  const pageCount = Object.keys(store.pages).length;
+  return (
+    <section className="settings-section">
+      <div className="set-label">backup</div>
+      <div className="ds-apply-row">
+        <span className="ds-note">
+          everything ({pageCount} pages · {store.databases.length} databases ·{" "}
+          {store.dashboards.length} dashboards + settings) as one .json file
+        </span>
+        <button
+          className="dialog-btn primary"
+          disabled={!store.loaded}
+          onClick={() => downloadBackup(buildBackup(store.snapshot(), settings))}
+        >
+          [ export backup ]
+        </button>
+      </div>
+    </section>
   );
 }
 

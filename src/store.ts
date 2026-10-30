@@ -106,6 +106,8 @@ function diffMap<T>(
 }
 
 export interface Store {
+  /** Raw entity maps (pages, databases+folders, dashboards+folders) for backup. */
+  snapshot: () => { pages: PageMap; databases: DatabaseMap; dashboards: DashboardMap };
   /** False until the initial load from the data source has completed. */
   loaded: boolean;
   pages: PageMap;
@@ -985,7 +987,13 @@ export function useStore(): Store {
     []
   );
 
+  const snapshot = useCallback(
+    () => ({ pages, databases, dashboards }),
+    [pages, databases, dashboards]
+  );
+
   return {
+    snapshot,
     loaded,
     pages,
     roots,

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Database } from "../../types";
 import { exportToCSV, exportToJSON, exportToMarkdown } from "../../lib/exportDB";
+import { downloadFile as download } from "../../lib/download";
 
 interface Props {
   db: Database;
@@ -12,17 +13,6 @@ function sanitizeFileName(name: string): string {
   return (name || "database").replace(/[^\w.-]+/g, "_").slice(0, 80) || "database";
 }
 
-function download(filename: string, content: string, mime: string) {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
 
 const FORMAT_LABEL: Record<Format, string> = {
   json: "json",
