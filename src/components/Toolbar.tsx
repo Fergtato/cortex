@@ -310,29 +310,6 @@ export function Toolbar({
         ⊓ tabs
       </button>
 
-      {editor.isActive("table") && (
-        <span className="tool-table-ops">
-          {(
-            [
-              ["+row", "Add row below", () => editor.chain().focus().addRowAfter().run()],
-              ["+col", "Add column right", () => editor.chain().focus().addColumnAfter().run()],
-              ["−row", "Delete row", () => editor.chain().focus().deleteRow().run()],
-              ["−col", "Delete column", () => editor.chain().focus().deleteColumn().run()],
-              ["⌫ table", "Delete table", () => editor.chain().focus().deleteTable().run()],
-            ] as const
-          ).map(([label, title, run]) => (
-            <button
-              key={title}
-              className="tool-btn tool-tableop"
-              title={title}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={run}
-            >
-              {label}
-            </button>
-          ))}
-        </span>
-      )}
     </div>
   );
 }

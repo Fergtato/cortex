@@ -455,6 +455,7 @@ input[type="checkbox"]:disabled {
 }
 
 .editor-content {
+  position: relative;
   padding: 16px 18px;
   min-height: 360px;
 }
@@ -707,9 +708,6 @@ input[type="checkbox"]:disabled {
   padding: 0 1px;
   color: inherit;
 }
-.tool-tableop {
-  color: var(--dim);
-}
 
 /* basic content table (not a database) */
 .editor-content .tableWrapper {
@@ -744,6 +742,101 @@ input[type="checkbox"]:disabled {
   background: var(--accent-dim);
   opacity: 0.5;
   pointer-events: none;
+}
+
+/* on-table controls (editor/TableControls.tsx) */
+.editor-content .content-table {
+  margin-bottom: 18px;
+}
+.tbl-ctrl {
+  position: absolute;
+  z-index: 15;
+}
+.tbl-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--line);
+  background: var(--bg);
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.55;
+}
+.tbl-add-row {
+  height: 13px;
+}
+.tbl-add-col {
+  width: 13px;
+}
+.tbl-add:hover {
+  opacity: 1;
+  border-style: solid;
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.tbl-handle > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-bright);
+  background: var(--panel);
+  color: var(--dim);
+  font-size: 11px;
+  line-height: 1;
+  padding: 0;
+}
+.tbl-handle-col > button {
+  width: 24px;
+  height: 13px;
+}
+.tbl-handle-row > button {
+  width: 13px;
+  height: 22px;
+}
+.tbl-handle > button:hover,
+.tbl-handle > button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+.tbl-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  padding: 3px 0;
+}
+.tbl-handle-row .tbl-menu {
+  top: 0;
+  left: calc(100% + 2px);
+}
+.tbl-menu > button {
+  text-align: left;
+  padding: 4px 10px;
+  color: var(--fg);
+  white-space: nowrap;
+}
+.tbl-menu > button:hover {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+.tbl-menu > button.danger {
+  color: var(--danger);
+}
+.tbl-menu > button.danger:hover {
+  background: var(--danger);
+  color: var(--bg);
+}
+.tbl-menu-sep {
+  height: 1px;
+  margin: 3px 0;
+  background: var(--line);
 }
 
 /* toggle list */

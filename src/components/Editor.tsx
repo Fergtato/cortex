@@ -23,6 +23,7 @@ import { Toggle } from "./editor/Toggle";
 import { Columns, Column } from "./editor/Columns";
 import { Tabs, Tab } from "./editor/Tabs";
 import { BlockCursor } from "./editor/BlockCursor";
+import { TableControls } from "./editor/TableControls";
 import { SlashCommands, type SlashActions } from "./editor/SlashCommands";
 import { pickImage } from "../lib/image";
 
@@ -47,6 +48,7 @@ export function Editor({
 }: Props) {
   const store = useStoreContext();
   const dialog = useDialog();
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Keep the latest callbacks in refs so the editor's handlers (captured once at
   // creation) always call the current versions without recreating the editor.
@@ -220,8 +222,9 @@ export function Editor({
         onInsertDatabase={insertDatabase}
         onInsertImage={insertImage}
       />
-      <div className="editor-content" onClick={focusEmptyArea}>
+      <div className="editor-content" ref={contentRef} onClick={focusEmptyArea}>
         <EditorContent editor={editor} />
+        <TableControls editor={editor} containerRef={contentRef} />
       </div>
     </div>
   );
