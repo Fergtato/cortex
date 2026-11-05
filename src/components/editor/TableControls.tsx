@@ -181,7 +181,7 @@ export function TableControls({
       {rowRect && (
         <div
           className="tbl-ctrl tbl-handle tbl-handle-row"
-          style={{ top: rowRect.top + rowRect.height / 2 - 11, left: t.left - 16 }}
+          style={{ top: rowRect.top + rowRect.height / 2 - 11, left: t.left - 7 }}
         >
           <button
             title="Row options"
