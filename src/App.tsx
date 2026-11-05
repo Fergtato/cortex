@@ -16,7 +16,13 @@ import { Logo } from "./components/Logo";
 import { importFromCSV, importFromJSON } from "./lib/importDB";
 import { pickImage } from "./lib/image";
 import type { Page } from "./types";
-import { buildPath, parsePath, selectionTitle, type Selection } from "./lib/routes";
+import {
+  buildPath,
+  buildRouteTable,
+  parsePath,
+  selectionTitle,
+  type Selection,
+} from "./lib/routes";
 
 
 export default function App() {
@@ -145,20 +151,27 @@ export default function App() {
   // history entry when the selection changes, replace it in place when only
   // the slug changed (rename / move). Back/forward re-resolve the URL.
   const routeData = store.snapshot();
+  const routeTable = useMemo(() => buildRouteTable(routeData), [routeData]);
   const [routeReady, setRouteReady] = useState(false);
   useEffect(() => {
     if (!store.loaded || routeReady) return;
-    setSel(parsePath(window.location.pathname, routeData));
+    setSel(parsePath(window.location.pathname, routeData, routeTable));
     setRouteReady(true);
-  }, [store.loaded, routeReady, routeData]);
+  }, [store.loaded, routeReady, routeData, routeTable]);
 
+  // Latest data/table for the popstate handler without re-subscribing.
+  const routeRef = useRef({ routeData, routeTable });
+  routeRef.current = { routeData, routeTable };
   useEffect(() => {
-    const onPop = () => setSel(parsePath(window.location.pathname, store.snapshot()));
+    const onPop = () => {
+      const { routeData, routeTable } = routeRef.current;
+      setSel(parsePath(window.location.pathname, routeData, routeTable));
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [store]);
+  }, []);
 
-  const path = useMemo(() => buildPath(sel, routeData), [sel, routeData]);
+  const path = buildPath(sel, routeTable);
   const selKey = sel ? `${sel.kind}:${sel.id}` : "";
   const lastSelKey = useRef<string | null>(null);
   useEffect(() => {

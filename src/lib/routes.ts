@@ -1,11 +1,15 @@
 import type { DashboardMap, DatabaseMap, PageMap } from "../types";
 
 /**
- * URL routing. Every page, database and dashboard gets a readable, bookmarkable
- * path: its ancestors (parent pages / containing folder) as slugs, then its own
- * slug with the id appended — e.g. `/page/projects/cortex/roadmap-k3j9x2`.
- * Only the trailing id is authoritative, so renames and moves never break an
- * old link; the slugs are just for humans and get rewritten in place.
+ * URL routing. Every page, database and dashboard gets a short, readable,
+ * bookmarkable path built only from names:
+ *   /page/life/travel/japan      (ancestor pages, then the page)
+ *   /database/projects/todos     (containing folder, then the database)
+ *   /dashboard/home              (containing folder, then the dashboard)
+ * Names that collide among siblings are numbered in creation order
+ * (`notes`, `notes-2`, …) so every path is unique. Because paths are derived
+ * from names, renaming or moving an item changes its URL (the address bar is
+ * rewritten in place). Legacy `…/<slug>-<id>` links still resolve by id.
  */
 export type Selection =
   | { kind: "page"; id: string }
@@ -13,13 +17,18 @@ export type Selection =
   | { kind: "dashboard"; id: string }
   | null;
 
+type Kind = "page" | "database" | "dashboard";
+
 interface RouteData {
   pages: PageMap;
   databases: DatabaseMap;
   dashboards: DashboardMap;
 }
 
-const PREFIX = { page: "page", database: "database", dashboard: "dashboard" } as const;
+export interface RouteTable {
+  pathOf: Map<string, string>; // `${kind}:${id}` -> path
+  byPath: Map<string, Selection>; // path -> selection
+}
 
 export function slugify(name: string | undefined): string {
   const s = (name ?? "")
@@ -33,50 +42,125 @@ export function slugify(name: string | undefined): string {
   return s || "untitled";
 }
 
-function folderSlug(map: Record<string, { name?: string }>, folderId?: string | null) {
-  const folder = folderId ? map[folderId] : undefined;
-  return folder ? [slugify(folder.name)] : [];
+interface Node {
+  id: string;
+  name?: string;
+  createdAt?: number;
 }
 
-export function buildPath(sel: Selection, data: RouteData): string {
-  if (!sel) return "/";
-  let segs: string[] = [];
-  let leaf: string | undefined;
-  if (sel.kind === "page") {
-    const page = data.pages[sel.id];
-    if (!page) return "/";
-    leaf = page.title;
-    // Ancestors, root first (cycle-guarded).
+/**
+ * Unique slug per item within one sibling group: first-created keeps the bare
+ * slug, later duplicates get `-2`, `-3`, … (skipping any already taken).
+ */
+function siblingSlugs(items: Node[]): Map<string, string> {
+  const out = new Map<string, string>();
+  const sorted = [...items].sort(
+    (a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0) || a.id.localeCompare(b.id)
+  );
+  // Claim bare slugs first so a duplicate "notes" can't take "notes-2" from
+  // an item literally named "notes 2".
+  const taken = new Set<string>();
+  for (const n of sorted) {
+    const s = slugify(n.name);
+    if (!taken.has(s)) {
+      taken.add(s);
+      out.set(n.id, s);
+    }
+  }
+  for (const n of sorted) {
+    if (out.has(n.id)) continue;
+    const s = slugify(n.name);
+    let i = 2;
+    while (taken.has(`${s}-${i}`)) i++;
+    taken.add(`${s}-${i}`);
+    out.set(n.id, `${s}-${i}`);
+  }
+  return out;
+}
+
+function groupBy<T>(items: T[], key: (t: T) => string): Map<string, T[]> {
+  const m = new Map<string, T[]>();
+  for (const it of items) {
+    const k = key(it);
+    const arr = m.get(k);
+    if (arr) arr.push(it);
+    else m.set(k, [it]);
+  }
+  return m;
+}
+
+export function buildRouteTable(data: RouteData): RouteTable {
+  const pathOf = new Map<string, string>();
+  const byPath = new Map<string, Selection>();
+  const add = (kind: Kind, id: string, path: string) => {
+    pathOf.set(`${kind}:${id}`, path);
+    byPath.set(path, { kind, id });
+  };
+
+  // Pages: dedupe among siblings, then join ancestor segments.
+  const pages = Object.values(data.pages);
+  const pageSeg = new Map<string, string>();
+  for (const group of groupBy(pages, (p) => p.parentId ?? "").values()) {
+    for (const [id, s] of siblingSlugs(group.map((p) => ({ ...p, name: p.title })))) {
+      pageSeg.set(id, s);
+    }
+  }
+  for (const page of pages) {
+    const segs = [pageSeg.get(page.id)!];
     const seen = new Set([page.id]);
     let cur = page.parentId ? data.pages[page.parentId] : undefined;
     while (cur && !seen.has(cur.id)) {
       seen.add(cur.id);
-      segs.unshift(slugify(cur.title));
+      segs.unshift(pageSeg.get(cur.id)!);
       cur = cur.parentId ? data.pages[cur.parentId] : undefined;
     }
-  } else {
-    const map = sel.kind === "database" ? data.databases : data.dashboards;
-    const item = map[sel.id] as { name?: string; folderId?: string | null } | undefined;
-    if (!item) return "/";
-    leaf = item.name;
-    segs = folderSlug(map, item.folderId);
+    add("page", page.id, `/page/${segs.join("/")}`);
   }
-  return `/${[PREFIX[sel.kind], ...segs, `${slugify(leaf)}-${sel.id}`].join("/")}`;
+
+  // Databases / dashboards: folders dedupe among folders; items dedupe within
+  // their folder (or the top level).
+  const flat = (kind: "database" | "dashboard", map: Record<string, unknown>) => {
+    const all = Object.values(map) as (Node & { kind?: string; folderId?: string | null })[];
+    const folders = all.filter((x) => x.kind === "folder");
+    const items = all.filter((x) => x.kind !== "folder");
+    const folderSeg = siblingSlugs(folders);
+    for (const group of groupBy(items, (x) => x.folderId ?? "").values()) {
+      for (const [id, s] of siblingSlugs(group)) {
+        const item = map[id] as { folderId?: string | null };
+        const f = item.folderId ? folderSeg.get(item.folderId) : undefined;
+        add(kind, id, `/${kind}/${f ? `${f}/` : ""}${s}`);
+      }
+    }
+  };
+  flat("database", data.databases);
+  flat("dashboard", data.dashboards);
+
+  return { pathOf, byPath };
 }
 
-export function parsePath(pathname: string, data: RouteData): Selection {
-  const segs = pathname.split("/").filter(Boolean).map(decodeURIComponent);
-  if (segs.length < 2) return null;
-  const kind = (Object.keys(PREFIX) as (keyof typeof PREFIX)[]).find(
-    (k) => PREFIX[k] === segs[0]
-  );
-  if (!kind) return null;
+export function buildPath(sel: Selection, table: RouteTable): string {
+  if (!sel) return "/";
+  return table.pathOf.get(`${sel.kind}:${sel.id}`) ?? "/";
+}
+
+export function parsePath(pathname: string, data: RouteData, table: RouteTable): Selection {
+  let path: string;
+  try {
+    path = "/" + pathname.split("/").filter(Boolean).map(decodeURIComponent).join("/");
+  } catch {
+    return null;
+  }
+  const exact = table.byPath.get(path.toLowerCase());
+  if (exact) return exact;
+
+  // Legacy links: `/<kind>/…/<slug>-<id>` — resolve by the trailing id.
+  const segs = path.split("/").filter(Boolean);
+  const kind = segs[0] as Kind;
+  if (segs.length < 2 || !["page", "database", "dashboard"].includes(kind)) return null;
   const last = segs[segs.length - 1];
   const map = (
     kind === "page" ? data.pages : kind === "database" ? data.databases : data.dashboards
   ) as Record<string, { kind?: string }>;
-  // Match the id suffix rather than splitting on "-", so ids that themselves
-  // contain dashes (e.g. imported ones) still resolve. Folders are skipped.
   const id = Object.keys(map).find(
     (k) => (last === k || last.endsWith(`-${k}`)) && map[k]?.kind !== "folder"
   );
