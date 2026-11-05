@@ -5,6 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Cortex</title>
+    <script>
+      // Surface errors that happen before/outside React (e.g. a module that
+      // fails to load) instead of leaving a blank page. React render errors
+      // are handled by ErrorBoundary.tsx.
+      (function () {
+        function show(msg) {
+          var root = document.getElementById("root");
+          if (!root || root.childElementCount) return;
+          var pre = document.createElement("pre");
+          pre.style.cssText =
+            "margin:24px;padding:12px;border:1px solid #d17f7f;color:#d17f7f;" +
+            "background:#0c0c0c;font:12px monospace;white-space:pre-wrap";
+          pre.textContent = "✗ cortex failed to start\n" + location.href + "\n\n" + msg;
+          root.appendChild(pre);
+        }
+        window.addEventListener("error", function (e) {
+          var t = e.target;
+          if (t && t !== window && (t.src || t.href)) {
+            show("failed to load " + (t.src || t.href));
+          } else {
+            show((e.error && e.error.stack) || e.message);
+          }
+        }, true);
+        window.addEventListener("unhandledrejection", function (e) {
+          var r = e.reason;
+          show((r && r.stack) || String(r));
+        });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

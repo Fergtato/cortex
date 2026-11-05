@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { DialogProvider } from "./components/Dialog";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { migrateStorageKeys } from "./storage/migrateKeys";
 import "./styles.css";
 
@@ -11,8 +12,10 @@ migrateStorageKeys();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <DialogProvider>
-      <App />
-    </DialogProvider>
+    <ErrorBoundary>
+      <DialogProvider>
+        <App />
+      </DialogProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
