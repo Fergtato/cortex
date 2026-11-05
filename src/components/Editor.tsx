@@ -106,7 +106,10 @@ export function Editor({
   // Load the page's content when navigating to a different page. `false` keeps
   // this out of the undo history and prevents it from firing a spurious save.
   useEffect(() => {
-    if (!editor) return;
+    // Under StrictMode's dev double-mount, tiptap may hand this effect an
+    // instance whose view it has already destroyed (it re-renders with a
+    // fresh one, re-running this effect) — touching it would throw.
+    if (!editor || editor.isDestroyed) return;
     const incoming = page.content || "";
     if (editor.getHTML() !== incoming) {
       editor.commands.setContent(incoming, false);
@@ -130,7 +133,7 @@ export function Editor({
   // Keep inline subpage-link titles in sync with the live page titles.
   const titleSig = subpages.map((s) => `${s.id}:${s.title}`).join("|");
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
     const titles = new Map(subpages.map((s) => [s.id, s.title || "untitled"]));
     let tr = editor.state.tr;
     let changed = false;
