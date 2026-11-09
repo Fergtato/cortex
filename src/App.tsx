@@ -23,6 +23,7 @@ import {
   selectionTitle,
   type Selection,
 } from "./lib/routes";
+import { StoredImg } from "./components/StoredImg";
 
 
 export default function App() {
@@ -364,7 +365,7 @@ export default function App() {
               <div className="page">
                 {page.cover && (
                   <div className="page-cover">
-                    <img src={page.cover} alt="" />
+                    <StoredImg src={page.cover} alt="" />
                     <span className="page-cover-actions">
                       <button
                         className="meta-btn"

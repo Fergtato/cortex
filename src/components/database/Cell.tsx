@@ -4,6 +4,7 @@ import type { Store } from "../../store";
 import { pickImage } from "../../lib/image";
 import { computedCellValue, formatComputed } from "../../lib/formula";
 import { SelectCell } from "./SelectCell";
+import { StoredImg } from "../StoredImg";
 
 interface Props {
   dbId: string;
@@ -131,7 +132,7 @@ export function Cell({ dbId, prop, value, store, onChange, row, autoFocus }: Pro
       };
       return typeof value === "string" && value ? (
         <span className="cell-image">
-          <img src={value} className="cell-image-thumb" alt="" />
+          <StoredImg src={value} className="cell-image-thumb" alt="" />
           <button className="cell-image-btn" onClick={pick}>
             change
           </button>

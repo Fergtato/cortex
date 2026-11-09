@@ -1,6 +1,7 @@
 import type { WidgetProps } from "./registry";
 import { patchWidgetConfig } from "./registry";
 import { pickImage } from "../../../lib/image";
+import { StoredImg } from "../../StoredImg";
 
 /**
  * Image cell. Stores a (downscaled) data URL in `config.src`; `config.fit`
@@ -31,7 +32,7 @@ export function ImageWidget({ widget, dash, store, editing }: WidgetProps) {
 
   return (
     <div className="dw-image">
-      <img src={src} alt="" style={{ objectFit: fit }} draggable={false} />
+      <StoredImg src={src} alt="" style={{ objectFit: fit }} draggable={false} />
     </div>
   );
 }

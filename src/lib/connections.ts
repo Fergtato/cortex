@@ -1,11 +1,13 @@
-import { getDataSource } from "../storage/datasource";
+import { getDataSource, isSupabaseMode } from "../storage/datasource";
+import { getSupabase } from "./supabase";
 
 /**
- * Client for the server-side "connections" registry and its request proxy.
- * A connection is a named external API (Homey, Docker, TMDB, …) whose base
- * URL + auth recipe live on the Cortex API server; the browser only ever
- * calls the proxy, so tokens never reach the client. Requires the "api"
- * data source — localStorage mode has no server to keep secrets on.
+ * Client for the "connections" registry (Supabase tables) and its request
+ * proxy (the `proxy` Edge Function). A connection is a named external API
+ * (Homey, TMDB, …) — base URL + auth recipe. The secret token is written via
+ * the `set_connection_token` RPC into a table no client can read; only the
+ * Edge Function reads it, so tokens never reach the browser. Requires the
+ * Supabase data source — localStorage mode has no server to keep secrets on.
  */
 
 export type ConnectionAuth = "none" | "bearer" | "header" | "query";
@@ -30,71 +32,95 @@ export interface ConnectionInput {
   token?: string;
 }
 
-function apiBase(): string | null {
-  const config = getDataSource();
-  if (config.mode !== "api") return null;
-  return config.apiUrl.replace(/\/$/, "");
+interface ConnectionRow {
+  id: string;
+  name: string;
+  base_url: string;
+  auth: ConnectionAuth;
+  auth_key: string;
+  has_token: boolean;
 }
 
-function authHeaders(json = false): HeadersInit {
-  const config = getDataSource();
-  return {
-    ...(json ? { "Content-Type": "application/json" } : {}),
-    ...(config.apiToken ? { Authorization: `Bearer ${config.apiToken}` } : {}),
-  };
-}
-
-/** Whether connections can work at all (needs the API data source). */
+/** Whether connections can work at all (needs the Supabase data source). */
 export function connectionsAvailable(): boolean {
-  return apiBase() !== null;
+  return isSupabaseMode();
 }
 
 export async function listConnections(): Promise<ApiConnection[]> {
-  const base = apiBase();
-  if (!base) return [];
-  const res = await fetch(`${base}/api/connections`, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`connections list failed: ${res.status}`);
-  return (await res.json()) as ApiConnection[];
+  if (!connectionsAvailable()) return [];
+  const { data, error } = await getSupabase()
+    .from("connections")
+    .select("id, name, base_url, auth, auth_key, has_token")
+    .order("name");
+  if (error) throw new Error(`connections list failed: ${error.message}`);
+  return ((data ?? []) as ConnectionRow[]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    baseUrl: r.base_url,
+    auth: r.auth,
+    authKey: r.auth_key,
+    hasToken: r.has_token,
+  }));
 }
 
 export async function saveConnection(input: ConnectionInput): Promise<void> {
-  const base = apiBase();
-  if (!base) throw new Error("connections need the API data source");
-  const res = await fetch(`${base}/api/connections/${input.id}`, {
-    method: "PUT",
-    headers: authHeaders(true),
-    body: JSON.stringify(input),
-  });
-  if (!res.ok) throw new Error(`connection save failed: ${res.status}`);
+  if (!connectionsAvailable()) throw new Error("connections need the Supabase data source");
+  const name = input.name.trim();
+  const baseUrl = input.baseUrl.trim().replace(/\/+$/, "");
+  if (!name || !baseUrl) throw new Error("name and baseUrl are required");
+  const sb = getSupabase();
+  const { error } = await sb.from("connections").upsert(
+    {
+      id: input.id,
+      name,
+      base_url: baseUrl,
+      auth: input.auth,
+      auth_key: input.authKey.trim(),
+    },
+    { onConflict: "user_id,id" }
+  );
+  if (error) throw new Error(`connection save failed: ${error.message}`);
+  // Absent token = keep the stored one; empty string = clear it.
+  if (input.token !== undefined) {
+    const { error: tokenErr } = await sb.rpc("set_connection_token", {
+      conn_id: input.id,
+      new_token: input.token,
+    });
+    if (tokenErr) throw new Error(`connection token save failed: ${tokenErr.message}`);
+  }
 }
 
 export async function deleteConnection(id: string): Promise<void> {
-  const base = apiBase();
-  if (!base) return;
-  const res = await fetch(`${base}/api/connections/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`connection delete failed: ${res.status}`);
+  if (!connectionsAvailable()) return;
+  const { error } = await getSupabase().from("connections").delete().eq("id", id);
+  if (error) throw new Error(`connection delete failed: ${error.message}`);
 }
 
 /**
- * Call an external API through the server proxy. `path` is relative to the
- * connection's base URL (no leading slash needed); credentials are injected
- * server-side.
+ * Call an external API through the `proxy` Edge Function. `path` is relative
+ * to the connection's base URL (no leading slash needed); credentials are
+ * injected server-side.
  */
 export async function proxyFetch(
   connectionId: string,
   path: string,
   init?: { method?: string; body?: unknown }
 ): Promise<Response> {
-  const base = apiBase();
-  if (!base) throw new Error("connections need the API data source");
+  if (!connectionsAvailable()) throw new Error("connections need the Supabase data source");
+  const { supabaseUrl, anonKey } = getDataSource();
+  const { data } = await getSupabase().auth.getSession();
+  const accessToken = data.session?.access_token;
+  if (!accessToken) throw new Error("not signed in");
   const clean = path.replace(/^\/+/, "");
-  return fetch(`${base}/api/proxy/${connectionId}/${clean}`, {
+  const hasBody = init?.body !== undefined;
+  return fetch(`${supabaseUrl}/functions/v1/proxy/${encodeURIComponent(connectionId)}/${clean}`, {
     method: init?.method ?? "GET",
-    headers: authHeaders(init?.body !== undefined),
-    body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${accessToken}`,
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
+    },
+    body: hasBody ? JSON.stringify(init!.body) : undefined,
   });
 }
 

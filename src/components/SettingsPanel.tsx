@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ACCENTS,
   FONTS,
@@ -7,12 +7,15 @@ import {
   type FontKey,
   type SettingsApi,
   type ThemeKey,
+  sanitizeSettings,
 } from "../settings";
 import {
   getDataSource,
   setDataSource,
   type DataSourceMode,
 } from "../storage/datasource";
+import { useAuth } from "./AuthGate";
+import { parseBackup, prepareBackupData } from "../lib/restore";
 import {
   connectionsAvailable,
   deleteConnection,
@@ -128,7 +131,8 @@ export function SettingsPanel({
             </div>
           </section>
 
-          <BackupSection settings={settings} />
+          <AccountSection />
+          <BackupSection settings={settings} update={update} />
           <DataSourceSection />
           <ConnectionsSection />
         </div>
@@ -143,9 +147,62 @@ export function SettingsPanel({
   );
 }
 
-function BackupSection({ settings }: { settings: SettingsApi["settings"] }) {
+function AccountSection() {
+  const auth = useAuth();
+  if (!auth) return null;
+  return (
+    <section className="settings-section">
+      <div className="set-label">account</div>
+      <div className="ds-apply-row">
+        <span className="ds-note">signed in as {auth.email ?? "(no email)"}</span>
+        <button className="dialog-btn" onClick={() => auth.signOut()}>
+          [ sign out ]
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function BackupSection({
+  settings,
+  update,
+}: {
+  settings: SettingsApi["settings"];
+  update: SettingsApi["update"];
+}) {
   const store = useStoreContext();
+  const dialog = useDialog();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const pageCount = Object.keys(store.pages).length;
+
+  async function importFile(file: File) {
+    setStatus(null);
+    try {
+      const backup = parseBackup(await file.text());
+      const counts = `${Object.keys(backup.pages).length} pages, ${
+        Object.keys(backup.databases).length
+      } databases/folders, ${Object.keys(backup.dashboards).length} dashboards/folders`;
+      const ok = await dialog.confirm(
+        `Replace this workspace with the backup from ${backup.exportedAt.slice(0, 10)} (${counts})? Everything currently here will be overwritten.`,
+        { confirmLabel: "replace", danger: true }
+      );
+      if (!ok) return;
+      setBusy(true);
+      const data = await prepareBackupData(backup, (done, total) =>
+        setStatus(total ? `uploading images ${done}/${total}…` : null)
+      );
+      store.replaceAll(data);
+      if (backup.settings) update(sanitizeSettings(backup.settings));
+      setStatus("✓ backup imported");
+    } catch (err) {
+      setStatus(`✗ ${String((err as Error)?.message ?? err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <section className="settings-section">
       <div className="set-label">backup</div>
@@ -162,6 +219,27 @@ function BackupSection({ settings }: { settings: SettingsApi["settings"] }) {
           [ export backup ]
         </button>
       </div>
+      <div className="ds-apply-row">
+        <span className="ds-note">{status ?? "replace this workspace from a backup file"}</span>
+        <button
+          className="dialog-btn"
+          disabled={!store.loaded || busy}
+          onClick={() => fileRef.current?.click()}
+        >
+          [ import backup ]
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) importFile(file);
+          }}
+        />
+      </div>
     </section>
   );
 }
@@ -171,38 +249,31 @@ type TestState = "idle" | "testing" | "ok" | "unauthorized" | "fail";
 function DataSourceSection() {
   const initial = getDataSource();
   const [mode, setMode] = useState<DataSourceMode>(initial.mode);
-  const [apiUrl, setApiUrl] = useState(initial.apiUrl);
-  const [apiToken, setApiToken] = useState(initial.apiToken ?? "");
+  const [supabaseUrl, setSupabaseUrl] = useState(initial.supabaseUrl);
+  const [anonKey, setAnonKey] = useState(initial.anonKey);
   const [test, setTest] = useState<TestState>("idle");
 
+  const complete = mode === "local" || (supabaseUrl.trim() !== "" && anonKey.trim() !== "");
   const dirty =
     mode !== initial.mode ||
-    apiUrl.trim() !== initial.apiUrl ||
-    apiToken.trim() !== (initial.apiToken ?? "");
+    supabaseUrl.trim() !== initial.supabaseUrl ||
+    anonKey.trim() !== initial.anonKey;
 
   async function testConnection() {
     setTest("testing");
-    const base = apiUrl.replace(/\/$/, "");
+    const base = supabaseUrl.trim().replace(/\/+$/, "");
     try {
-      const health = await fetch(`${base}/api/health`);
-      if (!health.ok) {
-        setTest("fail");
-        return;
-      }
-      // Health is open by design; verify the token against a protected route.
-      const authed = await fetch(`${base}/api/pages`, {
-        headers: apiToken.trim()
-          ? { Authorization: `Bearer ${apiToken.trim()}` }
-          : {},
+      const res = await fetch(`${base}/auth/v1/health`, {
+        headers: { apikey: anonKey.trim() },
       });
-      setTest(authed.status === 401 ? "unauthorized" : authed.ok ? "ok" : "fail");
+      setTest(res.status === 401 || res.status === 403 ? "unauthorized" : res.ok ? "ok" : "fail");
     } catch {
       setTest("fail");
     }
   }
 
   function apply() {
-    setDataSource({ mode, apiUrl: apiUrl.trim(), apiToken: apiToken.trim() });
+    setDataSource({ mode, supabaseUrl: supabaseUrl.trim(), anonKey: anonKey.trim() });
     // Reload so the store re-initializes against the new backend cleanly.
     window.location.reload();
   }
@@ -218,36 +289,36 @@ function DataSourceSection() {
           localStorage
         </button>
         <button
-          className={`opt-btn${mode === "api" ? " active" : ""}`}
-          onClick={() => setMode("api")}
+          className={`opt-btn${mode === "supabase" ? " active" : ""}`}
+          onClick={() => setMode("supabase")}
         >
-          API (SQLite)
+          Supabase
         </button>
       </div>
 
-      {mode === "api" && (
+      {mode === "supabase" && (
         <div className="ds-api">
           <label className="ds-field">
-            <span className="ds-field-label">api url</span>
+            <span className="ds-field-label">supabase url</span>
             <input
               className="dialog-input"
-              value={apiUrl}
-              placeholder="http://localhost:3001"
+              value={supabaseUrl}
+              placeholder="https://supabase.example.com"
               onChange={(e) => {
-                setApiUrl(e.target.value);
+                setSupabaseUrl(e.target.value);
                 setTest("idle");
               }}
             />
           </label>
           <label className="ds-field">
-            <span className="ds-field-label">token</span>
+            <span className="ds-field-label">anon key</span>
             <input
               className="dialog-input"
               type="password"
-              value={apiToken}
-              placeholder="(blank if the server has no CORTEX_TOKEN)"
+              value={anonKey}
+              placeholder="the public anon key — never the service-role key"
               onChange={(e) => {
-                setApiToken(e.target.value);
+                setAnonKey(e.target.value);
                 setTest("idle");
               }}
             />
@@ -259,7 +330,7 @@ function DataSourceSection() {
             <span className={`ds-test ds-test-${test}`}>
               {test === "testing" && "…checking"}
               {test === "ok" && "✓ connected"}
-              {test === "unauthorized" && "✗ wrong or missing token"}
+              {test === "unauthorized" && "✗ anon key rejected"}
               {test === "fail" && "✗ no response"}
             </span>
           </div>
@@ -267,8 +338,10 @@ function DataSourceSection() {
       )}
 
       <div className="ds-apply-row">
-        <span className="ds-note">switching reloads the app</span>
-        <button className="dialog-btn primary" disabled={!dirty} onClick={apply}>
+        <span className="ds-note">
+          switching reloads the app{mode === "supabase" ? " — you'll be asked to sign in" : ""}
+        </span>
+        <button className="dialog-btn primary" disabled={!dirty || !complete} onClick={apply}>
           [ apply ]
         </button>
       </div>
@@ -297,7 +370,9 @@ const CONNECTION_PRESETS: {
   {
     key: "docker",
     label: "Docker",
-    baseUrl: "unix:///var/run/docker.sock",
+    // Docker's unix socket isn't reachable from an Edge Function — expose it
+    // over HTTP (e.g. a docker-socket-proxy container) and point at that.
+    baseUrl: "http://docker-socket-proxy:2375",
     auth: "none",
     authKey: "",
   },
@@ -359,9 +434,9 @@ function ConnectionsSection() {
       <section className="settings-section">
         <div className="set-label">api connections</div>
         <p className="conn-hint">
-          external API connections need the API data source (secrets live on
-          the server, which also proxies requests past CORS). Switch above,
-          then add connections here.
+          external API connections need the Supabase data source (secrets
+          live in Supabase and an Edge Function proxies requests past CORS).
+          Switch above, then add connections here.
         </p>
       </section>
     );
@@ -484,7 +559,7 @@ function ConnectionsSection() {
             <input
               className="dialog-input"
               value={draft.baseUrl}
-              placeholder="https://… or unix:///var/run/docker.sock"
+              placeholder="https://…"
               onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })}
             />
           </label>

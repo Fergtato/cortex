@@ -2,6 +2,7 @@ import type { Database, DatabaseRow, DatabaseView, PropertyDef } from "../../typ
 import type { Store } from "../../store";
 import { Cell } from "./Cell";
 import { pickImage } from "../../lib/image";
+import { StoredImg } from "../StoredImg";
 
 interface Props {
   db: Database;
@@ -122,7 +123,7 @@ function Cover({
     <div className="gallery-cover" onClick={pick} title="Click to set image">
       {src ? (
         <>
-          <img src={src} className={`gallery-cover-img cover-${fit}`} alt="" />
+          <StoredImg src={src} className={`gallery-cover-img cover-${fit}`} alt="" />
           <button
             className="gallery-cover-del"
             title="Remove image"

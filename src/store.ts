@@ -108,6 +108,11 @@ function diffMap<T>(
 export interface Store {
   /** Raw entity maps (pages, databases+folders, dashboards+folders) for backup. */
   snapshot: () => { pages: PageMap; databases: DatabaseMap; dashboards: DashboardMap };
+  /**
+   * Replace the whole workspace (backup import). The normal debounced
+   * diff-save then persists exactly the upserts and deletes this implies.
+   */
+  replaceAll: (data: { pages: PageMap; databases: DatabaseMap; dashboards: DashboardMap }) => void;
   /** False until the initial load from the data source has completed. */
   loaded: boolean;
   pages: PageMap;
@@ -1012,8 +1017,18 @@ export function useStore(): Store {
   );
   const snapshot = useCallback(() => snapshotData, [snapshotData]);
 
+  const replaceAll = useCallback(
+    (data: { pages: PageMap; databases: DatabaseMap; dashboards: DashboardMap }) => {
+      setPages(normalizePageOrder(data.pages ?? {}));
+      setDatabases(normalizeItemOrder(migrateDatabases(data.databases ?? {})));
+      setDashboards(normalizeItemOrder(data.dashboards ?? {}));
+    },
+    []
+  );
+
   return {
     snapshot,
+    replaceAll,
     loaded,
     pages,
     roots,

@@ -96,11 +96,55 @@ const KEY = "cortex:settings:v1";
 function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    if (raw) return sanitizeSettings(JSON.parse(raw));
   } catch {
     /* ignore */
   }
   return DEFAULT_SETTINGS;
+}
+
+/**
+ * Coerce arbitrary input (saved JSON, an imported backup) into valid Settings:
+ * unknown accent/theme/font keys fall back to the defaults instead of crashing
+ * applySettings.
+ */
+export function sanitizeSettings(input: unknown): Settings {
+  const v = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
+  const pick = <K extends string>(value: unknown, table: Record<K, unknown>, fallback: K): K =>
+    typeof value === "string" && Object.prototype.hasOwnProperty.call(table, value)
+      ? (value as K)
+      : fallback;
+  return {
+    accent: pick(v.accent, ACCENTS, DEFAULT_SETTINGS.accent),
+    theme: pick(v.theme, THEMES, DEFAULT_SETTINGS.theme),
+    font: pick(v.font, FONTS, DEFAULT_SETTINGS.font),
+    glow: typeof v.glow === "boolean" ? v.glow : DEFAULT_SETTINGS.glow,
+  };
+}
+
+/** Write a settings object onto the document's CSS variables. */
+export function applySettings(settings: Settings) {
+  const root = document.documentElement;
+  const a = ACCENTS[settings.accent];
+  root.style.setProperty("--accent", a.accent);
+  root.style.setProperty("--accent-dim", a.dim);
+  root.style.setProperty("--selection", a.selection);
+
+  const t = THEMES[settings.theme];
+  root.style.setProperty("--bg", t.bg);
+  root.style.setProperty("--panel", t.panel);
+  root.style.setProperty("--fg", t.fg);
+  root.style.setProperty("--dim", t.dim);
+  root.style.setProperty("--line", t.line);
+  root.style.setProperty("--line-bright", t.lineBright);
+
+  root.style.setProperty("--mono", FONTS[settings.font].stack);
+  root.setAttribute("data-glow", settings.glow ? "on" : "off");
+}
+
+/** Apply the saved settings (used by screens rendered before the app, e.g. login). */
+export function applySavedSettings() {
+  applySettings(loadSettings());
 }
 
 export interface SettingsApi {
@@ -116,22 +160,7 @@ export function useSettings(): SettingsApi {
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(settings));
 
-    const root = document.documentElement;
-    const a = ACCENTS[settings.accent];
-    root.style.setProperty("--accent", a.accent);
-    root.style.setProperty("--accent-dim", a.dim);
-    root.style.setProperty("--selection", a.selection);
-
-    const t = THEMES[settings.theme];
-    root.style.setProperty("--bg", t.bg);
-    root.style.setProperty("--panel", t.panel);
-    root.style.setProperty("--fg", t.fg);
-    root.style.setProperty("--dim", t.dim);
-    root.style.setProperty("--line", t.line);
-    root.style.setProperty("--line-bright", t.lineBright);
-
-    root.style.setProperty("--mono", FONTS[settings.font].stack);
-    root.setAttribute("data-glow", settings.glow ? "on" : "off");
+    applySettings(settings);
   }, [settings]);
 
   const update = (patch: Partial<Settings>) =>

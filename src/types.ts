@@ -9,7 +9,7 @@ export interface Page {
   icon?: string;
   /** Palette colour for the icon; unset renders in the text colour. */
   iconColor?: SelectColor;
-  /** Optional cover image (data URL) shown as a banner above the title. */
+  /** Optional cover image (data URL, or `cortex-file:` Storage ref) shown above the title. */
   cover?: string;
   /** Sort position among siblings (same parentId). Lower shows first. */
   order?: number;

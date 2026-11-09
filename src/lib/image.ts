@@ -1,11 +1,59 @@
-// Images are stored inline as data URLs so they persist through whichever
-// backend (localStorage or the SQLite API) is in use, with no upload endpoint.
-// Large images are downscaled on import to keep the JSON payload reasonable.
+import { isSupabaseMode } from "../storage/datasource";
+import { FILES_BUCKET, currentUserId, getSupabase } from "./supabase";
+
+// Image storage depends on the data source:
+//  - localStorage: images are inlined as data URLs in the entity JSON.
+//  - Supabase: images are uploaded to the private `cortex-files` bucket and the
+//    entity stores a `cortex-file:<path>` ref, resolved to a short-lived
+//    signed URL at render time (see components/StoredImg.tsx).
+// Large images are downscaled on import either way.
+
+/** Prefix of an image src that points into Supabase Storage. */
+export const FILE_REF_PREFIX = "cortex-file:";
+
+export function isFileRef(src: string | undefined | null): src is string {
+  return typeof src === "string" && src.startsWith(FILE_REF_PREFIX);
+}
+
+const EXT_BY_MIME: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/svg+xml": "svg",
+  "image/avif": "avif",
+};
+
+/** Upload a data URL to Supabase Storage and return its `cortex-file:` ref. */
+export async function uploadDataUrl(dataUrl: string): Promise<string> {
+  const blob = await (await fetch(dataUrl)).blob();
+  const mime = blob.type || "image/png";
+  const ext = EXT_BY_MIME[mime] ?? "bin";
+  const uid = await currentUserId();
+  const path = `${uid}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await getSupabase()
+    .storage.from(FILES_BUCKET)
+    .upload(path, blob, { contentType: mime, upsert: false });
+  if (error) throw new Error(`image upload failed: ${error.message}`);
+  return FILE_REF_PREFIX + path;
+}
+
+/**
+ * Turn a picked file into the value to store: a data URL (localStorage) or an
+ * uploaded `cortex-file:` ref (Supabase).
+ */
+export async function storeImageFile(file: File): Promise<string> {
+  const dataUrl = await fileToDataUrl(file);
+  return isSupabaseMode() ? uploadDataUrl(dataUrl) : dataUrl;
+}
 
 const MAX_DIM = 1600;
 const JPEG_QUALITY = 0.85;
 
-/** Opens a file picker and resolves to a (possibly downscaled) data URL. */
+/**
+ * Opens a file picker and resolves to the stored image value (a downscaled
+ * data URL, or a Supabase Storage ref), or null if cancelled / failed.
+ */
 export function pickImage(): Promise<string | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
@@ -15,8 +63,9 @@ export function pickImage(): Promise<string | null> {
       const file = input.files?.[0];
       if (!file) return resolve(null);
       try {
-        resolve(await fileToDataUrl(file));
-      } catch {
+        resolve(await storeImageFile(file));
+      } catch (err) {
+        console.error("[cortex] image import failed:", err);
         resolve(null);
       }
     };

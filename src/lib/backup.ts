@@ -5,11 +5,12 @@ import { downloadFile } from "./download";
 /**
  * Full-workspace backup: one self-contained JSON file holding every page,
  * database (incl. folders), dashboard (incl. folders) and the UI settings,
- * in the exact shapes the storage adapters persist. Images are already
- * inlined as base64 in page content, so nothing external is referenced.
+ * in the exact shapes the storage adapters persist. In localStorage mode
+ * images are inlined as base64; in Supabase mode they are `cortex-file:` refs
+ * to the Storage bucket (the bytes stay in Supabase). Restore: lib/restore.ts.
  *
- * Deliberately excluded: the data-source config (holds the API token) and
- * API connections (their secrets live server-side only).
+ * Deliberately excluded: the data-source config and API connections (their
+ * secrets live server-side only).
  */
 export interface CortexBackup {
   format: "cortex-backup";

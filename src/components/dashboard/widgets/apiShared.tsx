@@ -122,7 +122,7 @@ export function ConnectionSelect({
   if (!available) {
     return (
       <span className="dw-config-hint">
-        connections need the API data source (settings → data source)
+        connections need the Supabase data source (settings → data source)
       </span>
     );
   }

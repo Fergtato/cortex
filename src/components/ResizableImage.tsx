@@ -5,6 +5,7 @@ import {
   ReactNodeViewRenderer,
   type NodeViewProps,
 } from "@tiptap/react";
+import { StoredImg } from "./StoredImg";
 
 export const ASPECTS = ["original", "1:1", "4:3", "16:9"] as const;
 type Aspect = (typeof ASPECTS)[number];
@@ -50,10 +51,10 @@ function ImageView({ node, updateAttributes, deleteNode }: NodeViewProps) {
       <div className="rimg-box">
         {ratio ? (
           <div className="rimg-frame" style={{ aspectRatio: ratio }}>
-            <img src={src} className="rimg rimg-cover" alt="" />
+            <StoredImg src={src} className="rimg rimg-cover" alt="" />
           </div>
         ) : (
-          <img src={src} className="rimg" alt="" />
+          <StoredImg src={src} className="rimg" alt="" />
         )}
       </div>
 

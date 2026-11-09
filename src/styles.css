@@ -4321,3 +4321,78 @@ input[type="checkbox"]:disabled {
   display: flex;
   gap: 8px;
 }
+
+/* ---------- auth (Supabase sign-in) ---------- */
+.auth-screen {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--bg);
+}
+.auth-box {
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  border-radius: 0;
+  width: 380px;
+  max-width: 100%;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.5);
+}
+.auth-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.auth-body {
+  padding: 16px 14px;
+}
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.auth-form .dialog-input {
+  margin-top: 4px;
+}
+.auth-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+.auth-link {
+  color: var(--dim);
+  font-size: 11px;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.auth-link:hover {
+  color: var(--accent);
+}
+.auth-note {
+  color: var(--dim);
+  font-size: 11px;
+  margin: 14px 0 0;
+  line-height: 1.6;
+}
+.auth-form .auth-note {
+  margin: 0;
+}
+.auth-error,
+.auth-notice {
+  margin: 0;
+  font-size: 12px;
+}
+.auth-error {
+  color: var(--danger);
+}
+.auth-notice {
+  color: var(--accent);
+}
+.stored-img-loading {
+  display: block;
+  min-height: 40px;
+  background: var(--bg);
+}

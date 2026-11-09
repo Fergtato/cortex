@@ -1,5 +1,6 @@
 import type { DashboardMap, DashItem, DatabaseMap, DbItem, Page, PageMap } from "../types";
 import { getDataSource } from "./datasource";
+import { getSupabase } from "../lib/supabase";
 
 /**
  * An incremental change to a collection: entities to upsert (keyed by id) and
@@ -73,58 +74,77 @@ class LocalStorageAdapter implements StorageAdapter {
   }
 }
 
-class ApiAdapter implements StorageAdapter {
-  constructor(private baseUrl: string, private token?: string) {}
+type Table = "pages" | "databases" | "dashboards";
 
-  private url(path: string) {
-    return `${this.baseUrl.replace(/\/$/, "")}/api/${path}`;
+const PAGE_SIZE = 1000; // PostgREST's default max-rows cap
+const UPSERT_CHUNK = 50;
+const DELETE_CHUNK = 200;
+
+/**
+ * Supabase (Postgres) backend. One row per entity in `pages` / `databases` /
+ * `dashboards`, keyed by (user_id, id); `user_id` defaults to auth.uid() and
+ * RLS scopes every query to the signed-in user, so no explicit user filter is
+ * needed. Saves apply the store's delta: upsert changed rows, delete removed.
+ */
+class SupabaseAdapter implements StorageAdapter {
+  private async load<T>(table: Table): Promise<Record<string, T>> {
+    const sb = getSupabase();
+    const map: Record<string, T> = {};
+    // Paginate: PostgREST caps a single response at max-rows (1000 default).
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data, error } = await sb
+        .from(table)
+        .select("id, data")
+        .order("id")
+        .range(from, from + PAGE_SIZE - 1);
+      if (error) throw new Error(`load ${table} failed: ${error.message}`);
+      for (const row of data ?? []) map[row.id as string] = row.data as T;
+      if (!data || data.length < PAGE_SIZE) break;
+    }
+    return map;
   }
 
-  private headers(json = false): HeadersInit {
-    return {
-      ...(json ? { "Content-Type": "application/json" } : {}),
-      ...(this.token ? { Authorization: `Bearer ${this.token}` } : {}),
-    };
-  }
-
-  private async get<T>(path: string): Promise<T> {
-    const res = await fetch(this.url(path), { headers: this.headers() });
-    if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
-    return (await res.json()) as T;
-  }
-
-  private async patch(path: string, body: unknown): Promise<void> {
-    const res = await fetch(this.url(path), {
-      method: "PATCH",
-      headers: this.headers(true),
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) throw new Error(`PATCH ${path} failed: ${res.status}`);
+  private async save<T>(table: Table, delta: CollectionDelta<T>): Promise<void> {
+    const sb = getSupabase();
+    const rows = Object.entries(delta.upserts).map(([id, data]) => ({ id, data }));
+    for (let i = 0; i < rows.length; i += UPSERT_CHUNK) {
+      const { error } = await sb
+        .from(table)
+        .upsert(rows.slice(i, i + UPSERT_CHUNK), { onConflict: "user_id,id" });
+      if (error) throw new Error(`save ${table} failed: ${error.message}`);
+    }
+    for (let i = 0; i < delta.deletes.length; i += DELETE_CHUNK) {
+      const { error } = await sb
+        .from(table)
+        .delete()
+        .in("id", delta.deletes.slice(i, i + DELETE_CHUNK));
+      if (error) throw new Error(`delete from ${table} failed: ${error.message}`);
+    }
   }
 
   loadPages() {
-    return this.get<PageMap>("pages");
+    return this.load<Page>("pages") as Promise<PageMap>;
   }
   savePages(delta: CollectionDelta<Page>) {
-    return this.patch("pages", delta);
+    return this.save("pages", delta);
   }
   loadDatabases() {
-    return this.get<DatabaseMap>("databases");
+    return this.load<DbItem>("databases") as Promise<DatabaseMap>;
   }
   saveDatabases(delta: CollectionDelta<DbItem>) {
-    return this.patch("databases", delta);
+    return this.save("databases", delta);
   }
   loadDashboards() {
-    return this.get<DashboardMap>("dashboards");
+    return this.load<DashItem>("dashboards") as Promise<DashboardMap>;
   }
   saveDashboards(delta: CollectionDelta<DashItem>) {
-    return this.patch("dashboards", delta);
+    return this.save("dashboards", delta);
   }
 }
 
 /** Builds the adapter for the currently-configured data source. */
 export function getAdapter(): StorageAdapter {
   const config = getDataSource();
-  if (config.mode === "api") return new ApiAdapter(config.apiUrl, config.apiToken);
+  if (config.mode === "supabase") return new SupabaseAdapter();
   return new LocalStorageAdapter();
 }
