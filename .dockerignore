@@ -1,8 +1,11 @@
 node_modules
 dist
 server
+.github
 supabase
 .env
 .git
 .claude
 *.log
+.env.local
+.env.*

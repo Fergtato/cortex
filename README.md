@@ -90,19 +90,20 @@ By default the app uses `localStorage`. To use Supabase, follow
 
 ## Run with Docker
 
-Builds the frontend and serves it with nginx:
+Every push to `main` builds `ghcr.io/fergtato/cortex:latest` (GitHub Actions).
+To run it on TrueNAS as a custom app, with one-click updates, see
+**[docs/truenas-deploy.md](docs/truenas-deploy.md)**.
+
+To build and run locally instead:
 
 ```bash
 docker compose up -d --build     # → http://localhost:8080
 ```
 
-To have the build default to your Supabase instance, create a `.env` next to
-`docker-compose.yml`:
-
-```bash
-VITE_SUPABASE_URL=https://supabase.example.com
-VITE_SUPABASE_ANON_KEY=<anon key>   # public key only — never the service-role key
-```
+The Supabase URL and anon key are read **at container start** from the
+`SUPABASE_URL` / `SUPABASE_ANON_KEY` environment variables (put them in a
+`.env` next to `docker-compose.yml`). Use the public anon key only, never the
+service-role key.
 
 ---
 

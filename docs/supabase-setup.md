@@ -154,22 +154,15 @@ Backups never contain connection tokens, so add your connections again under
 **⚙ settings → api connections**. Tokens are stored in `connection_secrets`,
 which only the Edge Function can read.
 
-## 10. (Optional) Bake the config into the Docker build
+## 10. (Optional) Run Cortex in Docker
 
-Create `.env` next to Cortex's `docker-compose.yml`:
+To run Cortex on TrueNAS with one-click updates, see
+[truenas-deploy.md](truenas-deploy.md). The container reads `SUPABASE_URL`
+and `SUPABASE_ANON_KEY` from its environment when it starts.
 
-```bash
-VITE_SUPABASE_URL=https://supabase.example.com
-VITE_SUPABASE_ANON_KEY=<anon key>
-```
-
-Then:
-
-```bash
-docker compose up -d --build
-```
-
-New browsers then default to Supabase and go straight to the sign-in screen.
+For local dev, put `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in
+`.env.local` (gitignored). The dev server then opens straight to the sign-in
+screen.
 
 ---
 

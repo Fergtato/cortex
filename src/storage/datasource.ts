@@ -8,11 +8,17 @@ export interface DataSourceConfig {
   anonKey: string;
 }
 
-const ENV_URL = (import.meta.env.VITE_SUPABASE_URL ?? "").trim();
-const ENV_KEY = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? "").trim();
+// Default Supabase config, first from the runtime config the Docker container
+// writes at start (SUPABASE_URL / SUPABASE_ANON_KEY env vars → env-config.js),
+// then from build-time VITE_SUPABASE_* variables (e.g. .env.local in dev).
+const RUNTIME = typeof window !== "undefined" ? window.__CORTEX_CONFIG__ ?? {} : {};
+const ENV_URL = (RUNTIME.supabaseUrl || import.meta.env.VITE_SUPABASE_URL || "")
+  .trim()
+  .replace(/\/+$/, "");
+const ENV_KEY = (RUNTIME.supabaseAnonKey || import.meta.env.VITE_SUPABASE_ANON_KEY || "").trim();
 
-// A build that ships with Supabase credentials (VITE_SUPABASE_URL +
-// VITE_SUPABASE_ANON_KEY) defaults to Supabase; otherwise to localStorage.
+// When a Supabase URL + anon key are configured, the app defaults to Supabase;
+// otherwise to localStorage.
 export const DEFAULT_DATA_SOURCE: DataSourceConfig = {
   mode: ENV_URL && ENV_KEY ? "supabase" : "local",
   supabaseUrl: ENV_URL,

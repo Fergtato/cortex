@@ -23,6 +23,8 @@ Compact architectural brief and gotchas for Cortex (terminal TUI-styled personal
 - **Auth Is Invite-Only**: Public sign-up is disabled on the Supabase server; `src/components/AuthGate.tsx` offers only sign-in, forgot-password, and set-password (after invite/recovery links). The app — and therefore `useStore` and its adapter — mounts only once a session exists. **DO NOT** add a sign-up form; account creation happens in Studio. Only the **anon** key may ever reach the client.
 - **Images Are Storage Refs in Supabase Mode**: `pickImage()` (`src/lib/image.ts`) uploads to the private `cortex-files` bucket under `<uid>/…` and returns a `cortex-file:<path>` ref (localStorage mode still returns a data URL). Any `<img>` showing stored images **MUST** use `<StoredImg>` / `useStoredSrc()` (`src/components/StoredImg.tsx`), which resolves refs to batched, cached signed URLs.
 - **API Connections Proxy = Edge Function**: `src/lib/connections.ts` reads/writes the `connections` table; tokens are written only via the `set_connection_token` RPC into `connection_secrets` (no client access at all). Requests go through `supabase/functions/proxy` (deploy by copying into the self-hosted `volumes/functions/` and restarting `functions`). `unix://` sockets are not supported.
+- **Runtime Config, Not Build-Time**: In Docker, the Supabase URL/key come from `SUPABASE_URL`/`SUPABASE_ANON_KEY` env vars, which `docker/40-cortex-env.sh` writes into `env-config.js` (`window.__CORTEX_CONFIG__`) at container start. `src/storage/datasource.ts` prefers that over `VITE_SUPABASE_*` (used in dev via `.env.local`). Images are built by `.github/workflows/docker.yml` → `ghcr.io/fergtato/cortex`; deploy guide: `docs/truenas-deploy.md`.
+- **No Secure-Context-Only APIs**: Cortex is often served over plain http on a LAN, so APIs like `crypto.randomUUID` and `navigator.clipboard` may be missing. Feature-detect and fall back.
 - **Docker Web Rebuild**: When working with Docker, the `web` container serves cached static files. Rebuild with `docker compose up -d --build` to see code changes.
 
 ## Developer Commands
@@ -37,7 +39,7 @@ npm run dev
 # type-check & build frontend
 npm run build
 
-# docker (frontend :8080; set VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in .env to preconfigure)
+# docker (frontend :8080; set SUPABASE_URL / SUPABASE_ANON_KEY in .env — read at container start)
 docker compose up -d --build
 ```
 

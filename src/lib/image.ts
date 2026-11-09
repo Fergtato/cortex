@@ -24,13 +24,24 @@ const EXT_BY_MIME: Record<string, string> = {
   "image/avif": "avif",
 };
 
+/**
+ * Random file id. crypto.randomUUID only exists in secure contexts (https or
+ * localhost), and Cortex is often served over plain http on a LAN, so fall
+ * back to getRandomValues (available everywhere).
+ */
+function randomId(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 /** Upload a data URL to Supabase Storage and return its `cortex-file:` ref. */
 export async function uploadDataUrl(dataUrl: string): Promise<string> {
   const blob = await (await fetch(dataUrl)).blob();
   const mime = blob.type || "image/png";
   const ext = EXT_BY_MIME[mime] ?? "bin";
   const uid = await currentUserId();
-  const path = `${uid}/${crypto.randomUUID()}.${ext}`;
+  const path = `${uid}/${randomId()}.${ext}`;
   const { error } = await getSupabase()
     .storage.from(FILES_BUCKET)
     .upload(path, blob, { contentType: mime, upsert: false });

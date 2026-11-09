@@ -1,14 +1,14 @@
+# Local build of the Cortex web app. On TrueNAS, use the prebuilt image from
+# GitHub Container Registry instead — see docs/truenas-deploy.md.
 services:
   web:
-    build:
-      context: .
-      args:
-        # Optional: bake your Supabase URL + anon (public) key into the build so
-        # the app defaults to Supabase. Set them in a .env file next to this
-        # file. Leave unset to configure them in Settings → data source instead.
-        # Never put the service-role key here — it would ship to every browser.
-        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-}
-        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-}
+    build: .
     ports:
       - "8080:80"
+    environment:
+      # Read at container start (no rebuild needed to change them). Set them
+      # in a .env file next to this file. Public values only — never the
+      # service-role key.
+      - SUPABASE_URL=${SUPABASE_URL:-}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-}
     restart: unless-stopped
