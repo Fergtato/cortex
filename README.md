@@ -7,8 +7,9 @@ timeline views, filters, and sorting. The whole UI is skinned like a terminal
 TUI — monospace, sharp 1px outlines, no rounded corners, dark theme with a
 configurable accent colour.
 
-Data lives either in the browser's `localStorage` or in a small local
-**SQLite API** (`server/`), switchable at any time from Settings → data source.
+Data lives either in the browser's `localStorage` or in a (self-hosted)
+**Supabase** instance — with invite-only accounts, per-user data, and image
+storage — switchable at any time from Settings → data source.
 
 > **Working on the codebase (human or AI)?** Read **[AGENTS.md](AGENTS.md)**
 > first — it's the architecture brief and lists the gotchas (pinned Tiptap
@@ -53,14 +54,18 @@ Data lives either in the browser's `localStorage` or in a small local
   monospace font choice, and a CRT-glow toggle. All via CSS variables.
 - **Responsive** — collapsible sidebar that becomes an overlay drawer on
   phones; content goes full-width.
-- **Pluggable persistence** — `localStorage` for a zero-setup local app, or a
-  tiny Express + SQLite API for data that survives the browser and can be
-  backed up as a single file. The API supports **bearer-token auth**
-  (`CORTEX_TOKEN`) so it can be hosted remotely and reached from any device —
-  see [server/README.md](server/README.md) for the deploy guide.
+- **Pluggable persistence** — `localStorage` for a zero-setup local app, or
+  **Supabase** (Postgres + Auth + Storage) for data that follows you to any
+  device. Supabase mode adds email/password sign-in (invite-only — you create
+  accounts in Studio), Row Level Security so each account only sees its own
+  data, image uploads to a private Storage bucket, and a `proxy` Edge Function
+  for dashboard API connections — see
+  [docs/supabase-setup.md](docs/supabase-setup.md) for the step-by-step guide.
+- **Backup / restore** — export the whole workspace as one `.json` file and
+  import it again (into either backend; inline images are uploaded to Storage
+  when importing into Supabase).
 
 ---
-
 ## Quick start
 
 ```bash
@@ -76,61 +81,53 @@ npm run build        # tsc type-check + vite production build into dist/
 npm run preview      # serve the production build locally
 ```
 
-By default the app uses `localStorage`. To use the SQLite API instead, start
-it (`cd server && npm install && npm start` → `http://localhost:3001`), then
-in the app open **⚙ settings → data source → API (SQLite)**, enter the URL,
-**test connection**, and **apply**.
+By default the app uses `localStorage`. To use Supabase, follow
+[docs/supabase-setup.md](docs/supabase-setup.md), then open
+**⚙ settings → data source → Supabase**, enter the URL and anon key,
+**test connection**, **apply**, and sign in.
 
 ---
 
 ## Run with Docker
 
-Runs the frontend (nginx) and the API + SQLite backend together, with a named
-volume so data survives restarts:
+Builds the frontend and serves it with nginx:
 
 ```bash
-docker compose up -d --build
+docker compose up -d --build     # → http://localhost:8080
 ```
 
-- App → http://localhost:8080
-- API → http://localhost:3001 (SQLite stored in the `pt-data` volume)
-
-Then in the app: **⚙ settings → data source → API (SQLite)**, URL
-`http://localhost:3001`, **test connection**, **apply**.
+To have the build default to your Supabase instance, create a `.env` next to
+`docker-compose.yml`:
 
 ```bash
-docker compose down          # stop (data survives)
-docker compose down -v       # stop and delete the data volume
-docker compose up -d --build api   # backend only (run frontend via `npm run dev`)
+VITE_SUPABASE_URL=https://supabase.example.com
+VITE_SUPABASE_ANON_KEY=<anon key>   # public key only — never the service-role key
 ```
-
-> **Note:** Docker Compose prefixes named volumes with the project name
-> (defaults to the folder name). Renaming the project folder will create a
-> fresh empty volume and orphan the old data. The included `docker-compose.yml`
-> pins the volume name externally to avoid this.
 
 ---
 
 ## Architecture
 
-Single-page React app with an optional local API.
+Single-page React app; optionally backed by a Supabase instance.
 
 ```
 ┌──────────────────────────── Browser ─────────────────────────────┐
 │  React (Vite + TS) + Tiptap editor                               │
-│    App.tsx ── Sidebar / PageTree + Editor / Toolbar              │
-│    useStore()  ← in-memory store (pages + databases, CRUD)       │
-│         │  read on load / debounced write (250ms)                │
+│    AuthGate ── sign-in (Supabase mode) ── App.tsx                │
+│    useStore()  ← in-memory store (pages, databases, dashboards)  │
+│         │  read on load / debounced incremental write (250ms)    │
 │         ▼                                                        │
 │  StorageAdapter ──┬─ LocalStorageAdapter  (localStorage)         │
-│                   └─ ApiAdapter         (fetch → SQLite API)     │
+│                   └─ SupabaseAdapter      (supabase-js)          │
 └──────────────────────────────────────────────────────────────────┘
-                                  │ (when API mode)
+                                  │ (Supabase mode)
                                   ▼
-┌──────────────────── Express + better-sqlite3 ────────────────────┐
-│  GET/PATCH/PUT /api/pages   GET/PATCH/PUT /api/databases         │
-│  GET /api/health                                                 │
-│  one row per entity, JSON in a `data` column → server/data.db    │
+┌──────────────────────── Supabase (self-hosted) ──────────────────┐
+│  Auth: email/password, sign-up disabled (invite-only)            │
+│  Postgres: pages / databases / dashboards — one row per entity,  │
+│            JSON in `data`, RLS: user_id = auth.uid()             │
+│  Storage:  private `cortex-files` bucket, <uid>/<file>           │
+│  Edge Function `proxy`: API connections with server-side secrets │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -145,14 +142,12 @@ store and navigation via React contexts.
 
 ### Persistence
 A `StorageAdapter` interface (`src/storage/adapters.ts`) abstracts
-`LocalStorageAdapter` and `ApiAdapter`; `getAdapter()` picks based on the
-data-source setting stored in localStorage. Loads read the whole collection;
-saves are **incremental** — the store diffs against the last-persisted snapshot
-and sends only changed/deleted entities (`PATCH { upserts, deletes }`), so one
-edit never re-serializes the whole collection. The store stays the single
-source of truth and swapping backends requires no UI changes. The API server
-(`server/index.js`) is a small Express app with two tables (`pages`,
-`databases`), each one row per entity with its JSON in a `data` column.
+`LocalStorageAdapter` and `SupabaseAdapter`; `getAdapter()` picks based on the
+data-source setting stored in localStorage. Loads read the whole collection
+(paginated in Supabase); saves are **incremental** — the store diffs against
+the last-persisted snapshot and sends only changed/deleted entities
+(`{ upserts, deletes }`), so one edit never re-serializes the whole
+collection. The schema lives in `supabase/migrations/0001_cortex.sql`.
 
 ### Settings
 `useSettings()` writes CSS variables onto `:root`, so `styles.css` re-themes
@@ -168,8 +163,8 @@ See **[AGENTS.md](AGENTS.md)** for the full file map, conventions, and gotchas.
 | Layer    | Tech |
 |----------|------|
 | Frontend | Vite, React 18, TypeScript, Tiptap 2 |
-| Backend  | Express, better-sqlite3 |
-| Deploy   | Docker (nginx + api), docker-compose |
+| Backend  | Supabase (Postgres, Auth, Storage, Edge Functions) — optional |
+| Deploy   | Docker (nginx), docker-compose |
 
 ---
 
@@ -188,7 +183,8 @@ cortex/
 │   ├── settings.ts             # theme/accent/font/glow + data-source config
 │   ├── context.ts              # StoreContext + NavContext
 │   ├── styles.css              # all styling (the TUI look lives here)
-│   ├── lib/image.ts            # image picker + downscale → data URL
+│   ├── lib/image.ts            # image picker + downscale → data URL / Storage upload
+│   ├── lib/supabase.ts         # Supabase client singleton
 │   ├── storage/                # pluggable persistence + key migration
 │   └── components/
 │       ├── Editor.tsx, Toolbar.tsx
@@ -197,7 +193,8 @@ cortex/
 │       ├── SubpageLink.ts, ResizableImage.tsx, DatabaseEmbed.tsx
 │       ├── editor/             # Toggle, Columns, Tabs block nodes
 │       └── database/           # DatabaseBlock + Table/Gallery/Timeline views
-├── server/                     # Express + SQLite API (+ Dockerfile)
+├── supabase/                   # SQL migration + `proxy` Edge Function
+├── docs/supabase-setup.md      # step-by-step Supabase setup
 ├── Dockerfile, nginx.conf, docker-compose.yml
 └── AGENTS.md                   # architecture brief for contributors
 ```

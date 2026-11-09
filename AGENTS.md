@@ -13,15 +13,16 @@ Compact architectural brief and gotchas for Cortex (terminal TUI-styled personal
 - **ProseMirror Event Hijacking**: Custom editor embeds (like `src/components/DatabaseEmbed.tsx`) must prevent ProseMirror from stealing focus or hijacking input events by stopping propagation:
   `onMouseDown={(e) => e.stopPropagation()}` and `onKeyDown={(e) => e.stopPropagation()}` on the `<NodeViewWrapper>`.
 - **Loaded Flag Persistence Guard**: The store (`src/store.ts`) loads async on mount. Debounced saves to storage adapters (`src/storage/adapters.ts`) **MUST** be guarded by the `loaded` flag. If `loaded` is false, saving is blocked to prevent overwriting real user data with empty initial states.
-- **SQLite Single-Row-per-Entity, Incremental Saves**: The API server (`server/index.js`) persists pages and databases in SQLite (`server/data.db`) with one row per entity using `JSON` in a `data` column. Swapping backend data source reloads the app. The normal save path is **incremental**: the store diffs against the last-persisted snapshot and sends only changed/deleted entities via `PATCH` (`{ upserts, deletes }`), so one edit never re-writes the whole collection (important now that pages can hold base64 images). `PUT` (replace-all) is kept only for bulk import/restore. The diff relies on the store's strict immutability — unchanged entities keep object identity, so a reference comparison finds exactly what changed (`diffMap` in `src/store.ts`).
+- **Supabase Single-Row-per-Entity, Incremental Saves**: In Supabase mode (`SupabaseAdapter` in `src/storage/adapters.ts`) pages, databases and dashboards live in Postgres tables `pages`/`databases`/`dashboards`, one row per entity, `(user_id, id)` primary key, entity JSON in a `jsonb data` column. `user_id` defaults to `auth.uid()` and **RLS** restricts every row to its owner — never add a client-side user filter or send `user_id`. Saves are **incremental**: the store diffs against the last-persisted snapshot and upserts only changed entities / deletes removed ones, so one edit never re-writes the whole collection. The diff relies on the store's strict immutability — unchanged entities keep object identity, so a reference comparison finds exactly what changed (`diffMap` in `src/store.ts`). Loads **must paginate** (`.range()`): PostgREST caps responses at 1000 rows. Backup import goes through `store.replaceAll`, which lets the same diff-save write the result. Schema: `supabase/migrations/0001_cortex.sql` (idempotent; the user runs it in Studio).
 - **Theme Adaptability**: Style changes and custom components **MUST** use CSS variables from `:root` (defined in `styles.css` / modified via `useSettings()`) so themes and colors respond correctly.
 - **Checkbox Cell CSS Specificity**: Checkbox input cells must be wrapped in `.cell-checkbox-wrap` to override a global CSS rule `input[type=checkbox]{margin:0}`.
 - **Select Options Are Objects, Cells Store Ids**: Select/multiselect options are `{id, name, color}` (`SelectOption`); cell values store option *ids* (multiselect: `string[]`), never names. Legacy `string[]` options are migrated on load by `src/storage/migrateDatabases.ts` (idempotent, identity-preserving). When showing/sorting/exporting, resolve ids → names via `prop.options`.
 - **View Config Lives on the View**: Filters, sort, `groupByPropId`, `coverFit`, `datePropId`, and `aggregations` are per-view fields on `DatabaseView`, mutated via `store.updateView`. Embeds only persist *which* view they show (`data-view-id` attr); they must not carry their own filter/sort state.
 - **Computed Property Types**: `formula`, `created_time`, `last_edited_time`, and `auto_id` never write to `row.cells` — always read them through `computedCellValue()` (`src/lib/formula.ts`), which sorting, filtering, aggregation, and export already do.
 - **URL Routing**: Selection ↔ URL lives in `src/lib/routes.ts`. Paths are name-only (`/page/<ancestors>/<slug>`, `/database/<folder>/<slug>`, `/dashboard/<folder>/<slug>`); sibling name collisions get `-2`, `-3`… in creation order, so renames/moves change the URL (rewritten via `replaceState`). Legacy `<slug>-<id>` links still resolve by id. The SPA needs an index.html fallback for deep links (Vite does this; `nginx.conf` has `try_files`).
-- **API Auth**: When `CORTEX_TOKEN` is set on the server, every `/api/*` route except `/api/health` requires `Authorization: Bearer <token>`; the client token lives in the data-source config (`apiToken`).
-- **Stray Port 3001**: Port 3001 is sometimes held by a stray local `node` process. Free it with: `lsof -ti:3001 | xargs kill`.
+- **Auth Is Invite-Only**: Public sign-up is disabled on the Supabase server; `src/components/AuthGate.tsx` offers only sign-in, forgot-password, and set-password (after invite/recovery links). The app — and therefore `useStore` and its adapter — mounts only once a session exists. **DO NOT** add a sign-up form; account creation happens in Studio. Only the **anon** key may ever reach the client.
+- **Images Are Storage Refs in Supabase Mode**: `pickImage()` (`src/lib/image.ts`) uploads to the private `cortex-files` bucket under `<uid>/…` and returns a `cortex-file:<path>` ref (localStorage mode still returns a data URL). Any `<img>` showing stored images **MUST** use `<StoredImg>` / `useStoredSrc()` (`src/components/StoredImg.tsx`), which resolves refs to batched, cached signed URLs.
+- **API Connections Proxy = Edge Function**: `src/lib/connections.ts` reads/writes the `connections` table; tokens are written only via the `set_connection_token` RPC into `connection_secrets` (no client access at all). Requests go through `supabase/functions/proxy` (deploy by copying into the self-hosted `volumes/functions/` and restarting `functions`). `unix://` sockets are not supported.
 - **Docker Web Rebuild**: When working with Docker, the `web` container serves cached static files. Rebuild with `docker compose up -d --build` to see code changes.
 
 ## Developer Commands
@@ -36,10 +37,7 @@ npm run dev
 # type-check & build frontend
 npm run build
 
-# start SQLite backend (http://localhost:3001)
-cd server && npm install --cache /tmp/cortex-npm-cache && npm start
-
-# docker stack (frontend :8080, API :3001)
+# docker (frontend :8080; set VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY in .env to preconfigure)
 docker compose up -d --build
 ```
 
@@ -60,4 +58,6 @@ docker compose up -d --build
 - `src/types.ts` — TypeScript models
 - `src/components/Editor.tsx` — Persistent editor instance
 - `src/components/Dialog.tsx` — Dialog hook (`useDialog()`)
-- `server/index.js` — SQLite database and Express API
+- `src/components/AuthGate.tsx` — Supabase sign-in gate + `useAuth()`
+- `src/lib/supabase.ts` — Supabase client singleton
+- `supabase/` — SQL migration + `proxy` Edge Function; setup guide in `docs/supabase-setup.md`

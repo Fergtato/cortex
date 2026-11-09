@@ -1,25 +1,14 @@
 services:
-  api:
-    build: ./server
-    ports:
-      - "3001:3001"
-    volumes:
-      # Bind mount: the SQLite file lives in a real folder on the host
-      # (server/data/data.db), so it's visible, easy to back up, and portable
-      # to another machine by copying the folder. The container writes to /data
-      # (see DB_PATH=/data/data.db in server/Dockerfile).
-      - ./server/data:/data
-    environment:
-      # Set in a .env file (or the shell) to require a bearer token on the
-      # API — do this whenever the API is reachable beyond localhost.
-      - CORTEX_TOKEN=${CORTEX_TOKEN:-}
-      - CORS_ORIGIN=${CORS_ORIGIN:-*}
-    restart: unless-stopped
-
   web:
-    build: .
+    build:
+      context: .
+      args:
+        # Optional: bake your Supabase URL + anon (public) key into the build so
+        # the app defaults to Supabase. Set them in a .env file next to this
+        # file. Leave unset to configure them in Settings → data source instead.
+        # Never put the service-role key here — it would ship to every browser.
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL:-}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY:-}
     ports:
       - "8080:80"
-    depends_on:
-      - api
     restart: unless-stopped
