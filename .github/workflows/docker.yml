@@ -1,11 +1,11 @@
-# Builds the Cortex image on every push to main and publishes it to GitHub
-# Container Registry as ghcr.io/<owner>/cortex:latest (plus a :sha-… tag).
-# TrueNAS then shows "Update available" for the app; click Update to deploy.
+# Builds the one-container Cortex image and publishes it to GitHub Container
+# Registry. main → :latest (TrueNAS shows "Update available"); v2 → :v2 for
+# trying the rewrite without touching :latest. Every build also gets :sha-….
 name: docker
 
 on:
   push:
-    branches: [main]
+    branches: [main, v2]
   workflow_dispatch:
 
 permissions:
@@ -31,7 +31,8 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository_owner }}/cortex
           tags: |
-            type=raw,value=latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
             type=sha
 
       - uses: docker/build-push-action@v6

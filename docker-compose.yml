@@ -1,0 +1,17 @@
+# Local build of Cortex. On a NAS, use the prebuilt image instead:
+#   image: ghcr.io/fergtato/cortex:latest
+services:
+  cortex:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - cortex-data:/data
+    environment:
+      # All optional. See docs/self-hosting.md.
+      - CORTEX_URL=${CORTEX_URL:-}
+      - TMDB_API_KEY=${TMDB_API_KEY:-}
+    restart: unless-stopped
+
+volumes:
+  cortex-data:

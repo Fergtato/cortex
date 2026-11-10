@@ -1,11 +1,10 @@
-node_modules
-dist
-server
+**/node_modules
+**/dist
+legacy
+/server
 .github
-supabase
 .env
+.env.*
 .git
 .claude
 *.log
-.env.local
-.env.*
