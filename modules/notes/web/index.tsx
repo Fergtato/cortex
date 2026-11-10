@@ -1,33 +1,59 @@
-import { PageFrame, type CortexModule, type ModuleViewProps } from "@cortex/core";
-import { Grid, Panel, Sidebar } from "@cortex/ui";
+import { lazy, Suspense, useMemo, useRef, type ComponentType, type ReactNode } from "react";
+import { PageFrame, useRouter, type CortexModule, type ModuleViewProps } from "@cortex/core";
+import { NavContext, StoreContext, type Nav } from "./context";
+import { useStore } from "./store";
+import { buildPath, buildRouteTable, type Selection } from "./lib/routes";
+import { BASE, LastSelection } from "./selection";
 
 /*
- * Notes: pages and databases, ported from Cortex v0 (legacy/src) in Phase 2.
- * This placeholder only proves the module contract end to end.
+ * Notes: pages (rich-text, nestable) and databases (six views, formulas,
+ * filters), ported from Cortex v0. The store lives in a module Provider so it
+ * stays loaded while you use other apps, and so Home widgets can read it. The
+ * views (editor, icon set) are code-split and load on first visit.
  */
 
-function NotesSidebar(_: ModuleViewProps) {
-  return (
-    <Sidebar
-      title="Notes"
-      sections={[
-        { items: [{ id: "all", label: "All pages", icon: "note" }] },
-        { label: "Databases", items: [] },
-      ]}
-      active="all"
-    />
+const views = () => import("./views");
+const LazySidebar = lazy(() => views().then((m) => ({ default: m.NotesSidebar })));
+const LazyPage = lazy(() => views().then((m) => ({ default: m.NotesPage })));
+const LazyDataSettings = lazy(() => import("./NotesDataSettings").then((m) => ({ default: m.NotesDataSettings })));
+
+function withSuspense<P extends object>(C: ComponentType<P>, fallback: ReactNode = null) {
+  return (props: P) => (
+    <Suspense fallback={fallback}>
+      <C {...props} />
+    </Suspense>
   );
 }
 
-function NotesPage(_: ModuleViewProps) {
+const NotesSidebar = withSuspense<ModuleViewProps>(LazySidebar, <aside className="cx-side" />);
+const NotesPage = withSuspense<ModuleViewProps>(LazyPage, <PageFrame crumbs={["Notes"]} />);
+const NotesDataSettings = withSuspense(LazyDataSettings, <PageFrame crumbs={["Settings", "Notes data"]} />);
+
+function NotesProvider({ children }: { children: ReactNode }) {
+  const store = useStore();
+  const { navigate } = useRouter();
+  // Latest route table without re-creating `nav` (and re-rendering every consumer) on each edit.
+  const data = store.snapshot();
+  const table = useMemo(() => buildRouteTable(data), [data]);
+  const tableRef = useRef(table);
+  tableRef.current = table;
+
+  const nav: Nav = useMemo(
+    () => ({
+      openPage: (id) => navigate(BASE + buildPath({ kind: "page", id }, tableRef.current)),
+      openDatabase: (id) => navigate(BASE + buildPath({ kind: "database", id }, tableRef.current)),
+    }),
+    [navigate],
+  );
+
+  const lastSelection = useRef<Selection>(null);
+
   return (
-    <PageFrame crumbs={["Notes", "All pages"]} title="Notes" subtitle="Pages and databases from Cortex v0 move here next.">
-      <Grid>
-        <Panel span={12} tone="sunken">
-          <p className="cx-label">No pages yet</p>
-        </Panel>
-      </Grid>
-    </PageFrame>
+    <StoreContext.Provider value={store}>
+      <NavContext.Provider value={nav}>
+        <LastSelection.Provider value={lastSelection}>{children}</LastSelection.Provider>
+      </NavContext.Provider>
+    </StoreContext.Provider>
   );
 }
 
@@ -35,6 +61,11 @@ export const notesModule: CortexModule = {
   id: "notes",
   name: "Notes",
   icon: "note",
+  Provider: NotesProvider,
   Sidebar: NotesSidebar,
   Page: NotesPage,
+  settings: [{ id: "data", label: "Notes data", icon: "archive", Component: NotesDataSettings }],
 };
+
+// Re-exported for Home widgets (Phase 3).
+export { useStoreContext as useNotesStore } from "./context";
