@@ -3,13 +3,14 @@ import { WidgetRegistryProvider, type CortexModule } from "@cortex/core";
 import { financeModule } from "@cortex/module-finance/web";
 import { homeModule } from "@cortex/module-home/web";
 import { notesModule } from "@cortex/module-notes/web";
+import { watchlistModule } from "@cortex/module-watchlist/web";
 
 /**
  * Web halves of the installed modules, in app-rail order. Home must stay
  * first: it is the landing page at `/`. Adding a module = one import + one
  * entry here (its server half goes in apps/server/src/modules.ts).
  */
-export const MODULES: CortexModule[] = [homeModule, notesModule, financeModule];
+export const MODULES: CortexModule[] = [homeModule, notesModule, financeModule, watchlistModule];
 
 export const HOME_ID = homeModule.id;
 

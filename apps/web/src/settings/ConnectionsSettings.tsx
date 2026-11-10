@@ -18,7 +18,6 @@ const PRESETS: { key: string; label: string; name: string; baseUrl: string; auth
   { key: "homey", label: "Homey Pro", name: "Homey", baseUrl: "http://homey.local/api/manager", auth: "bearer", authKey: "" },
   // Docker's unix socket isn't reachable over HTTP; run a docker-socket-proxy container and point at it.
   { key: "docker", label: "Docker", name: "Docker", baseUrl: "http://docker-socket-proxy:2375", auth: "none", authKey: "" },
-  { key: "tmdb", label: "TMDB", name: "TMDB", baseUrl: "https://api.themoviedb.org/3", auth: "query", authKey: "api_key" },
 ];
 
 const AUTH_OPTIONS: { value: ConnectionAuth; label: string }[] = [

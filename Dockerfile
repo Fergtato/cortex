@@ -14,6 +14,7 @@ COPY packages/icons/package.json packages/icons/
 COPY modules/finance/package.json modules/finance/
 COPY modules/home/package.json modules/home/
 COPY modules/notes/package.json modules/notes/
+COPY modules/watchlist/package.json modules/watchlist/
 # --ignore-scripts: better-sqlite3 has a binding.gyp, so npm 11 would try to
 # compile it (no toolchain on alpine). It ships prebuilt N-API binaries for
 # musl, which it loads at runtime, so nothing needs to build here. Same
