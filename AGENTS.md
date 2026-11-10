@@ -71,6 +71,14 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
   and render icons via `@cortex/icons/lazy` outside lazy chunks. A plain
   `@cortex/icons` import pulls the ~1 MB catalogue into the main bundle.
   Notes views and widgets are separate lazy chunks.
+- **Finance money is integer minor units** (`bigint`). Never store floats. Use
+  `parseMoney` / `formatMoney` (`modules/finance/shared/money.ts`), which take
+  currency digits into account (JPY 0, BHD 3). Wrap anything read from SQL in
+  `num()`, because Postgres returns bigint and SUM as strings.
+- **Charts follow the dataviz rules**: single series in `--data-1`, the
+  highlighted period in `--data-2`, bars at most 24px with a 4px rounded end,
+  a tooltip per mark, and a table as the accessible view. Never a dual axis.
+- **Module prefs** live in `UserSettings.modules[id]`; use `useModulePrefs`.
 - **Backup.** Every module with data declares `CortexModule.backup`
   (`useBackup`, `fromV0`, `describe`). The shell's Settings → Backup builds
   one v2 file across modules and imports v0/v2 files.
@@ -149,6 +157,7 @@ docker compose up -d --build   # the one-container image on :8080
 - `packages/ui/src/theme/`: theme schema, engine, `ThemeScope`
 - `packages/core/src/module.ts`, `packages/core/src/server/index.ts`: module contracts
 - `modules/home/web`: `index.tsx` (Provider, sidebar, page), `store.ts`, `components/Dashboard*`, `widgets/` (generic widgets); `modules/home/server`
+- `modules/finance`: `server/index.ts` (schema, API, summaries, import, backup), `shared/` (types, money), `web/` (`views.tsx`, `pages.tsx`, `import.tsx`, `widgets.tsx`)
 - `apps/server/src/connections.ts`: connections + the guarded proxy
 - `apps/web/src/settings/BackupSettings.tsx`, `ConnectionsSettings.tsx`
 - `modules/notes/web/index.tsx` (Provider + lazy views), `views.tsx`, `store.ts`; `modules/notes/server` (tables + `/api/notes`)

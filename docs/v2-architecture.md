@@ -56,6 +56,41 @@ legacy/          Cortex v0 (Supabase SPA), kept as reference while porting. Dele
 - **Cross-module links:** use the `links` table (`src_module/src_id` →
   `dst_module/dst_id`), not foreign keys between modules.
 
+## Finance (the first module built for v2)
+
+- **Typed tables** (`modules/finance/server`): `finance_accounts`,
+  `finance_categories`, `finance_transactions`, `finance_budgets`,
+  `finance_rules`. Money is `bigint` minor units in the account's currency,
+  dates are ISO text, and month = `substr(date, 1, 7)`. Postgres returns
+  bigint/SUM as strings, so every number read goes through `num()`.
+- **Transfers** are two rows sharing `transfer_id`. They're excluded from
+  income and spending, edited together (date and payee), and deleted together.
+- **Summaries** are SQL aggregates (`GET /summary?month=&months=`): balances,
+  month totals and spending per category, and a monthly trend, all grouped by
+  currency. The UI shows the base currency (`useModulePrefs("finance")`) and
+  lists other currencies separately. There is no FX conversion.
+- **Rules**: "payee contains X → category", case-insensitive, longest match
+  wins. They apply to new manual transactions, on CSV import, and on demand
+  to existing uncategorised rows.
+- **CSV import**: the browser parses the file (delimiter and date format
+  detected, single or split amount columns, optional sign flip and decimal
+  comma). Each row's `external_id` is a hash of date, amount, payee and its
+  occurrence number in the file. A unique `(user_id, account_id,
+  external_id)` index makes re-imports idempotent; bank connectors will reuse
+  this column.
+- **Web**: TanStack Query hooks (`web/data.ts`). Every write invalidates the
+  whole `["finance"]` key. Views and widgets are lazy chunks. Charts are
+  single-series per the dataviz rules: ink bars, the current month in the
+  accent with a direct label, hairline grid, per-bar tooltips, and tables as
+  the accessible view.
+- **Widgets**: `finance.balance`, `finance.spending`, `finance.budgets`,
+  `finance.recent`, `finance.trend`.
+
+## Module preferences
+
+`UserSettings.modules[<id>]` holds per-module preferences, read and written
+with `useModulePrefs(id, defaults)`. Finance stores `baseCurrency` there.
+
 ## Shared server pieces
 
 `entityTable(name)` + `entityRoutes(ctx, { key: table })`
@@ -122,7 +157,8 @@ Settings → Connections manages them.
 Settings → Backup builds one file: `{ format: "cortex-backup", version: 2,
 modules: { <id>: data } }`. Each module declares `CortexModule.backup`:
 - `useBackup()` (inside its Provider) returns `summary`, `exportData` and
-  `importData(data, "merge" | "replace")`.
+  `importData(data, "merge" | "replace")`. Both may be async; Finance
+  round-trips through `GET`/`POST /api/finance/backup`.
 - `fromV0(raw)` reads its part of a Cortex v0 file.
 - `describe(data)` labels the import preview.
 

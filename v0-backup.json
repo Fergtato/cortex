@@ -1,0 +1,208 @@
+{
+  "format": "cortex-backup",
+  "version": 1,
+  "exportedAt": "2026-11-10T12:16:40.631Z",
+  "pages": {
+    "pv0a": {
+      "id": "pv0a",
+      "title": "Imported from v0",
+      "content": "<p>Inline image below</p><img src=\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==\">",
+      "parentId": null,
+      "order": 0,
+      "createdAt": 1794313000631,
+      "updatedAt": 1794313000631
+    },
+    "pv0b": {
+      "id": "pv0b",
+      "title": "Supabase image page",
+      "content": "<p>Stored image</p><img src=\"cortex-file:11111111-2222-3333-4444-555555555555/abcd-photo.png\">",
+      "parentId": "pv0a",
+      "order": 0,
+      "createdAt": 1794313000631,
+      "updatedAt": 1794313000631,
+      "cover": "cortex-file:11111111-2222-3333-4444-555555555555/abcd-photo.png"
+    }
+  },
+  "databases": {
+    "dv0": {
+      "id": "dv0",
+      "name": "Reading list",
+      "properties": [
+        {
+          "id": "t",
+          "name": "Name",
+          "type": "text"
+        },
+        {
+          "id": "s",
+          "name": "Status",
+          "type": "select",
+          "options": [
+            "to read",
+            "reading",
+            "done"
+          ]
+        }
+      ],
+      "rows": [
+        {
+          "id": "r1",
+          "cells": {
+            "t": "Dune",
+            "s": "reading"
+          },
+          "createdAt": 1794313000631
+        }
+      ],
+      "views": [
+        {
+          "id": "v1",
+          "name": "Table",
+          "type": "table"
+        }
+      ],
+      "activeViewId": "v1",
+      "createdAt": 1794313000631,
+      "updatedAt": 1794313000631
+    }
+  },
+  "dashboards": {
+    "dash1": {
+      "id": "dash1",
+      "name": "Morning",
+      "columns": 8,
+      "rows": 6,
+      "rowHeight": 60,
+      "sizing": "fit",
+      "order": 0,
+      "createdAt": 1794313000631,
+      "updatedAt": 1794313000631,
+      "widgets": [
+        {
+          "id": "w1",
+          "type": "clock",
+          "x": 0,
+          "y": 0,
+          "w": 2,
+          "h": 2,
+          "config": {
+            "h24": true,
+            "seconds": false,
+            "date": true
+          }
+        },
+        {
+          "id": "w2",
+          "type": "text",
+          "x": 2,
+          "y": 0,
+          "w": 3,
+          "h": 2,
+          "config": {
+            "text": "Imported from v0",
+            "align": "left",
+            "valign": "top",
+            "size": "m",
+            "color": null
+          }
+        },
+        {
+          "id": "w3",
+          "type": "db-view",
+          "x": 0,
+          "y": 2,
+          "w": 5,
+          "h": 4,
+          "config": {
+            "databaseId": "dv0",
+            "viewId": "v1"
+          }
+        },
+        {
+          "id": "w4",
+          "type": "metric",
+          "x": 5,
+          "y": 0,
+          "w": 3,
+          "h": 2,
+          "config": {
+            "databaseId": "dv0",
+            "viewId": "",
+            "propId": "",
+            "op": "count",
+            "label": "Books"
+          }
+        },
+        {
+          "id": "w5",
+          "type": "list",
+          "x": 5,
+          "y": 2,
+          "w": 3,
+          "h": 2,
+          "config": {
+            "source": "basic",
+            "title": "Today",
+            "items": [
+              {
+                "id": "i1",
+                "text": "Stretch",
+                "done": true
+              },
+              {
+                "id": "i2",
+                "text": "Read",
+                "done": false
+              }
+            ],
+            "databaseId": "",
+            "viewId": "",
+            "checkPropId": ""
+          }
+        },
+        {
+          "id": "w6",
+          "type": "api-metric",
+          "x": 5,
+          "y": 4,
+          "w": 3,
+          "h": 2,
+          "config": {
+            "connectionId": "conn-v0",
+            "path": "status",
+            "valuePath": "temp",
+            "label": "Room temp",
+            "suffix": "°C",
+            "refreshSec": 60
+          }
+        }
+      ]
+    },
+    "fold1": {
+      "kind": "folder",
+      "id": "fold1",
+      "name": "Work",
+      "order": 1,
+      "createdAt": 1794313000631
+    },
+    "dash2": {
+      "id": "dash2",
+      "name": "Standup",
+      "folderId": "fold1",
+      "columns": 8,
+      "rows": 6,
+      "rowHeight": 60,
+      "sizing": "fit",
+      "order": 0,
+      "createdAt": 1794313000631,
+      "updatedAt": 1794313000631,
+      "widgets": []
+    }
+  },
+  "settings": {
+    "accent": "green",
+    "theme": "midnight",
+    "font": "menlo",
+    "glow": false
+  }
+}

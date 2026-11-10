@@ -11,8 +11,9 @@ docker run -d -p 8080:8080 -v cortex-data:/data ghcr.io/fergtato/cortex:latest
 
 > **v2 is in progress on the `v2` branch.** In place so far: the shell,
 > design system, themes, accounts, the server, **Notes**, **Home dashboards**
-> (widgets from every app, plus live API data through Connections) and a
-> one-file backup that also imports Cortex v0. Next up is Finance.
+> (widgets from every app, plus live API data through Connections),
+> **Finance** (accounts, transactions, budgets, rules, CSV import) and a
+> one-file backup that also imports Cortex v0.
 >
 > - Self-hosting: [docs/self-hosting.md](docs/self-hosting.md)
 > - Architecture and adding a module: [docs/v2-architecture.md](docs/v2-architecture.md)
