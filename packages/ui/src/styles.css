@@ -543,3 +543,31 @@ button { font: inherit; color: inherit; }
   .cx-grid { grid-template-columns: minmax(0, 1fr) !important; }
   .cx-grid > * { grid-column: auto !important; }
 }
+
+/* ---------- Charts (BarChart, RankedBars) ---------- */
+.cx-chart { position: relative; width: 100%; }
+.cx-chart svg { display: block; overflow: visible; }
+.cx-chart__grid { stroke: var(--line-100); stroke-width: 1; }
+.cx-chart__tick { fill: var(--ink-300); font: var(--text-data); font-variant-numeric: tabular-nums; }
+.cx-chart__tick.is-strong { fill: var(--ink-100); }
+.cx-chart__bar { fill: var(--data-1); transition: opacity .12s ease; }
+.cx-chart__bar.is-highlight { fill: var(--data-2); }
+.cx-chart svg:hover .cx-chart__bar:not(.is-hover) { opacity: 0.55; }
+.cx-chart__value { fill: var(--ink-100); font: var(--text-data); font-weight: 500; }
+.cx-chart rect:focus-visible { outline: none; stroke: var(--focus); stroke-width: 2; }
+.cx-chart-tooltip {
+  position: absolute; z-index: 5; width: 120px; pointer-events: none;
+  display: flex; flex-direction: column; gap: 2px; padding: var(--space-2);
+  background: var(--bg-300); border: 1px solid var(--line-200); border-radius: var(--radius-xs);
+}
+.cx-chart-tooltip strong { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--ink-100); }
+.cx-chart-tooltip span { font: var(--text-data); color: var(--ink-300); }
+
+.cx-chart-empty { margin: 0; color: var(--ink-300); font-size: 13px; }
+.cx-ranked { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.cx-ranked li { display: grid; grid-template-columns: minmax(90px, 140px) 1fr auto; align-items: center; gap: var(--space-3); font-size: 13px; }
+.cx-ranked__label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-200); }
+.cx-ranked__track { position: relative; height: 8px; background: var(--line-100); border-radius: 0 4px 4px 0; }
+.cx-ranked__fill { position: absolute; inset: 0 auto 0 0; background: var(--data-1); border-radius: 0 4px 4px 0; }
+.cx-ranked__fill.is-over { background: var(--negative); }
+.cx-ranked__value { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }

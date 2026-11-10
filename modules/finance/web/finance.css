@@ -80,25 +80,6 @@
 }
 .fin-banner > span { flex: 1; min-width: 200px; }
 
-/* ---------- charts (single series: ink, current period in accent) ---------- */
-.fin-chart { position: relative; width: 100%; }
-.fin-chart svg { display: block; overflow: visible; }
-.fin-chart__grid { stroke: var(--line-100); stroke-width: 1; }
-.fin-chart__tick { fill: var(--ink-300); font: var(--text-data); font-variant-numeric: tabular-nums; }
-.fin-chart__tick.is-strong { fill: var(--ink-100); }
-.fin-chart__bar { fill: var(--data-1); transition: opacity .12s ease; }
-.fin-chart__bar.is-highlight { fill: var(--data-2); }
-.fin-chart svg:hover .fin-chart__bar:not(.is-hover) { opacity: 0.55; }
-.fin-chart__value { fill: var(--ink-100); font: var(--text-data); font-weight: 500; }
-.fin-chart rect:focus-visible { outline: none; stroke: var(--focus); stroke-width: 2; }
-.fin-tooltip {
-  position: absolute; z-index: 5; width: 120px; pointer-events: none;
-  display: flex; flex-direction: column; gap: 2px; padding: var(--space-2);
-  background: var(--bg-300); border: 1px solid var(--line-200); border-radius: var(--radius-xs);
-}
-.fin-tooltip strong { font-family: var(--font-sans); font-size: 13px; font-weight: 600; color: var(--ink-100); }
-.fin-tooltip span { font: var(--text-data); color: var(--ink-300); }
-
 .fin-catbars { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .fin-catbars li { display: grid; grid-template-columns: minmax(90px, 140px) 1fr auto; align-items: center; gap: var(--space-3); font-size: 13px; }
 .fin-catbars__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-200); }
