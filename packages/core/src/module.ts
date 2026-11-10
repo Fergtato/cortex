@@ -1,4 +1,4 @@
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { IconName } from "@cortex/ui";
 
 /** Props every module view receives from the shell. */
@@ -44,6 +44,21 @@ export interface CortexModule {
   /** The module's page; it handles its own sub-routes from `subpath`. */
   Page: ComponentType<ModuleViewProps>;
   widgets?: WidgetDef<any>[];
+  /**
+   * Wraps the whole signed-in app (not just this module's page), so module
+   * state such as a loaded store survives switching apps and other modules'
+   * widgets can read it. Keep it cheap: it mounts even if the module is off.
+   */
+  Provider?: ComponentType<{ children: ReactNode }>;
+  /** Sections this module adds to Settings, at `/settings/<module id>/<section id>`. */
+  settings?: ModuleSettingsSection[];
   /** Hidden modules are registered but not on the rail (e.g. still being built). */
   hidden?: boolean;
+}
+
+export interface ModuleSettingsSection {
+  id: string;
+  label: string;
+  icon: IconName;
+  Component: ComponentType;
 }

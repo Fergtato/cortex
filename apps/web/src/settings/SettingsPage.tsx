@@ -1,30 +1,42 @@
 import { useRouter, type ModuleViewProps } from "@cortex/core";
-import { Sidebar } from "@cortex/ui";
+import { Sidebar, type SidebarSection } from "@cortex/ui";
 import { authClient } from "../auth";
+import { MODULES } from "../modules";
 import { AccountSettings } from "./AccountSettings";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { ModuleSettings } from "./ModuleSettings";
 import { UserSettingsPanel } from "./UsersSettings";
-
-const SECTIONS = [
-  { id: "/", label: "Appearance", icon: "sliders" },
-  { id: "/modules", label: "Apps", icon: "grid" },
-  { id: "/account", label: "Account", icon: "user" },
-] as const;
 
 function useIsAdmin(): boolean {
   const session = authClient.useSession();
   return (session.data?.user as { role?: string } | undefined)?.role === "admin";
 }
 
+/** Settings sections contributed by modules, keyed by their sub-path `/<module>/<section>`. */
+const MODULE_SECTIONS = MODULES.flatMap((m) =>
+  (m.settings ?? []).map((s) => ({ ...s, path: `/${m.id}/${s.id}`, moduleName: m.name })),
+);
+
 export function SettingsSidebar({ subpath }: ModuleViewProps) {
   const { navigate } = useRouter();
   const admin = useIsAdmin();
-  const items = [...SECTIONS.map((s) => ({ ...s })), ...(admin ? [{ id: "/users", label: "Users", icon: "list" as const }] : [])];
+  const sections: SidebarSection[] = [
+    {
+      items: [
+        { id: "/", label: "Appearance", icon: "sliders" },
+        { id: "/modules", label: "Apps", icon: "grid" },
+        { id: "/account", label: "Account", icon: "user" },
+        ...(admin ? [{ id: "/users", label: "Users", icon: "list" as const }] : []),
+      ],
+    },
+  ];
+  if (MODULE_SECTIONS.length) {
+    sections.push({ label: "Apps", items: MODULE_SECTIONS.map((s) => ({ id: s.path, label: s.label, icon: s.icon })) });
+  }
   return (
     <Sidebar
       title="Settings"
-      sections={[{ items }]}
+      sections={sections}
       active={subpath}
       onSelect={(id) => navigate(id === "/" ? "/settings" : `/settings${id}`)}
     />
@@ -33,6 +45,8 @@ export function SettingsSidebar({ subpath }: ModuleViewProps) {
 
 export function SettingsPage({ subpath }: ModuleViewProps) {
   const admin = useIsAdmin();
+  const mod = MODULE_SECTIONS.find((s) => s.path === subpath);
+  if (mod) return <mod.Component />;
   switch (subpath) {
     case "/modules":
       return <ModuleSettings />;

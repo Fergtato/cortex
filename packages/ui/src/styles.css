@@ -530,6 +530,8 @@ button { font: inherit; color: inherit; }
 }
 @media (max-width: 639px) {
   .cx-shell { flex-direction: column-reverse; }
+  /* the canvas scrolls, not the page, so the topbar stays put */
+  .cx-shell > .cx-main { min-height: 0; }
   .cx-shell > .cx-rail {
     width: 100%; flex-direction: row; justify-content: space-around;
     padding: var(--space-1) var(--space-2); border-right: 0; border-top: 1px solid var(--line-100);

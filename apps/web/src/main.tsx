@@ -5,6 +5,7 @@ import { DialogProvider, RouterProvider } from "@cortex/core";
 import "@cortex/ui/styles.css";
 import "./app.css";
 import { AuthGate } from "./AuthGate";
+import { ModuleProviders } from "./modules";
 import { Shell } from "./Shell";
 import { ThemeApplier } from "./ThemeApplier";
 
@@ -19,7 +20,9 @@ createRoot(document.getElementById("root")!).render(
         <DialogProvider>
           <AuthGate>
             <ThemeApplier />
-            <Shell />
+            <ModuleProviders>
+              <Shell />
+            </ModuleProviders>
           </AuthGate>
         </DialogProvider>
       </RouterProvider>
