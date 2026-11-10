@@ -22,7 +22,8 @@ Everything is optional.
 | `CORTEX_SECRET` | generated | Signs sessions and encrypts connector tokens. If unset, Cortex generates one on first start and keeps it in `/data/secret`. **Back it up with the data.** |
 | `DATABASE_URL` | unset (SQLite) | A Postgres connection string. Used by the hosted version. Self-hosters can stay on SQLite. |
 | `ALLOW_SIGNUP` | `false` | `true` lets anyone create an account (hosted mode). |
-| `TMDB_API_KEY` | unset | Turns on film and TV lookup in Watchlist (coming soon). |
+| `TMDB_API_KEY` | unset | The TMDB key Watchlist uses (a v4 read access token or a v3 key). Optional: an admin can instead paste it in **Settings → Watchlist**, where it's stored encrypted. The env var wins if both are set. |
+| `TMDB_REGION` | `GB` | Default region for "In cinemas" and "Upcoming". Admins can change it in Settings → Watchlist. |
 | `PROXY_PRIVATE_NETWORKS` | `allow` (`deny` when `ALLOW_SIGNUP=true`) | Whether API connections may reach private addresses (LAN, localhost). Self-hosters want `allow` to reach home devices. A hosted instance must use `deny` so people can't probe the server's network. |
 | `MAX_UPLOAD_MB` | `25` | Largest file upload. |
 | `PORT` | `8080` | Port inside the container. |
@@ -68,6 +69,15 @@ to the dataset: `chown -R 1000:1000 /mnt/<pool>/apps/cortex`.
 `pull_policy: always`, **Stop** then **Start** also fetches the newest image.
 Database migrations run automatically on start.
 
+## Watchlist and TMDB
+
+Watchlist gets movie and TV data from [TMDB](https://www.themoviedb.org/).
+Create a free account, open **Settings → API**, and copy the **API Read
+Access Token**. Then either paste it in Cortex (**Settings → Watchlist**,
+admins only) or set `TMDB_API_KEY`. One key serves everyone on the instance.
+The server calls TMDB and caches responses, so the key never reaches
+browsers. Posters load directly from TMDB's image servers.
+
 ## Coming from Cortex v0 (Supabase)
 
 1. In v0, open **settings** and click **[ export backup ]**.
@@ -81,7 +91,8 @@ Database migrations run automatically on start.
 Pages, databases and dashboards (with folders) all come across. v0 API
 connections aren't in the backup because their tokens never left Supabase, so
 re-add them in **Settings → Connections** using the same names. Then open each
-API widget's settings and pick the connection again.
+API widget's settings and pick the connection again. A v0 TMDB connection
+isn't needed any more: Watchlist has its own TMDB setting.
 
 If v2 is on HTTPS and Supabase on plain HTTP, the browser blocks the image
 copy. Run the import from an `http://` address of v2, or skip images.

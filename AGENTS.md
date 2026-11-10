@@ -79,6 +79,13 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
   highlighted period in `--data-2`, bars at most 24px with a 4px rounded end,
   a tooltip per mark, and a table as the accessible view. Never a dual axis.
 - **Module prefs** live in `UserSettings.modules[id]`; use `useModulePrefs`.
+- **Watchlist ↔ TMDB**: only the server talks to TMDB (`modules/watchlist/server/tmdb.ts`,
+  cached and mapped). Never put the key in the browser or call TMDB from web
+  code. Images come from `config.imageBase`. Test against the fake TMDB via
+  `TMDB_API_BASE` / `TMDB_IMAGE_BASE`. TMDB's terms require the attribution
+  shown on the setup screen; keep it.
+- **Router**: `useRouter()` gives `path` and `search`. Keep shareable filters
+  in the query string and `navigate(url, { replace: true })` as they change.
 - **Backup.** Every module with data declares `CortexModule.backup`
   (`useBackup`, `fromV0`, `describe`). The shell's Settings → Backup builds
   one v2 file across modules and imports v0/v2 files.
@@ -157,6 +164,7 @@ docker compose up -d --build   # the one-container image on :8080
 - `packages/ui/src/theme/`: theme schema, engine, `ThemeScope`
 - `packages/core/src/module.ts`, `packages/core/src/server/index.ts`: module contracts
 - `modules/home/web`: `index.tsx` (Provider, sidebar, page), `store.ts`, `components/Dashboard*`, `widgets/` (generic widgets); `modules/home/server`
+- `modules/watchlist`: `server/` (tmdb.ts client/cache/mappers, index.ts library/stats/upcoming), `shared/types.ts`, `web/` (views, browse, detail, library, components, settings, widgets)
 - `modules/finance`: `server/index.ts` (schema, API, summaries, import, backup), `shared/` (types, money), `web/` (`views.tsx`, `pages.tsx`, `import.tsx`, `widgets.tsx`)
 - `apps/server/src/connections.ts`: connections + the guarded proxy
 - `apps/web/src/settings/BackupSettings.tsx`, `ConnectionsSettings.tsx`

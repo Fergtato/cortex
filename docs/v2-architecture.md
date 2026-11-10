@@ -86,10 +86,45 @@ legacy/          Cortex v0 (Supabase SPA), kept as reference while porting. Dele
 - **Widgets**: `finance.balance`, `finance.spending`, `finance.budgets`,
   `finance.recent`, `finance.trend`.
 
+## Watchlist (movies & TV, TMDB)
+
+- **TMDB is built into the module**, not a Connection. One instance key comes
+  from `TMDB_API_KEY`, or from an admin in Settings → Watchlist, stored in
+  `watchlist_config` and encrypted with `ctx.secrets`. The server calls TMDB
+  (`server/tmdb.ts`): a v4 token is sent as a Bearer header, a v3 key as
+  `api_key`. Responses are cached in memory with a TTL and LRU (lists 1 h,
+  details 12 h, genres 7 days) and in-flight requests are de-duplicated. They
+  are mapped to `shared/types.ts`, so browsers never see raw TMDB or the key.
+  `TMDB_API_BASE` and `TMDB_IMAGE_BASE` exist so tests can use a fake TMDB.
+- **Library tables**: `watchlist_entries` (status + a metadata snapshot so
+  shelves and stats work without TMDB), `watchlist_events` (every movie viewing
+  and episode; all stats come from these), `watchlist_lists` and
+  `watchlist_list_items`.
+- **Smart status** (`recomputeTv`): every aired episode watched → Watched if
+  the show has ended, otherwise Watching (caught up). Some watched → Watching.
+  "Watched" on a TV title means "mark every aired episode".
+- **Anime** (Japanese animation: genre 16 + language `ja`) is filtered out of
+  the Movies and TV lists and has its own page.
+- **Web**: quick add on every poster (`QuickAddMenu` in a fixed-position
+  `Popover`), infinite grids (`useInfiniteQuery` plus an IntersectionObserver
+  sentinel), search filters in the URL (`useRouter().search`), and lazy views
+  and widgets.
+- **Widgets**: `watchlist.continue`, `watchlist.upcoming`, `watchlist.queue`,
+  `watchlist.stats`.
+
 ## Module preferences
 
 `UserSettings.modules[<id>]` holds per-module preferences, read and written
 with `useModulePrefs(id, defaults)`. Finance stores `baseCurrency` there.
+
+## Shared pieces added along the way
+
+- `@cortex/ui` `BarChart` / `RankedBars`: the dataviz-rule charts (Finance and
+  Watchlist).
+- `ServerContext.secrets.encrypt/decrypt`: AES-GCM under `CORTEX_SECRET`, for
+  secrets modules store (the TMDB key).
+- `useRouter().search`: the query string. `navigate()` updates it, so pages
+  can keep filters in the URL.
 
 ## Shared server pieces
 
