@@ -1,0 +1,26 @@
+{
+  "format": 1,
+  "name": "Paper",
+  "mode": "light",
+  "colors": {
+    "bg-000": "#e9e4da",
+    "bg-100": "#f0ece3",
+    "bg-200": "#f6f3ec",
+    "bg-300": "#fffdf8",
+    "bg-400": "#ebe6db",
+    "line-100": "#e3ddd1",
+    "line-200": "#d3ccbe",
+    "line-300": "#7f7869",
+    "ink-100": "#1f1b16",
+    "ink-200": "#4a443b",
+    "ink-300": "#665f54",
+    "accent": "#a14a12",
+    "accent-soft": "rgba(161, 74, 18, 0.10)",
+    "on-accent": "#ffffff",
+    "data-1": "#1f1b16",
+    "data-3": "#4a6aa8",
+    "data-4": "#8a8370"
+  },
+  "shape": "soft",
+  "fonts": "plex"
+}

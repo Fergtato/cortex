@@ -5,9 +5,12 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# local env (Supabase URL/keys for docker builds)
+# local env
 .env
 .env.local
+
+# dev server data (SQLite db, uploads, generated secret)
+apps/server/data/
 
 # logs
 *.log

@@ -1,0 +1,21 @@
+{
+  "name": "cortex",
+  "private": true,
+  "version": "2.0.0-dev",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "modules/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c cyan,magenta \"npm run dev -w @cortex/server\" \"npm run dev -w @cortex/web\"",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build": "npm run typecheck && npm run build -w @cortex/web && npm run build -w @cortex/server",
+    "start": "npm run start -w @cortex/server"
+  },
+  "devDependencies": {
+    "concurrently": "10.0.6",
+    "typescript": "5.9.3"
+  }
+}

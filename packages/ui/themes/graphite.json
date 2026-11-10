@@ -1,0 +1,24 @@
+{
+  "format": 1,
+  "name": "Graphite",
+  "mode": "dark",
+  "colors": {
+    "bg-000": "#141518",
+    "bg-100": "#191a1e",
+    "bg-200": "#1d1f23",
+    "bg-300": "#24262b",
+    "bg-400": "#2c2e34",
+    "line-100": "#2c2e34",
+    "line-200": "#383a41",
+    "line-300": "#7a7d87",
+    "ink-100": "#eceef2",
+    "ink-200": "#b0b3bc",
+    "ink-300": "#969aa4",
+    "accent": "#7aa2ff",
+    "accent-soft": "rgba(122, 162, 255, 0.14)",
+    "on-accent": "#050506",
+    "data-1": "#eceef2",
+    "data-3": "#c4a6e8",
+    "data-4": "#bcb9a7"
+  }
+}

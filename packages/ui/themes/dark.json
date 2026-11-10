@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "name": "Dark",
+  "mode": "dark",
+  "colors": {
+    "bg-000": "#040405",
+    "bg-100": "#070708",
+    "bg-200": "#0a0a0b",
+    "bg-300": "#101012",
+    "bg-400": "#17171a",
+    "line-100": "#18181b",
+    "line-200": "#222226",
+    "line-300": "#67676f",
+    "ink-100": "#ededea",
+    "ink-200": "#a0a0a6",
+    "ink-300": "#84848b",
+    "accent": "#2fd9b4",
+    "accent-soft": "rgba(47, 217, 180, 0.12)",
+    "on-accent": "#03120e",
+    "positive": "#8ad970",
+    "positive-soft": "rgba(138, 217, 112, 0.12)",
+    "negative": "#ff7a66",
+    "negative-soft": "rgba(255, 122, 102, 0.12)",
+    "info": "#8fa6d6",
+    "info-soft": "rgba(143, 166, 214, 0.12)",
+    "data-1": "#ededea",
+    "data-3": "#7f97c4",
+    "data-4": "#bcb9a7"
+  }
+}

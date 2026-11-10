@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "name": "Light",
+  "mode": "light",
+  "colors": {
+    "bg-000": "#e6e6e2",
+    "bg-100": "#efefec",
+    "bg-200": "#f6f6f4",
+    "bg-300": "#ffffff",
+    "bg-400": "#e9e9e6",
+    "line-100": "#e0e0dc",
+    "line-200": "#cfcfca",
+    "line-300": "#7d7d78",
+    "ink-100": "#111113",
+    "ink-200": "#45454b",
+    "ink-300": "#5f5f65",
+    "accent": "#00725f",
+    "accent-soft": "rgba(0, 114, 95, 0.10)",
+    "on-accent": "#ffffff",
+    "positive": "#2e7420",
+    "positive-soft": "rgba(46, 116, 32, 0.10)",
+    "negative": "#b8321c",
+    "negative-soft": "rgba(184, 50, 28, 0.10)",
+    "info": "#34528f",
+    "info-soft": "rgba(52, 82, 143, 0.10)",
+    "data-1": "#111113",
+    "data-3": "#4a6aa8",
+    "data-4": "#7d7a68"
+  }
+}
