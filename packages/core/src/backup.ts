@@ -1,15 +1,9 @@
-import { FILE_REF_PREFIX, uploadFile } from "@cortex/core";
-import type { DatabaseMap, PageMap } from "../types";
-import type { NotesData } from "../store";
-import { downloadFile } from "./download";
+import { FILE_REF_PREFIX, uploadFile } from "./files";
 
 /*
- * Notes backups.
- *
- * v2 file: { format: "cortex-backup", version: 2, exportedAt, modules: { notes: { pages, databases } } }
- *   Other modules add their own key under `modules` (Home's dashboards in Phase 3).
- * v1 file (Cortex v0): { format: "cortex-backup", version: 1, pages, databases, dashboards, settings }
- *   Only pages and databases are read here; dashboards come across with Home.
+ * Backup files: { format: "cortex-backup", version: 2, exportedAt, modules: { <id>: data } }.
+ * Cortex v0 files (version 1) hold pages / databases / dashboards at the top
+ * level; modules read their part through ModuleBackup.fromV0.
  *
  * Images inside a backup can be:
  *  - `data:image/...` URLs (v0 in localStorage mode): uploaded to this server.
@@ -18,31 +12,17 @@ import { downloadFile } from "./download";
  *    if the person signs in to that Supabase, otherwise left (and reported).
  */
 
-export interface ParsedBackup {
+export interface RawBackup {
   version: 1 | 2;
   exportedAt?: string;
-  data: NotesData;
-  /** Dashboards present in a v0 file (not imported yet; Home brings them in). */
-  dashboardCount: number;
-}
-
-export function buildBackup(data: NotesData) {
-  return {
-    format: "cortex-backup",
-    version: 2,
-    exportedAt: new Date().toISOString(),
-    modules: { notes: { pages: data.pages, databases: data.databases } },
-  };
-}
-
-export function downloadBackup(data: NotesData) {
-  const b = buildBackup(data);
-  const stamp = b.exportedAt.slice(0, 19).replace(/[T:]/g, "-");
-  downloadFile(`cortex-notes-${stamp}.json`, JSON.stringify(b, null, 2), "application/json");
+  /** v2: per-module data; v1: absent. */
+  modules?: Record<string, unknown>;
+  /** The whole parsed file (v1 modules read from here). */
+  raw: Record<string, unknown>;
 }
 
 /** Parses a v1 (Cortex v0) or v2 backup. Throws a readable error. */
-export function parseBackup(text: string): ParsedBackup {
+export function parseBackupFile(text: string): RawBackup {
   let raw: any;
   try {
     raw = JSON.parse(text);
@@ -50,26 +30,16 @@ export function parseBackup(text: string): ParsedBackup {
     throw new Error("This isn't a valid JSON file.");
   }
   if (!raw || raw.format !== "cortex-backup") throw new Error("This isn't a Cortex backup file.");
-  const asMaps = (pages: unknown, databases: unknown): NotesData => {
-    if (typeof pages !== "object" || !pages || typeof databases !== "object" || !databases) {
-      throw new Error("The backup has no pages or databases.");
-    }
-    return { pages: pages as PageMap, databases: databases as DatabaseMap };
-  };
-  if (raw.version === 1) {
-    return {
-      version: 1,
-      exportedAt: raw.exportedAt,
-      data: asMaps(raw.pages, raw.databases),
-      dashboardCount: Object.values(raw.dashboards ?? {}).filter((d: any) => d?.kind !== "folder").length,
-    };
-  }
+  if (raw.version === 1) return { version: 1, exportedAt: raw.exportedAt, raw };
   if (raw.version === 2) {
-    const notes = raw.modules?.notes;
-    if (!notes) throw new Error("The backup has no Notes data.");
-    return { version: 2, exportedAt: raw.exportedAt, data: asMaps(notes.pages, notes.databases), dashboardCount: 0 };
+    if (!raw.modules || typeof raw.modules !== "object") throw new Error("The backup has no module data.");
+    return { version: 2, exportedAt: raw.exportedAt, modules: raw.modules, raw };
   }
   throw new Error(`Unsupported backup version: ${String(raw.version)}.`);
+}
+
+export function buildBackupFile(modules: Record<string, unknown>) {
+  return { format: "cortex-backup", version: 2, exportedAt: new Date().toISOString(), modules };
 }
 
 const DATA_IMAGE = /data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/gi;
@@ -77,7 +47,7 @@ const DATA_IMAGE = /data:image\/[a-z0-9.+-]+;base64,[A-Za-z0-9+/=]+/gi;
 const SUPABASE_REF = /cortex-file:([0-9a-f-]{36}\/[A-Za-z0-9._-]+)/gi;
 
 /** Counts what an import will have to upload or copy. */
-export function scanImages(data: NotesData): { inline: number; supabase: string[] } {
+export function scanImages(data: unknown): { inline: number; supabase: string[] } {
   const json = JSON.stringify(data);
   const inline = new Set(json.match(DATA_IMAGE) ?? []).size;
   const supabase = [...new Set([...json.matchAll(SUPABASE_REF)].map((m) => m[1]))];
@@ -109,11 +79,11 @@ async function supabaseToken(src: SupabaseSource): Promise<string> {
  * when `supabase` is given, copies v0 Storage images. Identical images are
  * uploaded once. Returns the rewritten data and the refs it couldn't copy.
  */
-export async function prepareImport(
-  data: NotesData,
+export async function prepareImport<T>(
+  data: T,
   supabase: SupabaseSource | null,
   onProgress: (done: number, total: number) => void,
-): Promise<{ data: NotesData; failed: string[] }> {
+): Promise<{ data: T; failed: string[] }> {
   let json = JSON.stringify(data);
   const inline = [...new Set(json.match(DATA_IMAGE) ?? [])];
   const remote = supabase ? [...new Set([...json.matchAll(SUPABASE_REF)].map((m) => m[1]))] : [];

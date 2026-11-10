@@ -12,8 +12,8 @@
   },
   "dependencies": {
     "@cortex/core": "*",
+    "@cortex/icons": "*",
     "@cortex/ui": "*",
-    "@lucide/lab": "0.1.2",
     "@tanstack/react-query": "5.105.0",
     "@tiptap/extension-color": "2.27.2",
     "@tiptap/extension-highlight": "2.27.2",
@@ -31,8 +31,7 @@
     "@tiptap/starter-kit": "2.27.2",
     "@tiptap/suggestion": "2.27.2",
     "hono": "4.13.14",
-    "kysely": "0.29.7",
-    "lucide-react": "1.23.0"
+    "kysely": "0.29.7"
   },
   "peerDependencies": {
     "react": "^18.3.1",

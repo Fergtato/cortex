@@ -58,3 +58,4 @@ export function forUser(db: Kysely<any>, userId: string) {
     deleteFrom: (table: string) => db.deleteFrom(table).where("user_id" as any, "=", userId),
   };
 }
+export * from "./entities";

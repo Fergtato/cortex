@@ -51,20 +51,9 @@ export const PROPERTY_TYPES: PropertyType[] = [
   "auto_id",
 ];
 
-/** Named colours for select options; each maps to CSS vars in styles.css. */
-export const SELECT_COLORS = [
-  "gray",
-  "red",
-  "orange",
-  "yellow",
-  "green",
-  "cyan",
-  "blue",
-  "purple",
-  "pink",
-] as const;
-
-export type SelectColor = (typeof SELECT_COLORS)[number];
+/** Named colours for select options (shared palette, see @cortex/icons). */
+export { SELECT_COLORS, type SelectColor } from "@cortex/icons/colors";
+import type { SelectColor } from "@cortex/icons/colors";
 
 export interface SelectOption {
   id: string;

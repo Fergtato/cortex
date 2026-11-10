@@ -6,7 +6,9 @@
   "exports": {
     ".": "./src/index.ts",
     "./styles.css": "./src/styles.css",
-    "./themes/*": "./themes/*"
+    "./themes/*": "./themes/*",
+    "./compat.css": "./src/compat.css",
+    "./tree.css": "./src/tree.css"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p ."

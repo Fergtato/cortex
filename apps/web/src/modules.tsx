@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { CortexModule } from "@cortex/core";
+import { WidgetRegistryProvider, type CortexModule } from "@cortex/core";
 import { homeModule } from "@cortex/module-home/web";
 import { notesModule } from "@cortex/module-notes/web";
 
@@ -12,7 +12,13 @@ export const MODULES: CortexModule[] = [homeModule, notesModule];
 
 export const HOME_ID = homeModule.id;
 
-/** Nests every module's Provider around the app, in registry order. */
+const WIDGETS = MODULES.flatMap((m) => m.widgets ?? []);
+
+/** Nests every module's Provider around the app (registry order) inside the widget registry. */
 export function ModuleProviders({ children }: { children: ReactNode }) {
-  return MODULES.reduceRight<ReactNode>((inner, m) => (m.Provider ? <m.Provider>{inner}</m.Provider> : inner), children);
+  return (
+    <WidgetRegistryProvider defs={WIDGETS}>
+      {MODULES.reduceRight<ReactNode>((inner, m) => (m.Provider ? <m.Provider>{inner}</m.Provider> : inner), children)}
+    </WidgetRegistryProvider>
+  );
 }

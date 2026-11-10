@@ -1,32 +1,12 @@
 /*
- * Notes styles, ported from Cortex v0. The v0 variable names below are a
- * bridge onto the design-system tokens, so every theme applies to Notes.
+ * Notes styles, ported from Cortex v0. v0 variable names are bridged onto
+ * design-system tokens (@cortex/ui/compat.css), so every theme applies.
  * Class names are global but only Notes uses them; new modules use the
  * design system's cx-* classes instead of adding to this file.
  */
-:root {
-  --bg: var(--bg-200);
-  --panel: var(--bg-300);
-  --fg: var(--ink-100);
-  --dim: var(--ink-300);
-  --line: var(--line-200);
-  --line-bright: var(--line-300);
-  --accent-dim: var(--accent-soft);
-  --selection: var(--accent-soft);
-  --danger: var(--negative);
-  --mono: var(--font-mono);
-  /* Select-option palette, pulled toward the ink colour so it stays readable
-     on light and dark themes alike. */
-  --sel-gray: color-mix(in oklab, #8b949e 75%, var(--ink-100));
-  --sel-red: color-mix(in oklab, #f47067 75%, var(--ink-100));
-  --sel-orange: color-mix(in oklab, #f0883e 75%, var(--ink-100));
-  --sel-yellow: color-mix(in oklab, #d4a72c 75%, var(--ink-100));
-  --sel-green: color-mix(in oklab, #57ab5a 75%, var(--ink-100));
-  --sel-cyan: color-mix(in oklab, #39c5cf 75%, var(--ink-100));
-  --sel-blue: color-mix(in oklab, #6cb6ff 75%, var(--ink-100));
-  --sel-purple: color-mix(in oklab, #b083f0 75%, var(--ink-100));
-  --sel-pink: color-mix(in oklab, #e275ad 75%, var(--ink-100));
-}
+/* The v0 → design-system variable bridge lives in @cortex/ui/compat.css. */
+@import "@cortex/ui/compat.css";
+@import "@cortex/ui/tree.css";
 
 /* v0 used --accent for decoration (hovers, links, names). The design system
    keeps one signal colour, so inside Notes the v0 accent maps to ink and its
@@ -98,157 +78,6 @@
 }
 .notes-root input[type="checkbox"]:disabled { cursor: default; opacity: 0.8; }
 
-/* ---------- tree ---------- */
-.tree {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-/* Tree rows match the design-system nav rows (.cx-nav). */
-.tree-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: var(--control-h);
-  padding: 0 var(--space-1) 0 0;
-  cursor: pointer;
-  border: 1px solid transparent;
-  border-radius: var(--radius-xs);
-  color: var(--ink-200);
-  font-size: 13px;
-}
-.tree-row:hover { background: var(--bg-400); color: var(--ink-100); }
-.tree-row.selected { background: var(--bg-300); border-color: var(--line-200); color: var(--ink-100); }
-
-/* drag-and-drop reorder / re-parent */
-.tree-row[draggable="true"] {
-  cursor: grab;
-}
-.tree-dragging {
-  opacity: 0.4;
-}
-.tree-row.drop-inside {
-  background: var(--accent-dim);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-.tree-row.drop-before,
-.tree-row.drop-after {
-  position: relative;
-}
-.tree-row.drop-before::before,
-.tree-row.drop-after::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--accent);
-  pointer-events: none;
-}
-.tree-row.drop-before::before {
-  top: -1px;
-}
-.tree-row.drop-after::after {
-  bottom: -1px;
-}
-.tree-root-pad {
-  margin: 2px 8px 4px;
-  padding: 4px 8px;
-  border: 1px dashed var(--line);
-  color: var(--dim);
-  font-size: 10px;
-  text-align: center;
-}
-.tree-root-pad.over {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-dim);
-}
-
-.tree-toggle {
-  width: 12px;
-  color: var(--dim);
-  font-size: 10px;
-  flex-shrink: 0;
-  text-align: center;
-}
-
-.tree-title {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tree-actions {
-  display: none;
-  gap: 2px;
-}
-.tree-row:hover .tree-actions {
-  display: flex;
-}
-
-.row-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--line);
-  color: var(--dim);
-  line-height: 1;
-}
-.row-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.tree-menu-wrap {
-  position: relative;
-}
-.tree-menu-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 99;
-}
-.tree-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  z-index: 100;
-  min-width: 130px;
-  border: 1px solid var(--line-bright);
-  background: var(--bg);
-}
-.tree-menu-item {
-  display: block;
-  width: 100%;
-  padding: 5px 10px;
-  text-align: left;
-  border: none;
-  border-radius: 0;
-  border-bottom: 1px solid var(--line);
-  background: none;
-  color: var(--fg);
-  font-family: var(--mono);
-  font-size: 12px;
-  cursor: pointer;
-}
-.tree-menu-item:last-child {
-  border-bottom: none;
-}
-.tree-menu-item:hover {
-  background: var(--selection);
-}
-.tree-menu-item.danger {
-  color: var(--danger);
-}
-.tree-menu-item.danger:hover {
-  background: var(--negative-soft);
-}
-
-/* ---------- main ---------- */
 /* ---------- page (document) ---------- */
 .page {
   width: 100%;
@@ -969,102 +798,6 @@
   background: var(--bg-400);
 }
 
-.db-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.db-list-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-height: var(--control-h);
-  padding: 0 var(--space-1) 0 var(--space-2);
-  cursor: pointer;
-  border: 1px solid transparent;
-  border-radius: var(--radius-xs);
-  color: var(--ink-200);
-  font-size: 13px;
-}
-.db-list-row:hover { background: var(--bg-400); color: var(--ink-100); }
-.db-list-row.selected { background: var(--bg-300); border-color: var(--line-200); color: var(--ink-100); }
-.db-list-icon {
-  color: var(--dim);
-  font-size: 11px;
-}
-.db-list-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-}
-.db-list-row[draggable="true"] {
-  cursor: grab;
-}
-.db-folder-row {
-  font-weight: 600;
-}
-.db-rename-input {
-  background: var(--bg);
-  border: 1px solid var(--accent);
-  color: var(--fg);
-  font: inherit;
-  padding: 0 3px;
-  margin: -1px 0;
-  min-width: 0;
-  outline: none;
-}
-.db-folder-toggle {
-  color: var(--dim);
-}
-.db-in-folder {
-  padding-left: 26px;
-}
-.db-folder-empty {
-  padding: 3px 8px 3px 26px;
-  color: var(--line-bright);
-  font-size: 10px;
-  font-style: italic;
-}
-.db-list-row .tree-actions {
-  margin-left: auto;
-}
-/* the global `.tree-actions { display: none }` also hides these rows' menus;
-   restore them on hover the same way the page tree does (display, not
-   visibility — visibility alone can't beat display:none). */
-.db-list-row:hover .tree-actions {
-  display: flex;
-}
-/* reuse the page tree's drop indicators for the databases list */
-.db-list-row.drop-inside {
-  background: var(--accent-dim);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-.db-list-row.drop-before,
-.db-list-row.drop-after {
-  position: relative;
-}
-.db-list-row.drop-before::before,
-.db-list-row.drop-after::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: var(--accent);
-  pointer-events: none;
-}
-.db-list-row.drop-before::before {
-  top: -1px;
-}
-.db-list-row.drop-after::after {
-  bottom: -1px;
-}
-.crumb-static {
-  color: var(--dim);
-}
-
-/* ---------- dashboards ---------- */
 /* ---------- charts (database view + dashboard widget) ---------- */
 .chart-view {
   display: flex;
@@ -1844,15 +1577,6 @@
 }
 
 /* select / multiselect cells */
-.selc-gray   { --selc: var(--sel-gray); }
-.selc-red    { --selc: var(--sel-red); }
-.selc-orange { --selc: var(--sel-orange); }
-.selc-yellow { --selc: var(--sel-yellow); }
-.selc-green  { --selc: var(--sel-green); }
-.selc-cyan   { --selc: var(--sel-cyan); }
-.selc-blue   { --selc: var(--sel-blue); }
-.selc-purple { --selc: var(--sel-purple); }
-.selc-pink   { --selc: var(--sel-pink); }
 
 .cell-selectwrap {
   position: relative;
@@ -2040,11 +1764,6 @@
   gap: 10px;
 }
 /* inline SVG icon wrapper (see components/Icon.tsx) */
-.glyph {
-  display: inline-flex;
-  align-items: center;
-  vertical-align: -2px;
-}
 .crumb .glyph,
 .meta-btn .glyph {
   margin-right: 4px;
@@ -2063,68 +1782,6 @@
 }
 .icon-picker-anchor {
   position: relative;
-}
-.icon-picker {
-  position: absolute;
-  top: 4px;
-  left: 0;
-  z-index: 60;
-  width: 320px;
-  background: var(--panel);
-  border: 1px solid var(--line-bright);
-  box-shadow: none;
-}
-.icon-picker-head {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding: 6px;
-  border-bottom: 1px solid var(--line);
-}
-.icon-picker-colors {
-  display: flex;
-  gap: 4px;
-  padding: 6px;
-  border-bottom: 1px solid var(--line);
-}
-.swatch-none {
-  color: var(--dim);
-  font-size: 10px;
-  line-height: 1;
-  background: none;
-  border: 1px solid var(--line-bright);
-}
-.icon-picker-grid {
-  display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  gap: 2px;
-  padding: 6px;
-  max-height: 240px;
-  overflow-y: auto;
-}
-.icon-picker-cell {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 0;
-  cursor: pointer;
-  color: var(--fg);
-}
-.icon-picker-cell:hover {
-  background: var(--selection);
-}
-.icon-picker-cell.active {
-  outline: 1px solid var(--accent);
-}
-.icon-picker-empty {
-  grid-column: 1 / -1;
-  padding: 8px;
-}
-.icon-picker-more {
-  border-top: 1px solid var(--line);
-  color: var(--dim);
-  font-size: 10px;
-  padding: 4px 8px;
 }
 .tree-icon {
   margin-right: 5px;
@@ -2767,16 +2424,6 @@
 /* gallery */
 .gallery-card { background: var(--bg-200); border-color: var(--line-100); border-radius: var(--radius-sm); overflow: hidden; }
 
-/* ---------- Settings → Notes data ---------- */
-.notes-import-counts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.notes-import-supabase {
-  display: flex; flex-direction: column; gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
-  background: var(--bg-100); border: 1px solid var(--line-100); border-radius: var(--radius-sm);
-}
-.notes-import-check { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 500; cursor: pointer; }
-.notes-import-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); }
-.notes-import-actions { display: flex; gap: var(--space-2); }
 
 /* small v0 buttons, design-system ghost style */
 .tool-subpage, .tool-subpage:hover { color: var(--ink-200); background: none; }
@@ -2788,7 +2435,5 @@
   color: var(--ink-200); font-size: 12px; font-weight: 500;
 }
 .meta-btn:hover { background: var(--bg-400); color: var(--ink-100); }
-.row-btn { border-color: var(--line-200); border-radius: var(--radius-xs); color: var(--ink-300); }
-.row-btn:hover { border-color: var(--line-300); color: var(--ink-100); }
 .db-embed-empty { border: 1px solid var(--line-100); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
 .db-embed-open { color: var(--ink-100); font-weight: 600; }

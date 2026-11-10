@@ -1,0 +1,29 @@
+/*
+ * Bridge for code ported from Cortex v0 (Notes, Home dashboards). The v0
+ * stylesheets use --bg / --fg / --line… ; these map them onto design-system
+ * tokens so every theme applies. New code uses the design-system tokens
+ * directly and never these names.
+ */
+:root {
+  --bg: var(--bg-200);
+  --panel: var(--bg-300);
+  --fg: var(--ink-100);
+  --dim: var(--ink-300);
+  --line: var(--line-200);
+  --line-bright: var(--line-300);
+  --accent-dim: var(--accent-soft);
+  --selection: var(--accent-soft);
+  --danger: var(--negative);
+  --mono: var(--font-mono);
+  /* Select-option palette, pulled toward the ink colour so it stays readable
+     on light and dark themes alike. */
+  --sel-gray: color-mix(in oklab, #8b949e 75%, var(--ink-100));
+  --sel-red: color-mix(in oklab, #f47067 75%, var(--ink-100));
+  --sel-orange: color-mix(in oklab, #f0883e 75%, var(--ink-100));
+  --sel-yellow: color-mix(in oklab, #d4a72c 75%, var(--ink-100));
+  --sel-green: color-mix(in oklab, #57ab5a 75%, var(--ink-100));
+  --sel-cyan: color-mix(in oklab, #39c5cf 75%, var(--ink-100));
+  --sel-blue: color-mix(in oklab, #6cb6ff 75%, var(--ink-100));
+  --sel-purple: color-mix(in oklab, #b083f0 75%, var(--ink-100));
+  --sel-pink: color-mix(in oklab, #e275ad 75%, var(--ink-100));
+}

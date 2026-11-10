@@ -78,3 +78,17 @@
 .home-apps li:first-child { border-top: 0; }
 .home-apps__name { font-weight: 500; }
 .home-apps__blurb { color: var(--ink-300); font: var(--text-body-sm); }
+.settings-list .settings-list__label { white-space: normal; }
+.conn-test { display: block; margin-top: 2px; font-size: 12px; }
+.notes-import-actions { display: flex; gap: var(--space-2); }
+
+/* ---------- Settings → Backup ---------- */
+.backup-summary { margin: 0; font: var(--text-metric-sm); font-family: var(--font-sans); font-size: 15px; color: var(--ink-100); }
+.backup-counts { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.backup-supabase {
+  display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-100); border: 1px solid var(--line-100); border-radius: var(--radius-sm);
+}
+.backup-check { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 500; cursor: pointer; }
+.backup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-3); }

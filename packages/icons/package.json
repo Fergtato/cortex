@@ -1,0 +1,22 @@
+{
+  "name": "@cortex/icons",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./lazy": "./src/lazy.tsx",
+    "./colors": "./src/colors.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@cortex/ui": "*",
+    "@lucide/lab": "0.1.2",
+    "lucide-react": "1.23.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  }
+}

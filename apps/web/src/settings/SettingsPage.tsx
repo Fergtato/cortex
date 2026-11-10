@@ -4,6 +4,8 @@ import { authClient } from "../auth";
 import { MODULES } from "../modules";
 import { AccountSettings } from "./AccountSettings";
 import { AppearanceSettings } from "./AppearanceSettings";
+import { BackupSettings } from "./BackupSettings";
+import { ConnectionsSettings } from "./ConnectionsSettings";
 import { ModuleSettings } from "./ModuleSettings";
 import { UserSettingsPanel } from "./UsersSettings";
 
@@ -26,6 +28,8 @@ export function SettingsSidebar({ subpath }: ModuleViewProps) {
         { id: "/", label: "Appearance", icon: "sliders" },
         { id: "/modules", label: "Apps", icon: "grid" },
         { id: "/account", label: "Account", icon: "user" },
+        { id: "/connections", label: "Connections", icon: "bolt" },
+        { id: "/backup", label: "Backup", icon: "archive" },
         ...(admin ? [{ id: "/users", label: "Users", icon: "list" as const }] : []),
       ],
     },
@@ -52,6 +56,10 @@ export function SettingsPage({ subpath }: ModuleViewProps) {
       return <ModuleSettings />;
     case "/account":
       return <AccountSettings />;
+    case "/connections":
+      return <ConnectionsSettings />;
+    case "/backup":
+      return <BackupSettings />;
     case "/users":
       return admin ? <UserSettingsPanel /> : <AppearanceSettings />;
     default:

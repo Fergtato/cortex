@@ -4,6 +4,8 @@ import { NavContext, StoreContext, type Nav } from "./context";
 import { useStore } from "./store";
 import { buildPath, buildRouteTable, type Selection } from "./lib/routes";
 import { BASE, LastSelection } from "./selection";
+import { NOTES_WIDGETS } from "./widgets";
+import { notesBackup } from "./backup";
 
 /*
  * Notes: pages (rich-text, nestable) and databases (six views, formulas,
@@ -15,7 +17,6 @@ import { BASE, LastSelection } from "./selection";
 const views = () => import("./views");
 const LazySidebar = lazy(() => views().then((m) => ({ default: m.NotesSidebar })));
 const LazyPage = lazy(() => views().then((m) => ({ default: m.NotesPage })));
-const LazyDataSettings = lazy(() => import("./NotesDataSettings").then((m) => ({ default: m.NotesDataSettings })));
 
 function withSuspense<P extends object>(C: ComponentType<P>, fallback: ReactNode = null) {
   return (props: P) => (
@@ -27,7 +28,6 @@ function withSuspense<P extends object>(C: ComponentType<P>, fallback: ReactNode
 
 const NotesSidebar = withSuspense<ModuleViewProps>(LazySidebar, <aside className="cx-side" />);
 const NotesPage = withSuspense<ModuleViewProps>(LazyPage, <PageFrame crumbs={["Notes"]} />);
-const NotesDataSettings = withSuspense(LazyDataSettings, <PageFrame crumbs={["Settings", "Notes data"]} />);
 
 function NotesProvider({ children }: { children: ReactNode }) {
   const store = useStore();
@@ -64,7 +64,8 @@ export const notesModule: CortexModule = {
   Provider: NotesProvider,
   Sidebar: NotesSidebar,
   Page: NotesPage,
-  settings: [{ id: "data", label: "Notes data", icon: "archive", Component: NotesDataSettings }],
+  widgets: NOTES_WIDGETS,
+  backup: notesBackup,
 };
 
 // Re-exported for Home widgets (Phase 3).

@@ -6,3 +6,6 @@ export * from "./Dialog";
 export * from "./shared";
 export * from "./settings";
 export * from "./PageFrame";
+export * from "./connections";
+export * from "./widgets";
+export * from "./backup";

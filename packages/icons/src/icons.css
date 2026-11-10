@@ -1,0 +1,88 @@
+/* Icon set + picker (shared by Notes pages and Home dashboards). */
+@import "@cortex/ui/compat.css";
+
+.selc-gray   { --selc: var(--sel-gray); }
+.selc-red    { --selc: var(--sel-red); }
+.selc-orange { --selc: var(--sel-orange); }
+.selc-yellow { --selc: var(--sel-yellow); }
+.selc-green  { --selc: var(--sel-green); }
+.selc-cyan   { --selc: var(--sel-cyan); }
+.selc-blue   { --selc: var(--sel-blue); }
+.selc-purple { --selc: var(--sel-purple); }
+.selc-pink   { --selc: var(--sel-pink); }
+
+.glyph {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: -2px;
+}
+
+.icon-picker {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  z-index: 60;
+  width: 320px;
+  background: var(--panel);
+  border: 1px solid var(--line-bright);
+  box-shadow: none;
+}
+.icon-picker-head {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.icon-picker-colors {
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.swatch-none {
+  color: var(--dim);
+  font-size: 10px;
+  line-height: 1;
+  background: none;
+  border: 1px solid var(--line-bright);
+}
+.icon-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 2px;
+  padding: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.icon-picker-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 0;
+  cursor: pointer;
+  color: var(--fg);
+}
+.icon-picker-cell:hover {
+  background: var(--selection);
+}
+.icon-picker-cell.active {
+  outline: 1px solid var(--accent);
+}
+.icon-picker-empty {
+  grid-column: 1 / -1;
+  padding: 8px;
+}
+.icon-picker-more {
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 10px;
+  padding: 4px 8px;
+}
+
+.icon-picker {
+  background: var(--bg-300); border: 1px solid var(--line-200); border-radius: var(--radius-sm);
+  font-family: var(--font-sans); color: var(--ink-100);
+}
+.icon-picker button { background: none; border: 1px solid transparent; color: inherit; font: inherit; cursor: pointer; }
+.icon-picker input { font: inherit; }
