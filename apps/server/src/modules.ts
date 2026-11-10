@@ -1,4 +1,5 @@
 import type { CortexServerModule } from "@cortex/core/server";
+import { financeServer } from "@cortex/module-finance/server";
 import { homeServer } from "@cortex/module-home/server";
 import { notesServer } from "@cortex/module-notes/server";
 
@@ -7,4 +8,4 @@ import { notesServer } from "@cortex/module-notes/server";
  * one import + one entry here (its web half goes in apps/web/src/modules.ts).
  * Order matters only for migrations: a module's tables exist before later ones'.
  */
-export const SERVER_MODULES: CortexServerModule[] = [notesServer, homeServer];
+export const SERVER_MODULES: CortexServerModule[] = [notesServer, homeServer, financeServer];

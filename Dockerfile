@@ -11,6 +11,7 @@ COPY apps/server/package.json apps/server/
 COPY packages/ui/package.json packages/ui/
 COPY packages/core/package.json packages/core/
 COPY packages/icons/package.json packages/icons/
+COPY modules/finance/package.json modules/finance/
 COPY modules/home/package.json modules/home/
 COPY modules/notes/package.json modules/notes/
 # --ignore-scripts: better-sqlite3 has a binding.gyp, so npm 11 would try to

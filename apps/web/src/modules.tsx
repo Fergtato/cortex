@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { WidgetRegistryProvider, type CortexModule } from "@cortex/core";
+import { financeModule } from "@cortex/module-finance/web";
 import { homeModule } from "@cortex/module-home/web";
 import { notesModule } from "@cortex/module-notes/web";
 
@@ -8,7 +9,7 @@ import { notesModule } from "@cortex/module-notes/web";
  * first: it is the landing page at `/`. Adding a module = one import + one
  * entry here (its server half goes in apps/server/src/modules.ts).
  */
-export const MODULES: CortexModule[] = [homeModule, notesModule];
+export const MODULES: CortexModule[] = [homeModule, notesModule, financeModule];
 
 export const HOME_ID = homeModule.id;
 
