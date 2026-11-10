@@ -23,6 +23,7 @@ Everything is optional.
 | `DATABASE_URL` | unset (SQLite) | A Postgres connection string. Used by the hosted version. Self-hosters can stay on SQLite. |
 | `ALLOW_SIGNUP` | `false` | `true` lets anyone create an account (hosted mode). |
 | `TMDB_API_KEY` | unset | Turns on film and TV lookup in Watchlist (coming soon). |
+| `PROXY_PRIVATE_NETWORKS` | `allow` (`deny` when `ALLOW_SIGNUP=true`) | Whether API connections may reach private addresses (LAN, localhost). Self-hosters want `allow` to reach home devices. A hosted instance must use `deny` so people can't probe the server's network. |
 | `MAX_UPLOAD_MB` | `25` | Largest file upload. |
 | `PORT` | `8080` | Port inside the container. |
 
@@ -35,7 +36,9 @@ Everything lives in the `/data` volume:
 - `secret`: the generated secret
 
 To back up, stop the container and copy the volume, or snapshot the dataset on
-a NAS. You can also download your notes as JSON from **Settings → Notes data**.
+a NAS. You can also download everything (notes, dashboards…) as one JSON file
+from **Settings → Backup**. API connection tokens are not in that file; they
+stay encrypted in the database.
 
 ## TrueNAS (custom app, YAML)
 
@@ -68,14 +71,17 @@ Database migrations run automatically on start.
 ## Coming from Cortex v0 (Supabase)
 
 1. In v0, open **settings** and click **[ export backup ]**.
-2. In v2, open **Settings → Notes data → Choose backup file**.
+2. In v2, open **Settings → Backup → Choose backup file**.
 3. If the backup has images stored in Supabase, keep **Copy images from my old
    Supabase** ticked. Enter the Supabase URL (e.g. `http://192.168.1.10:8000`),
    the **anon** key, and your v0 email and password. The browser signs in and
    copies each image to v2. Nothing is saved.
-4. Choose **Add to my notes** or **Replace my notes**, then **Import**.
+4. Choose **Add to what I have** or **Replace what I have**, then **Import**.
 
-Pages and databases come across now. v0 dashboards arrive with Home in the
-next phase, so keep the backup file. If v2 is on HTTPS and Supabase on plain
-HTTP, the browser blocks the image copy. Run the import from an `http://`
-address of v2, or skip images.
+Pages, databases and dashboards (with folders) all come across. v0 API
+connections aren't in the backup because their tokens never left Supabase, so
+re-add them in **Settings → Connections** using the same names. Then open each
+API widget's settings and pick the connection again.
+
+If v2 is on HTTPS and Supabase on plain HTTP, the browser blocks the image
+copy. Run the import from an `http://` address of v2, or skip images.

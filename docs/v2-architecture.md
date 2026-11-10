@@ -9,7 +9,9 @@ independent.
 apps/web/        SPA shell: rail, routing, auth screens, Settings, theme applier
 apps/server/     Hono API: auth (Better Auth), files, settings, jobs, module routers; serves the SPA
 packages/ui/     design-system components + tokens + theme engine + built-in themes
-packages/core/   module contract, router, API client, useDialog, StoredImg, settings hook
+packages/core/   module/widget/backup contracts, router, API client, useDialog, StoredImg/pickImage,
+                 settings hook, connections client + proxyFetch, widget registry, backup file helpers
+packages/icons/  the full Lucide icon set + picker (lazy entry: @cortex/icons/lazy; colours: /colors)
 modules/<id>/    web/ (Page, Sidebar, widgets) · server/ (routes, migrations, jobs) · shared/
 legacy/          Cortex v0 (Supabase SPA), kept as reference while porting. Deleted at merge.
 ```
@@ -54,6 +56,13 @@ legacy/          Cortex v0 (Supabase SPA), kept as reference while porting. Dele
 - **Cross-module links:** use the `links` table (`src_module/src_id` →
   `dst_module/dst_id`), not foreign keys between modules.
 
+## Shared server pieces
+
+`entityTable(name)` + `entityRoutes(ctx, { key: table })`
+(`@cortex/core/server`) give a module the "one JSON row per client entity"
+storage with `GET /` and a transactional `POST /sync`. Notes and Home both use
+it.
+
 ## Notes (the first full module)
 
 - **Web** (`modules/notes/web`): `index.tsx` holds the eager part: the
@@ -66,8 +75,60 @@ legacy/          Cortex v0 (Supabase SPA), kept as reference while porting. Dele
   one row per entity (`(user_id, id)` key, JSON text). `GET /api/notes` loads
   everything; `POST /api/notes/sync` applies `{pages?, databases?}` deltas in
   one transaction.
-- **Backups**: Settings → Notes data. Imports v0 and v2 files, uploads inline
-  images, and copies v0 Supabase images after a one-off sign-in in the browser.
+- **Widgets**: database view, list, metric, habit tracker, chart, form and
+  action button (`web/widgets`, one lazy chunk).
+- **Backups**: through Settings → Backup (`web/backup.ts`).
+
+## Home and widgets
+
+- **Home** (`modules/home`) owns dashboards: `home_dashboards` entity table, a
+  diff-saving store, the grid (`DashboardGrid`: fixed columns × rows,
+  drag/resize, no overlaps), the widget frame and the picker. `/` shows the
+  first dashboard; others live at `/home/<folder>/<name>`. On phones a
+  dashboard stacks into one column in reading order.
+- **Widgets come from modules** (`CortexModule.widgets`). The shell puts them
+  all in a registry (`WidgetRegistryProvider` / `useWidgetDefs`). A widget gets
+  `{ widget, dash, editing }`: `dash` is a `DashboardHandle` (`patchWidget`,
+  `setWidgets`, the widget list), never another module's store. Widgets that
+  need module data read that module's own context (Notes widgets use
+  `useStoreContext`). Heavy widgets are `React.lazy`; the frame wraps them in
+  Suspense, and unknown types render a placeholder.
+- **Type ids**: new widgets are namespaced (`finance.balance`). Widgets ported
+  from v0 keep their ids (`text`, `db-view`, `api-metric`…) so imported
+  dashboards resolve.
+- Widget CSS (`dw-*`) lives in `modules/home/web/home.css`, because Home is
+  where widgets render.
+
+## Connections and the proxy
+
+`apps/server/src/connections.ts`: `connections` + `connection_secrets` (token
+AES-256-GCM, key derived from `CORTEX_SECRET`). `GET/PUT/DELETE
+/api/connections` (the token is write-only) and `ALL
+/api/proxy/<id>/<path>`, which injects the auth recipe (bearer, header, query)
+and forwards the request. Guards:
+- Path containment: `..` can't leave the base URL.
+- 10 s timeout and 5 MB response cap.
+- Up to 3 redirects, each one re-checked.
+- Sandbox CSP on the response.
+- `PROXY_PRIVATE_NETWORKS=deny` (the default when `ALLOW_SIGNUP=true`)
+  refuses private, loopback and link-local addresses. The check runs in the
+  socket's DNS lookup, so DNS rebinding can't slip past it.
+
+Client: `proxyFetch`, `useApiPoll`, `ConnectionSelect` in `@cortex/core`.
+Settings → Connections manages them.
+
+## Backup
+
+Settings → Backup builds one file: `{ format: "cortex-backup", version: 2,
+modules: { <id>: data } }`. Each module declares `CortexModule.backup`:
+- `useBackup()` (inside its Provider) returns `summary`, `exportData` and
+  `importData(data, "merge" | "replace")`.
+- `fromV0(raw)` reads its part of a Cortex v0 file.
+- `describe(data)` labels the import preview.
+
+Image handling is shared (`prepareImport` in `@cortex/core`): inline data URLs
+are uploaded, and v0 Supabase refs are copied after a one-off sign-in in the
+browser.
 
 ## Auth
 

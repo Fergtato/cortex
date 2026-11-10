@@ -56,14 +56,33 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
   `navigator.clipboard`.
 - **Uploads are same-origin.** `/api/files/:id` sends a sandbox CSP and
   `nosniff`, and serves only images, video and PDF inline. Keep it that way.
+- **The API proxy is an SSRF surface.** `/api/proxy` reaches any URL a
+  connection names. `PROXY_PRIVATE_NETWORKS=deny` (the default when
+  `ALLOW_SIGNUP=true`) blocks private addresses inside the socket's `lookup`.
+  Never switch it to `fetch()` or a pre-check DNS lookup: both reopen DNS
+  rebinding. Tokens are write-only (AES-GCM with `CORTEX_SECRET`). Changing
+  that secret makes stored tokens unreadable.
+- **Widgets.** Modules contribute `WidgetDef`s (`CortexModule.widgets`).
+  Widgets get `{ widget, dash, editing }` and change the dashboard only through
+  `dash.patchWidget` / `dash.setWidgets`, never another module's store. Lazy
+  widget components are fine (Suspense in `WidgetFrame`). Keep v0 type ids
+  unchanged; namespace new ones (`finance.x`).
+- **Keep the main bundle small.** Import colours from `@cortex/icons/colors`
+  and render icons via `@cortex/icons/lazy` outside lazy chunks. A plain
+  `@cortex/icons` import pulls the ~1 MB catalogue into the main bundle.
+  Notes views and widgets are separate lazy chunks.
+- **Backup.** Every module with data declares `CortexModule.backup`
+  (`useBackup`, `fromV0`, `describe`). The shell's Settings → Backup builds
+  one v2 file across modules and imports v0/v2 files.
 - **npm.** Install with `npm install --cache /tmp/cortex-npm-cache`. Pin exact
   versions that are at least two weeks old (`--before=<date>`).
 
 ### Notes (`modules/notes`)
 
 - **Ported from v0, styled by a variable bridge.** `notes.css` is the v0
-  stylesheet trimmed to Notes. Its top block maps v0 variables (`--bg`,
-  `--fg`, `--line`…) onto design-system tokens, and inside Notes v0's
+  stylesheet trimmed to Notes. `@cortex/ui/compat.css` maps v0 variables
+  (`--bg`, `--fg`, `--line`…) onto design-system tokens (shared with Home), and
+  `@cortex/ui/tree.css` holds the sidebar-tree styles. Inside Notes v0's
   decorative `--accent` maps to ink. The design-system skin for database
   chrome sits at the end as overrides. Class names are global (only Notes uses
   them). New modules use `cx-*` and must not add to this file.
@@ -79,10 +98,7 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
   the raw `cortex-file:` ref on every save. Old `src` content still parses.
 - **Saves are blocked until the load succeeds**, and a failed load leaves the
   store unloaded (`loadError`), never empty-and-saveable.
-- **Backups.** v2 files are `{ format: "cortex-backup", version: 2, modules: { notes } }`.
-  v0 files (version 1) import too. Inline images are uploaded, and v0 Supabase
-  image refs are copied if the person signs in to the old Supabase
-  (`lib/backup.ts`). v0 dashboards are counted but come across with Home.
+- **Backups** go through Settings → Backup (`web/backup.ts` is Notes' hook).
 - **Tiptap pinned at `2.27.2`** (`@tiptap/core` resolves to 2.27.3, a v2
   patch). Never v3; React stays on 18 for it. `npm audit` reports
   GHSA-cp6q-959q-f8rh (`mergeAttributes` / `__proto__`) for all of Tiptap 2.
@@ -128,9 +144,11 @@ docker compose up -d --build   # the one-container image on :8080
 
 - `apps/web/src/main.tsx`: providers (Query, Router, Dialog, AuthGate)
 - `apps/web/src/Shell.tsx`: rail, active module, sidebar, page
-- `apps/web/src/settings/`: Appearance (themes), Apps, Account, Users, plus module sections
+- `apps/web/src/settings/`: Appearance (themes), Apps, Account, Connections, Backup, Users, plus module sections
 - `apps/server/src/index.ts`: boot order (auth migrate → core/module migrate → routes → SPA)
 - `packages/ui/src/theme/`: theme schema, engine, `ThemeScope`
 - `packages/core/src/module.ts`, `packages/core/src/server/index.ts`: module contracts
-- `modules/home`: overview (dashboards arrive in Phase 3)
+- `modules/home/web`: `index.tsx` (Provider, sidebar, page), `store.ts`, `components/Dashboard*`, `widgets/` (generic widgets); `modules/home/server`
+- `apps/server/src/connections.ts`: connections + the guarded proxy
+- `apps/web/src/settings/BackupSettings.tsx`, `ConnectionsSettings.tsx`
 - `modules/notes/web/index.tsx` (Provider + lazy views), `views.tsx`, `store.ts`; `modules/notes/server` (tables + `/api/notes`)
