@@ -1,0 +1,28 @@
+{
+  "name": "@cortex/server",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "typecheck": "tsc --noEmit -p .",
+    "build": "node build.mjs",
+    "start": "node dist/server.mjs"
+  },
+  "dependencies": {
+    "@cortex/core": "*",
+    "@hono/node-server": "2.1.5",
+    "better-auth": "1.7.14",
+    "better-sqlite3": "13.0.3",
+    "hono": "4.13.14",
+    "kysely": "0.29.7",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "9.6.0",
+    "@types/node": "24.19.2",
+    "@types/pg": "8.23.1",
+    "esbuild": "0.28.2",
+    "tsx": "4.23.15"
+  }
+}

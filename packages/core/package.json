@@ -1,0 +1,22 @@
+{
+  "name": "@cortex/core",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@cortex/ui": "*",
+    "@tanstack/react-query": "5.105.0"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1",
+    "hono": "^4.13.14",
+    "kysely": "^0.29.7"
+  }
+}
