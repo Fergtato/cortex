@@ -27,9 +27,12 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
   path. `/api/*` other than `/api/auth/*`, `/api/instance` and `/api/health`
   requires a session.
 - **Module contract.** Web: `CortexModule` (`packages/core/src/module.ts`),
-  registered in `apps/web/src/modules.ts`. Server: `CortexServerModule`,
+  registered in `apps/web/src/modules.tsx`. Server: `CortexServerModule`,
   registered in `apps/server/src/modules.ts`. A new module also needs its
-  `package.json` COPY line in the `Dockerfile`.
+  `package.json` COPY line in the `Dockerfile`. A module's `Provider` wraps the
+  whole signed-in app (state survives switching apps; other modules can read
+  it). Its `settings` sections appear in Settings at `/settings/<module>/<id>`.
+  Heavy views should be `React.lazy` (Notes does this) so Home stays light.
 - **Workspaces ship TS source.** Packages export `./src/*.ts` directly. Vite
   and esbuild compile them, so there are no per-package builds. The server is
   bundled to one file (`apps/server/build.mjs`). Only `better-sqlite3` stays
@@ -56,22 +59,49 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
 - **npm.** Install with `npm install --cache /tmp/cortex-npm-cache`. Pin exact
   versions that are at least two weeks old (`--before=<date>`).
 
-### Notes port (Phase 2): carry over from v0
+### Notes (`modules/notes`)
 
-- **Tiptap pinned at `2.27.2`**. Never v3. React stays on 18 for it.
+- **Ported from v0, styled by a variable bridge.** `notes.css` is the v0
+  stylesheet trimmed to Notes. Its top block maps v0 variables (`--bg`,
+  `--fg`, `--line`…) onto design-system tokens, and inside Notes v0's
+  decorative `--accent` maps to ink. The design-system skin for database
+  chrome sits at the end as overrides. Class names are global (only Notes uses
+  them). New modules use `cx-*` and must not add to this file.
+- **The button reset is `:where(...)`** (zero specificity) so single-class v0
+  rules win. Don't raise its specificity.
+- **The slash menu is plain DOM on `<body>`**, outside `.notes-root`, so it
+  styles itself fully.
+- **The URL is the selection.** Paths are name-based (`/notes/page/<ancestors>/<slug>`),
+  so a rename makes the current path stale. `LastSelection` (`selection.ts`)
+  keeps the item and the page rewrites the URL with `replace`.
+- **Images live in `data-src`** in page HTML (`ResizableImage`). Tiptap
+  serialises with the live document, so a real `src` makes the browser fetch
+  the raw `cortex-file:` ref on every save. Old `src` content still parses.
+- **Saves are blocked until the load succeeds**, and a failed load leaves the
+  store unloaded (`loadError`), never empty-and-saveable.
+- **Backups.** v2 files are `{ format: "cortex-backup", version: 2, modules: { notes } }`.
+  v0 files (version 1) import too. Inline images are uploaded, and v0 Supabase
+  image refs are copied if the person signs in to the old Supabase
+  (`lib/backup.ts`). v0 dashboards are counted but come across with Home.
+- **Tiptap pinned at `2.27.2`** (`@tiptap/core` resolves to 2.27.3, a v2
+  patch). Never v3; React stays on 18 for it. `npm audit` reports
+  GHSA-cp6q-959q-f8rh (`mergeAttributes` / `__proto__`) for all of Tiptap 2.
+  The fix exists only in v3. Notes only loads the signed-in person's own
+  content, so the risk is accepted.
 - **One stable editor instance.** Switch pages by swapping content; never
   recreate the editor.
 - **NodeView embeds stop propagation** (`onMouseDown`, `onKeyDown`) on
   `<NodeViewWrapper>`. `<NodeViewContent>` adds an extra wrapper div, so CSS
   targets one level deeper.
-- **Select options are `{id, name, color}`; cells store ids.** Legacy migration:
-  `legacy/src/storage/migrateDatabases.ts`.
+- **Select options are `{id, name, color}`; cells store ids.** Old string
+  options are migrated on load and import (`storage/migrateDatabases.ts`).
 - **View config lives on the view** (filters, sort, groupBy…). Embeds store
   only the view id.
 - **Computed properties** (`formula`, `created_time`, `last_edited_time`,
   `auto_id`) are read via `computedCellValue()`, never written to `row.cells`.
-- **Incremental diff-save** (`diffMap` in `legacy/src/store.ts`) relies on
-  strict immutability. Port it to the HTTP adapter unchanged.
+- **Incremental diff-save** (`diffMap` in `store.ts`) relies on strict
+  immutability: unchanged entities keep object identity. It posts only changed
+  and removed entities to `/api/notes/sync` (one transaction per call).
 
 ## Developer commands
 
@@ -98,8 +128,9 @@ docker compose up -d --build   # the one-container image on :8080
 
 - `apps/web/src/main.tsx`: providers (Query, Router, Dialog, AuthGate)
 - `apps/web/src/Shell.tsx`: rail, active module, sidebar, page
-- `apps/web/src/settings/`: Appearance (themes), Apps, Account, Users
+- `apps/web/src/settings/`: Appearance (themes), Apps, Account, Users, plus module sections
 - `apps/server/src/index.ts`: boot order (auth migrate → core/module migrate → routes → SPA)
 - `packages/ui/src/theme/`: theme schema, engine, `ThemeScope`
 - `packages/core/src/module.ts`, `packages/core/src/server/index.ts`: module contracts
-- `modules/home`, `modules/notes`: first modules (Notes is a placeholder until Phase 2)
+- `modules/home`: overview (dashboards arrive in Phase 3)
+- `modules/notes/web/index.tsx` (Provider + lazy views), `views.tsx`, `store.ts`; `modules/notes/server` (tables + `/api/notes`)

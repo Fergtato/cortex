@@ -35,8 +35,7 @@ Everything lives in the `/data` volume:
 - `secret`: the generated secret
 
 To back up, stop the container and copy the volume, or snapshot the dataset on
-a NAS. You can also export your data as JSON from Settings (coming with the
-Notes port).
+a NAS. You can also download your notes as JSON from **Settings → Notes data**.
 
 ## TrueNAS (custom app, YAML)
 
@@ -68,6 +67,15 @@ Database migrations run automatically on start.
 
 ## Coming from Cortex v0 (Supabase)
 
-v0 data comes across through backup import, which arrives with the Notes port.
-Until then, keep running the v0 image alongside. `legacy/docs/` has its setup
-guides.
+1. In v0, open **settings** and click **[ export backup ]**.
+2. In v2, open **Settings → Notes data → Choose backup file**.
+3. If the backup has images stored in Supabase, keep **Copy images from my old
+   Supabase** ticked. Enter the Supabase URL (e.g. `http://192.168.1.10:8000`),
+   the **anon** key, and your v0 email and password. The browser signs in and
+   copies each image to v2. Nothing is saved.
+4. Choose **Add to my notes** or **Replace my notes**, then **Import**.
+
+Pages and databases come across now. v0 dashboards arrive with Home in the
+next phase, so keep the backup file. If v2 is on HTTPS and Supabase on plain
+HTTP, the browser blocks the image copy. Run the import from an `http://`
+address of v2, or skip images.

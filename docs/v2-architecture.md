@@ -54,6 +54,21 @@ legacy/          Cortex v0 (Supabase SPA), kept as reference while porting. Dele
 - **Cross-module links:** use the `links` table (`src_module/src_id` →
   `dst_module/dst_id`), not foreign keys between modules.
 
+## Notes (the first full module)
+
+- **Web** (`modules/notes/web`): `index.tsx` holds the eager part: the
+  `Provider` (the store, loaded once per session) and the module definition.
+  `views.tsx` (sidebar, pages, databases, the Tiptap editor and the full icon
+  set) is lazy-loaded on first visit.
+- **Store** (`store.ts`): immutable maps of pages and databases. A debounced
+  diff against the last saved snapshot posts only changed and removed entities.
+- **Server** (`modules/notes/server`): `notes_pages` and `notes_databases`,
+  one row per entity (`(user_id, id)` key, JSON text). `GET /api/notes` loads
+  everything; `POST /api/notes/sync` applies `{pages?, databases?}` deltas in
+  one transaction.
+- **Backups**: Settings → Notes data. Imports v0 and v2 files, uploads inline
+  images, and copies v0 Supabase images after a one-off sign-in in the browser.
+
 ## Auth
 
 Better Auth (email + password, cookie sessions) with the admin plugin. The

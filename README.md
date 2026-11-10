@@ -9,15 +9,15 @@ your data in one volume, and has themes you can swap or write yourself.
 docker run -d -p 8080:8080 -v cortex-data:/data ghcr.io/fergtato/cortex:latest
 ```
 
-> **v2 is in progress on the `v2` branch.** The foundation is in place: the
-> shell, design system, themes, accounts and the server. The Notes features
-> below are being ported from v0 (`legacy/`, tag `v0.1.0`). Finance comes next.
+> **v2 is in progress on the `v2` branch.** In place so far: the shell,
+> design system, themes, accounts, the server, and **Notes** (ported from v0,
+> with v0 backup import). Next are Home dashboards, then Finance.
 >
 > - Self-hosting: [docs/self-hosting.md](docs/self-hosting.md)
 > - Architecture and adding a module: [docs/v2-architecture.md](docs/v2-architecture.md)
 > - Working on the code (human or AI): read [AGENTS.md](AGENTS.md) first
 
-## Notes features (v0, being ported)
+## Notes
 
 - **Rich-text editor** (Tiptap) — bold, italic, strikethrough, inline code,
   text colour and highlight, headings, bullet / ordered / task lists,
