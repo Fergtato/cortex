@@ -34,5 +34,16 @@ export const config = {
   /** Built SPA to serve; unset in dev (Vite serves it). */
   webDist: env.WEB_DIST ? resolve(env.WEB_DIST) : undefined,
   maxUploadBytes: Number(env.MAX_UPLOAD_MB ?? 25) * 1024 * 1024,
+  /**
+   * Whether API connections may reach private networks (LAN, loopback,
+   * link-local). Self-host default: allow (talking to home devices is the
+   * point). Hosted (ALLOW_SIGNUP=true) default: deny, so users can't reach the
+   * host's internal network. PROXY_PRIVATE_NETWORKS=allow|deny overrides.
+   */
+  proxyPrivateNetworks: (env.PROXY_PRIVATE_NETWORKS === "allow" || env.PROXY_PRIVATE_NETWORKS === "deny"
+    ? env.PROXY_PRIVATE_NETWORKS
+    : env.ALLOW_SIGNUP === "true"
+      ? "deny"
+      : "allow") as "allow" | "deny",
   version: env.CORTEX_VERSION ?? "2.0.0-dev",
 };

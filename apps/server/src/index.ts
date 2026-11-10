@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import type { AppEnv, InstanceInfo, ServerContext } from "@cortex/core/server";
 import { countUsers, createAuth, migrateAuth } from "./auth";
 import { config } from "./config";
+import { connectionsRouter, proxyRouter } from "./connections";
 import { createDb } from "./db";
 import { filesRouter } from "./files";
 import { startJobs } from "./jobs";
@@ -47,6 +48,8 @@ app.use("/api/*", async (c, next) => {
 
 app.route("/api/settings", settingsRouter(ctx));
 app.route("/api/files", filesRouter(ctx));
+app.route("/api/connections", connectionsRouter(ctx));
+app.route("/api/proxy", proxyRouter(ctx));
 for (const mod of SERVER_MODULES) {
   if (mod.routes) app.route(`/api/${mod.id}`, mod.routes(ctx));
 }

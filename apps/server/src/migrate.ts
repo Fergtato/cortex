@@ -1,6 +1,7 @@
 import type { Kysely } from "kysely";
 import { Migrator, type Migration } from "kysely/migration";
 import type { CortexServerModule } from "@cortex/core/server";
+import { connectionsMigration } from "./connections";
 
 /*
  * Portable SQL only: every migration here and in modules must run on SQLite
@@ -43,6 +44,7 @@ const coreMigrations: Record<string, Migration> = {
       await db.schema.createIndex("links_dst_idx").on("links").columns(["user_id", "dst_module", "dst_id"]).execute();
     },
   },
+  "0002_connections": connectionsMigration,
 };
 
 /** Runs core migrations, then each module's (prefixed `<module>_`) in registry order. */
