@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import type { AppEnv, InstanceInfo, ServerContext } from "@cortex/core/server";
 import { countUsers, createAuth, migrateAuth } from "./auth";
 import { config } from "./config";
-import { connectionsRouter, proxyRouter } from "./connections";
+import { connectionsRouter, decryptToken, encryptToken, proxyRouter } from "./connections";
 import { createDb } from "./db";
 import { filesRouter } from "./files";
 import { startJobs } from "./jobs";
@@ -15,7 +15,7 @@ import { SERVER_MODULES } from "./modules";
 import { settingsRouter } from "./settings";
 
 const { db, dialect } = createDb();
-const ctx: ServerContext = { db, dialect, dataDir: config.dataDir };
+const ctx: ServerContext = { db, dialect, dataDir: config.dataDir, secrets: { encrypt: encryptToken, decrypt: decryptToken } };
 const auth = createAuth(db, dialect);
 
 await migrateAuth(auth);

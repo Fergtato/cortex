@@ -2,6 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 interface RouterApi {
   path: string;
+  /** The query string, including "?" (or ""). */
+  search: string;
   navigate: (to: string, opts?: { replace?: boolean }) => void;
 }
 
@@ -10,21 +12,26 @@ const RouterContext = createContext<RouterApi | null>(null);
 /** Minimal History API router: the shell only needs "current path" and "go to". */
 export function RouterProvider({ children }: { children: ReactNode }) {
   const [path, setPath] = useState(() => window.location.pathname);
+  const [search, setSearch] = useState(() => window.location.search);
 
   useEffect(() => {
-    const onPop = () => setPath(window.location.pathname);
+    const onPop = () => {
+      setPath(window.location.pathname);
+      setSearch(window.location.search);
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
   const navigate = useCallback((to: string, opts?: { replace?: boolean }) => {
-    if (to === window.location.pathname) return;
+    if (to === window.location.pathname + window.location.search) return;
     if (opts?.replace) window.history.replaceState(null, "", to);
     else window.history.pushState(null, "", to);
     setPath(window.location.pathname);
+    setSearch(window.location.search);
   }, []);
 
-  return <RouterContext.Provider value={{ path, navigate }}>{children}</RouterContext.Provider>;
+  return <RouterContext.Provider value={{ path, search, navigate }}>{children}</RouterContext.Provider>;
 }
 
 export function useRouter(): RouterApi {

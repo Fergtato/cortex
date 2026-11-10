@@ -17,6 +17,8 @@ export interface ServerContext {
   dialect: "sqlite" | "postgres";
   /** Persistent data directory (the Docker volume). */
   dataDir: string;
+  /** AES-GCM with a key derived from CORTEX_SECRET, for secrets modules store (API keys). */
+  secrets: { encrypt: (plain: string) => string; decrypt: (stored: string) => string };
 }
 
 /** A recurring background job (connector syncs, reminders, cleanups). */
