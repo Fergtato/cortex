@@ -12,7 +12,11 @@ COPY packages/ui/package.json packages/ui/
 COPY packages/core/package.json packages/core/
 COPY modules/home/package.json modules/home/
 COPY modules/notes/package.json modules/notes/
-RUN npm ci
+# --ignore-scripts: better-sqlite3 has a binding.gyp, so npm 11 would try to
+# compile it (no toolchain on alpine). It ships prebuilt N-API binaries for
+# musl, which it loads at runtime, so nothing needs to build here. Same
+# behaviour as npm 12 locally, which doesn't run install scripts by default.
+RUN npm ci --ignore-scripts
 COPY . .
 RUN npm run build
 
