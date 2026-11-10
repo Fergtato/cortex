@@ -34,3 +34,14 @@ export function useSettings() {
     },
   };
 }
+
+/** One module's preferences from user settings, with defaults, plus a setter that merges. */
+export function useModulePrefs<P extends Record<string, unknown>>(moduleId: string, defaults: P) {
+  const { settings, update, loaded } = useSettings();
+  const prefs = { ...defaults, ...(settings.modules?.[moduleId] as Partial<P> | undefined) } as P;
+  return {
+    prefs,
+    loaded,
+    setPrefs: (patch: Partial<P>) => update({ modules: { ...settings.modules, [moduleId]: { ...prefs, ...patch } } }),
+  };
+}

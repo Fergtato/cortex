@@ -18,12 +18,15 @@ export interface UserSettings {
   customThemes: Record<string, unknown>;
   /** Module ids the person has switched off. */
   disabledModules: string[];
+  /** Per-module preferences, keyed by module id (e.g. `finance.baseCurrency`). */
+  modules?: Record<string, Record<string, unknown>>;
 }
 
 export const DEFAULT_SETTINGS: UserSettings = {
   theme: { themeId: "dark" },
   customThemes: {},
   disabledModules: [],
+  modules: {},
 };
 
 /** What `/api/session/info` reports about the instance before and after sign-in. */

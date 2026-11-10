@@ -54,8 +54,9 @@ export function BackupSettings() {
   const [sb, setSb] = useState<SupabaseSource>({ url: "", anonKey: "", email: "", password: "" });
   const ready = hooks.every(({ h }) => h.ready);
 
-  const exportAll = () => {
-    const file = buildBackupFile(Object.fromEntries(hooks.map(({ m, h }) => [m.id, h.exportData()])));
+  const exportAll = async () => {
+    const entries = await Promise.all(hooks.map(async ({ m, h }) => [m.id, await h.exportData()] as const));
+    const file = buildBackupFile(Object.fromEntries(entries));
     download(`cortex-backup-${file.exportedAt.slice(0, 19).replace(/[T:]/g, "-")}.json`, JSON.stringify(file, null, 2));
   };
 
@@ -96,7 +97,7 @@ export function BackupSettings() {
       const lines: string[] = [];
       for (const { m, h } of hooks) {
         if (!(m.id in data)) continue;
-        h.importData(data[m.id], mode);
+        await h.importData(data[m.id], mode);
         lines.push(`${m.name}: ${m.backup.describe(data[m.id])}`);
       }
       setPhase({ kind: "done", lines, failed: failed.length + (useSupabase ? 0 : p.supabase.length) });

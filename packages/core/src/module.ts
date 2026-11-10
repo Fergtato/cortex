@@ -79,8 +79,9 @@ export interface ModuleBackup {
     ready: boolean;
     /** What the module holds now, e.g. "12 pages · 3 databases". */
     summary: string;
-    exportData: () => unknown;
-    importData: (data: unknown, mode: "merge" | "replace") => void;
+    /** May be async (server-held data). */
+    exportData: () => unknown | Promise<unknown>;
+    importData: (data: unknown, mode: "merge" | "replace") => void | Promise<void>;
   };
   /** This module's data from a Cortex v0 (version 1) backup, if it has any. */
   fromV0?: (raw: Record<string, unknown>) => unknown | undefined;
