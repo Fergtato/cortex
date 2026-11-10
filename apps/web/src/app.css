@@ -1,0 +1,80 @@
+/* App-level styles for the shell, auth screens and Settings. Components and
+   tokens live in @cortex/ui; everything here uses only its CSS variables. */
+
+/* ---------- Shell ---------- */
+.cx-main { position: relative; }
+.shell-sidebar-toggle { display: none; }
+@media (max-width: 1023px) {
+  .shell-sidebar-toggle {
+    display: inline-flex; position: absolute; z-index: 2;
+    top: calc((var(--header-h) - var(--control-h-sm)) / 2); left: var(--space-3);
+  }
+  .shell-sidebar-toggle ~ .cx-top { padding-left: calc(var(--space-3) + var(--control-h-sm) + var(--space-2)); }
+}
+.shell-empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); padding: var(--space-8) var(--space-6); color: var(--ink-200); }
+.shell-empty p { margin: 0; }
+
+/* ---------- Auth ---------- */
+.auth-screen {
+  min-height: 100%; display: grid; place-items: center; padding: var(--space-4);
+  background: var(--bg-200);
+  background-image: radial-gradient(var(--line-200) 1px, transparent 1.2px);
+  background-size: 16px 16px;
+}
+.auth-card { width: min(380px, 100%); }
+.auth-card .cx-panel__body { padding: var(--space-5); }
+.auth-brand { display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-5); }
+.auth-brand .cx-rail__mark { margin: 0; }
+.auth-form { display: flex; flex-direction: column; gap: var(--space-3); }
+.auth-error { margin: 0; color: var(--negative); font: var(--text-body-sm); }
+.auth-note { margin: 0; color: var(--ink-300); font: var(--text-body-sm); }
+
+/* ---------- Settings ---------- */
+.settings-stack { display: flex; flex-direction: column; gap: var(--space-3); align-items: stretch; }
+.settings-stack > .cx-seg { align-self: flex-start; flex-wrap: wrap; }
+.settings-muted { margin: 0; color: var(--ink-300); font: var(--text-body-sm); }
+.settings-ok { margin: 0; color: var(--positive); font: var(--text-body-sm); }
+.settings-error { margin: 0; color: var(--negative); font: var(--text-body-sm); }
+.settings-errors { margin: 0; padding-left: var(--space-4); color: var(--negative); font: var(--text-body-sm); }
+.settings-errors code, .settings-muted code { font-family: var(--font-mono); font-size: 12px; color: var(--ink-200); }
+.settings-code {
+  margin: 0; padding: var(--space-3); overflow: auto;
+  background: var(--bg-100); border: 1px solid var(--line-100); border-radius: var(--radius-xs);
+  font: var(--text-data); color: var(--ink-200);
+}
+.settings-dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-2) var(--space-4); margin: 0; }
+.settings-dl dt { font: var(--text-label); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-300); align-self: center; }
+.settings-dl dd { margin: 0; }
+.settings-list { list-style: none; margin: 0; padding: 0; }
+.settings-list li {
+  display: flex; align-items: center; gap: var(--space-3);
+  min-height: 48px; padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--line-100);
+}
+.settings-list li:first-child { border-top: 0; }
+.settings-list .cx-icon { color: var(--ink-300); }
+.settings-list__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-list__label .settings-muted { margin-left: var(--space-2); }
+
+.theme-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); }
+.theme-card { display: flex; flex-direction: column; gap: var(--space-2); }
+.theme-card__hit {
+  padding: 0; border: 1px solid var(--line-200); border-radius: var(--radius-sm);
+  background: none; cursor: pointer; overflow: hidden; text-align: left;
+}
+.theme-card__hit:hover { border-color: var(--line-300); }
+.theme-card.is-selected .theme-card__hit { border-color: var(--accent); }
+.theme-card__preview { padding: var(--space-3); pointer-events: none; }
+.theme-card__preview .cx-panel__body { display: flex; flex-direction: column; gap: var(--space-2); }
+.theme-card__foot { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-h-sm); font: var(--text-body-sm); }
+.theme-card__foot > span:first-child { flex: 1; }
+
+/* ---------- Home (module styles live with the shell until modules get their own CSS) ---------- */
+.home-apps { list-style: none; margin: 0; padding: 0; }
+.home-apps li {
+  display: grid; grid-template-columns: 120px 1fr auto; align-items: center; gap: var(--space-3);
+  min-height: 44px; padding: var(--space-1) var(--space-4); border-top: 1px solid var(--line-100);
+}
+.home-apps li:first-child { border-top: 0; }
+.home-apps__name { font-weight: 500; }
+.home-apps__blurb { color: var(--ink-300); font: var(--text-body-sm); }

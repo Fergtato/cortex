@@ -1,0 +1,19 @@
+{
+  "name": "@cortex/module-notes",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    "./web": "./web/index.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@cortex/core": "*",
+    "@cortex/ui": "*"
+  },
+  "peerDependencies": {
+    "react": "^18.3.1"
+  }
+}

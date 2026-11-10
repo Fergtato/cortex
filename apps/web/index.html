@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Cortex</title>
+    <script>
+      // Re-apply the last theme before first paint so a light theme doesn't
+      // flash dark on reload. Written by src/ThemeApplier.tsx; storage may be
+      // unavailable (private window), so every access is guarded.
+      (function () {
+        try {
+          var t = JSON.parse(localStorage.getItem("cortex.theme") || "null");
+          if (!t) return;
+          var el = document.documentElement;
+          for (var k in t.vars) el.style.setProperty(k, t.vars[k]);
+          for (var a in t.attrs) el.setAttribute(a, t.attrs[a]);
+          el.style.colorScheme = t.mode;
+        } catch (e) {}
+      })();
+      // Surface errors that happen before/outside React instead of a blank page.
+      (function () {
+        function show(msg) {
+          var root = document.getElementById("root");
+          if (!root || root.childElementCount) return;
+          var pre = document.createElement("pre");
+          pre.style.cssText =
+            "margin:24px;padding:12px;border:1px solid #ff7a66;color:#ff7a66;" +
+            "background:#0a0a0b;font:12px monospace;white-space:pre-wrap";
+          pre.textContent = "Cortex failed to start\n" + location.href + "\n\n" + msg;
+          root.appendChild(pre);
+        }
+        window.addEventListener("error", function (e) {
+          var t = e.target;
+          if (t && t !== window && (t.src || t.href)) show("Failed to load " + (t.src || t.href));
+          else show((e.error && e.error.stack) || e.message);
+        }, true);
+        window.addEventListener("unhandledrejection", function (e) {
+          var r = e.reason;
+          show((r && r.stack) || String(r));
+        });
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
