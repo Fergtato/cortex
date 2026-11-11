@@ -2316,18 +2316,6 @@
 
 /* ---------- Notes sidebar (shell Sidebar + trees) ---------- */
 .notes-side .cx-side__body { gap: 2px; }
-.notes-side-head {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
-  padding: var(--space-4) var(--space-1) var(--space-1) var(--space-2);
-}
-.notes-side-head:first-child { padding-top: var(--space-2); }
-.notes-side-actions { display: inline-flex; gap: 2px; }
-.notes-side-actions .cx-btn { color: var(--ink-300); }
-.notes-side-actions .cx-btn:hover { color: var(--ink-100); }
-.notes-side-empty, .notes-side .empty-hint, .notes-side .db-folder-empty {
-  margin: 0; padding: var(--space-1) var(--space-2); color: var(--ink-300); font-size: 13px;
-}
-.notes-side-count { font: var(--text-data); color: var(--ink-300); padding: 0 var(--space-2); }
 .page-meta .cx-btn { font-family: var(--font-sans); }
 .notes-empty-actions { display: flex; gap: var(--space-2); }
 

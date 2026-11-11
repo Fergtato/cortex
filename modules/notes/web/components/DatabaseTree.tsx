@@ -63,7 +63,7 @@ export function DatabaseTree({
   const items = store.topLevelDbItems;
 
   if (items.length === 0) {
-    return <p className="empty-hint">No databases yet</p>;
+    return <p className="empty-hint">No databases yet.</p>;
   }
 
   return (

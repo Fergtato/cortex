@@ -53,11 +53,9 @@ export function LibraryPage() {
   const status = (new URLSearchParams(search).get("status") as TrackStatus | null) ?? "watching";
   const createList = useLibMutation((name: string) => libApi.createList(name));
   const entries = lib.data?.entries ?? [];
-  const shelfItems = entries
-    .filter((e) => e.status === status)
-    .filter((e) => (shelf === "anime" ? isAnime(e) : e.mediaType === shelf && !isAnime(e)))
-    .map(entryToMedia);
-  const counts = (s: TrackStatus) => entries.filter((e) => e.status === s).length;
+  const onShelf = entries.filter((e) => (shelf === "anime" ? isAnime(e) : e.mediaType === shelf && !isAnime(e)));
+  const shelfItems = onShelf.filter((e) => e.status === status).map(entryToMedia);
+  const counts = (s: TrackStatus) => onShelf.filter((e) => e.status === s).length;
 
   return (
     <Frame crumbs={["Watchlist", "Library & stats"]}>

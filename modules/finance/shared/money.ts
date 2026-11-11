@@ -10,7 +10,7 @@ export function currencyDigits(currency: string): number {
 /** Formats minor units as money: `formatMoney(-12345, "GBP")` → "-£123.45". */
 export function formatMoney(minor: number, currency: string, opts: { signDisplay?: "auto" | "always" | "exceptZero"; compact?: boolean; whole?: boolean } = {}): string {
   const digits = currencyDigits(currency);
-  const value = minor / 10 ** digits;
+  const value = (minor || 0) / 10 ** digits; // never "-£0.00"
   try {
     return new Intl.NumberFormat(undefined, {
       style: "currency",

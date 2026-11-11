@@ -450,8 +450,19 @@ function routes(ctx: ServerContext) {
       }
       const b = episodesBody.safeParse(body);
       if (!b.success) return bad(c, "Expected { episodes: [{ season, episode }] }");
+      // Episodes run different lengths; take each one's runtime from its season (cached).
+      const lengths = new Map<string, number>();
+      for (const season of new Set(b.data.episodes.map((e) => e.season))) {
+        try {
+          const raw = await tmdb<any>(ctx, `/tv/${id}/season/${season}`, {}, TTL.details);
+          for (const e of (raw.episodes ?? []) as any[]) if (e.runtime) lengths.set(`${season}x${e.episode_number}`, e.runtime);
+        } catch {
+          /* TMDB unreachable: fall back to the show's typical runtime */
+        }
+      }
       for (const e of b.data.episodes) {
-        await u.insertInto(T.events, { id: newId(), media_type: "tv", tmdb_id: id, season: e.season, episode: e.episode, watched_at: at, runtime }).execute();
+        const length = lengths.get(`${e.season}x${e.episode}`) ?? runtime;
+        await u.insertInto(T.events, { id: newId(), media_type: "tv", tmdb_id: id, season: e.season, episode: e.episode, watched_at: at, runtime: length }).execute();
       }
       await recomputeTv(ctx, uid, id);
       return c.json({ ok: true });

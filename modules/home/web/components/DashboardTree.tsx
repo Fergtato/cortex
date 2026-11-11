@@ -64,7 +64,7 @@ export function DashboardTree({
   const items = store.topLevelDashItems;
 
   if (items.length === 0) {
-    return <p className="empty-hint">No dashboards yet</p>;
+    return <p className="empty-hint">No dashboards yet.</p>;
   }
 
   return (

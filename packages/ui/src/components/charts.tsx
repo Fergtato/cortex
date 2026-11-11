@@ -51,7 +51,8 @@ export function BarChart({ bars, format, formatTick, height = 200, label }: { ba
   const max = Math.max(0, ...bars.map((b) => b.value));
   const step = niceStep(max);
   const top = Math.max(step, Math.ceil(max / step) * step);
-  const ticks = Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step);
+  // No data: just the baseline (a 0..1 minor-unit axis would label both ends "£0").
+  const ticks = max > 0 ? Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step) : [0];
   const band = bars.length ? plotW / bars.length : 0;
   const barW = Math.min(24, Math.max(4, band * 0.5));
   const y = (v: number) => padT + plotH - (v / top) * plotH;

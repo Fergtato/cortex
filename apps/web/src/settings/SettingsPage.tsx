@@ -35,7 +35,7 @@ export function SettingsSidebar({ subpath }: ModuleViewProps) {
     },
   ];
   if (MODULE_SECTIONS.length) {
-    sections.push({ label: "Apps", items: MODULE_SECTIONS.map((s) => ({ id: s.path, label: s.label, icon: s.icon })) });
+    sections.push({ label: "App settings", items: MODULE_SECTIONS.map((s) => ({ id: s.path, label: s.label, icon: s.icon })) });
   }
   return (
     <Sidebar

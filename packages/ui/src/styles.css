@@ -472,6 +472,20 @@ button { font: inherit; color: inherit; }
 .cx-nav--add, .cx-nav--add .cx-icon { color: var(--ink-300); }
 .cx-side__foot { padding: var(--space-2); border-top: 1px solid var(--line-100); }
 
+/* ---------- Module sidebars (Notes, Home, Finance share these) ---------- */
+.notes-side-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-4) var(--space-1) var(--space-1) var(--space-2);
+}
+.notes-side-head:first-child { padding-top: var(--space-2); }
+.notes-side-actions { display: inline-flex; gap: 2px; }
+.notes-side-actions .cx-btn { color: var(--ink-300); }
+.notes-side-actions .cx-btn:hover { color: var(--ink-100); }
+.notes-side-empty, .notes-side .empty-hint, .notes-side .db-folder-empty {
+  margin: 0; padding: var(--space-1) var(--space-2); color: var(--ink-300); font-size: 13px;
+}
+.notes-side-count { font: var(--text-data); color: var(--ink-300); padding: 0 var(--space-2); }
+
 /* ---------- TopBar ---------- */
 .cx-top {
   height: var(--header-h); flex: none;
@@ -540,6 +554,17 @@ button { font: inherit; color: inherit; }
   .cx-shell > .cx-rail .cx-rail__btn[aria-current="page"]::before { left: 8px; right: 8px; top: auto; bottom: -5px; width: auto; height: 2px; }
   .cx-shell[data-sidebar-open="true"] > .cx-side { left: 0; bottom: 49px; }
   .cx-canvas { padding: var(--space-4); }
+  /* topbar: icon-only actions and the last crumb only, so nothing overflows */
+  .cx-top { gap: var(--space-2); padding: 0 var(--space-4); }
+  .cx-crumbs { min-width: 0; }
+  .cx-crumbs li:not(:last-child) { display: none; }
+  .cx-crumbs li + li::before { content: none; }
+  .cx-crumbs li:last-child { overflow: hidden; text-overflow: ellipsis; }
+  .cx-top__actions { gap: var(--space-1); }
+  .cx-top__actions .cx-btn:has(> .cx-icon) > .cx-btn__label {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  }
+  .cx-top__actions .cx-btn:has(> .cx-icon) { position: relative; padding-inline: var(--space-2); }
   .cx-grid { grid-template-columns: minmax(0, 1fr) !important; }
   .cx-grid > * { grid-column: auto !important; }
 }
