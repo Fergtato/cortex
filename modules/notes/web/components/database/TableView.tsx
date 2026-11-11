@@ -9,6 +9,7 @@ import {
 } from "../../types";
 import type { Store } from "../../store";
 import { useDialog } from "@cortex/core";
+import { Icon } from "@cortex/ui";
 import { Cell } from "./Cell";
 import { computedCellValue } from "../../lib/formula";
 import { AGG_OPS, aggregate } from "./aggregate";
@@ -104,9 +105,10 @@ export function TableView({ db, store, rows, view, lockSchema, minimal }: Props)
           <button
             className="row-del"
             title="Delete row"
+            aria-label="Delete row"
             onClick={() => store.deleteRow(db.id, row.id)}
           >
-            ×
+            <Icon name="trash" size={14} />
           </button>
         </td>
       )}
@@ -205,7 +207,8 @@ export function TableView({ db, store, rows, view, lockSchema, minimal }: Props)
                       </select>
                       {prop.type === "formula" && (
                         <button
-                          className="th-wrap"
+                          className="th-btn th-formula"
+                          aria-label="Edit formula"
                           title={prop.formula ? `ƒ ${prop.formula}` : "Edit formula"}
                           onClick={async () => {
                             const raw = await dialog.prompt(
@@ -222,18 +225,21 @@ export function TableView({ db, store, rows, view, lockSchema, minimal }: Props)
                       )}
                       {canWrap(prop.type) && (
                         <button
-                          className={`th-wrap${prop.wrap ? " active" : ""}`}
+                          className={`th-btn${prop.wrap ? " active" : ""}`}
+                          aria-label="Wrap text"
+                          aria-pressed={!!prop.wrap}
                           title={prop.wrap ? "Unwrap text (clip)" : "Wrap text (show all)"}
                           onClick={() =>
                             store.updateProperty(db.id, prop.id, { wrap: !prop.wrap })
                           }
                         >
-                          ↵
+                          <Icon name="wrap" size={14} />
                         </button>
                       )}
                       {i > 0 && (
                         <button
-                          className="th-del"
+                          className="th-btn th-del"
+                          aria-label={`Delete property ${prop.name}`}
                           title="Delete property"
                           onClick={async () => {
                             const ok = await dialog.confirm(
@@ -243,7 +249,7 @@ export function TableView({ db, store, rows, view, lockSchema, minimal }: Props)
                             if (ok) store.deleteProperty(db.id, prop.id);
                           }}
                         >
-                          ×
+                          <Icon name="x" size={14} />
                         </button>
                       )}
                     </div>
@@ -256,13 +262,14 @@ export function TableView({ db, store, rows, view, lockSchema, minimal }: Props)
                 <button
                   className="add-prop-btn"
                   title="Add property"
+                  aria-label="Add property"
                   onClick={async () => {
                     const raw = await dialog.prompt("Property name:");
                     const name = raw?.trim();
                     if (name) store.addProperty(db.id, name, "text");
                   }}
                 >
-                  +
+                  <Icon name="plus" size={14} />
                 </button>
               </th>
             )}

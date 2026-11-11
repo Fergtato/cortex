@@ -1,4 +1,5 @@
 import type { Database, DatabaseRow, DatabaseView, PropertyDef } from "../../types";
+import { Icon } from "@cortex/ui";
 import type { Store } from "../../store";
 import { Cell } from "./Cell";
 import { pickImage } from "../../lib/image";
@@ -65,9 +66,10 @@ export function GalleryView({ db, store, rows, view, minimal }: Props) {
                 <button
                   className="row-del"
                   title="Delete item"
+                  aria-label="Delete item"
                   onClick={() => store.deleteRow(db.id, row.id)}
                 >
-                  ×
+                  <Icon name="trash" size={14} />
                 </button>
               )}
             </div>

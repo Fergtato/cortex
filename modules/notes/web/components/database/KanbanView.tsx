@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Icon } from "@cortex/ui";
 import type {
   Database,
   DatabaseRow,
@@ -145,9 +146,10 @@ export function KanbanView({ db, store, rows, view, lockSchema, minimal }: Props
                       <button
                         className="row-del kanban-card-del"
                         title="Delete item"
+                        aria-label="Delete item"
                         onClick={() => store.deleteRow(db.id, row.id)}
                       >
-                        ×
+                        <Icon name="trash" size={14} />
                       </button>
                     )}
                   </div>

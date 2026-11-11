@@ -1374,31 +1374,6 @@
   outline: none;
   flex: 1;
 }
-.th-del {
-  color: var(--dim);
-  border: 1px solid var(--line);
-  width: 18px;
-  height: 18px;
-  line-height: 1;
-}
-.th-del:hover {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-.th-add {
-  min-width: 36px;
-  width: 36px;
-  text-align: center;
-}
-.add-prop-btn {
-  color: var(--accent);
-  width: 100%;
-  height: 100%;
-  padding: 8px;
-}
-.add-prop-btn:hover {
-  background: var(--accent-dim);
-}
 
 /* row hover highlight */
 .db-table tbody tr:hover td {
@@ -1426,23 +1401,6 @@
 }
 
 /* wrap toggle */
-.th-wrap {
-  color: var(--dim);
-  border: 1px solid var(--line);
-  width: 18px;
-  height: 18px;
-  line-height: 1;
-  font-size: 10px;
-}
-.th-wrap:hover {
-  color: var(--fg);
-  border-color: var(--line-bright);
-}
-.th-wrap.active {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--accent-dim);
-}
 .td-wrap {
   max-width: 360px;
 }
@@ -1557,13 +1515,7 @@
   padding: 6px 8px;
   outline: none;
 }
-.kanban-card-del {
-  margin-right: 4px;
-  visibility: hidden;
-}
-.kanban-card:hover .kanban-card-del {
-  visibility: visible;
-}
+.kanban-card-del { margin-right: 4px; }
 .kanban-add {
   color: var(--dim);
   text-align: left;
@@ -1968,19 +1920,6 @@
   align-items: center;
   gap: 6px;
 }
-.agg-select {
-  background: none;
-  border: none;
-  color: var(--dim);
-  font-family: inherit;
-  font-size: 10px;
-  outline: none;
-  cursor: pointer;
-  max-width: 54px;
-}
-.agg-select:hover {
-  color: var(--fg);
-}
 .agg-op {
   color: var(--dim);
   font-size: 10px;
@@ -2075,19 +2014,6 @@
 .cell-image-add:hover {
   background: var(--accent-dim);
   border-color: var(--accent);
-}
-.row-del-cell {
-  width: 28px;
-  text-align: center;
-}
-.row-del {
-  color: var(--dim);
-  width: 20px;
-  height: 20px;
-  line-height: 1;
-}
-.row-del:hover {
-  color: var(--danger);
 }
 .add-row-btn {
   margin-top: 8px;
@@ -2397,7 +2323,7 @@
 .db-table tr > :first-child { border-left: 0; }
 .db-table tr > :last-child { border-right: 0; }
 .db-table tbody tr:hover td { background: var(--bg-400); }
-.th-type, .agg-select { opacity: 0.8; }
+.th-type { opacity: 0.8; }
 
 /* kanban */
 .kanban-col { background: var(--bg-200); border: 1px solid var(--line-100); border-radius: var(--radius-sm); }
@@ -2425,3 +2351,42 @@
 .meta-btn:hover { background: var(--bg-400); color: var(--ink-100); }
 .db-embed-empty { border: 1px solid var(--line-100); border-radius: var(--radius-sm); padding: var(--space-2) var(--space-3); }
 .db-embed-open { color: var(--ink-100); font-weight: 600; }
+
+/* ---------- Table chrome: header buttons, column calculations, row delete ---------- */
+.th-btn {
+  flex: none; display: grid; place-items: center;
+  width: var(--control-h-sm); height: var(--control-h-sm); padding: 0;
+  border: 1px solid var(--line-200); border-radius: var(--radius-xs);
+  color: var(--ink-300); font-size: 13px; line-height: 1;
+}
+.th-btn:hover { color: var(--ink-100); border-color: var(--line-300); }
+.th-btn.active { color: var(--ink-100); border-color: var(--ink-300); background: var(--bg-400); }
+.th-del:hover { color: var(--negative); border-color: var(--negative); }
+.th-formula { font-style: italic; }
+
+.db-table th.th-add { min-width: 40px; width: 40px; padding: 0; text-align: center; }
+.add-prop-btn {
+  display: inline-grid; place-items: center; width: var(--control-h-sm); height: var(--control-h-sm); padding: 0;
+  border-radius: var(--radius-xs); color: var(--ink-300);
+}
+.add-prop-btn:hover { color: var(--ink-100); background: var(--bg-400); }
+
+/* Calc reads like a mono label until hovered; it sizes to its text. */
+.notes-root .agg-select {
+  width: auto; max-width: none; height: 24px;
+  padding: 0 22px 0 var(--space-2);
+  border-color: transparent; background-color: transparent;
+  color: var(--ink-300); font-family: var(--font-mono); font-size: 11px;
+}
+.notes-root .agg-select:hover, .notes-root .agg-select:focus-visible { border-color: var(--line-200); color: var(--ink-100); }
+.agg-val { color: var(--ink-100); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.db-table td.row-del-cell { width: 40px; min-width: 40px; padding: 0; text-align: center; vertical-align: middle; }
+.row-del {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; vertical-align: middle;
+  border: 1px solid transparent; border-radius: var(--radius-xs);
+  color: var(--ink-300); opacity: 0;
+}
+.db-table tr:hover .row-del, .kanban-card:hover .row-del, .gallery-card:hover .row-del, .row-del:focus-visible { opacity: 1; }
+.row-del:hover { color: var(--negative); border-color: var(--line-200); background: var(--bg-300); }
+@media (hover: none) { .row-del { opacity: 1; } }

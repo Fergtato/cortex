@@ -29,6 +29,8 @@ const PATHS = {
   list: "M9 6h11 M9 12h11 M9 18h11 M4 6h1 M4 12h1 M4 18h1",
   archive: "M3 4h18v4H3z M5 8v12h14V8 M10 12h4",
   x: "M6 6l12 12 M18 6 6 18",
+  wrap: "M4 6h16 M4 12h12.5a3.5 3.5 0 0 1 0 7H12 M14 16.5 11.5 19l2.5 2.5 M4 18h4",
+  trash: "M4 7h16 M9 7V4h6v3 M6 7l1 13h10l1-13 M10 11v5 M14 11v5",
 } as const;
 
 export type IconName = keyof typeof PATHS;
