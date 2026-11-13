@@ -240,7 +240,7 @@ export function Toolbar({
       </button>
       <button
         className="tool-btn tool-subpage"
-        title="Embed a database"
+        title="Embed a list"
         onMouseDown={(e) => e.preventDefault()}
         onClick={onInsertDatabase}
       >

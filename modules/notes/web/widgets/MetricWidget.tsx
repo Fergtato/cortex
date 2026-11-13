@@ -32,7 +32,7 @@ export function MetricWidget({ widget }: WidgetProps) {
   const db = dbId ? store.getDatabase(dbId) : undefined;
 
   if (!db) {
-    return <div className="dw-unconfigured">Choose a database in settings</div>;
+    return <div className="dw-unconfigured">Choose a list in settings</div>;
   }
 
   const view = db.views.find((v) => v.id === viewId); // undefined = all rows
@@ -86,7 +86,7 @@ export function MetricConfigForm({ widget, dash }: WidgetProps) {
 
   return (
     <div className="dw-config-form">
-      <label className="dw-config-label">Database</label>
+      <label className="dw-config-label">List</label>
       <DbSelect
         store={store}
         value={dbId}

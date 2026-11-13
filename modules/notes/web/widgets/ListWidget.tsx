@@ -159,7 +159,7 @@ function DbList({ widget }: WidgetProps) {
   const db = dbId ? store.getDatabase(dbId) : undefined;
 
   if (!db) {
-    return <div className="dw-unconfigured">Choose a database in settings</div>;
+    return <div className="dw-unconfigured">Choose a list in settings</div>;
   }
 
   const view = db.views.find((v) => v.id === viewId); // undefined = all rows
@@ -179,7 +179,7 @@ function DbList({ widget }: WidgetProps) {
       <div className="dw-list-title">
         <button
           className="dw-dbview-link"
-          title="Open database"
+          title="Open list"
           onClick={() => nav.openDatabase(db.id)}
         >
           {db.name || "untitled"}
@@ -251,14 +251,14 @@ export function ListConfigForm({ widget, dash }: WidgetProps) {
             className={`opt-btn${(dbMode ? "database" : "basic") === s ? " active" : ""}`}
             onClick={() => set({ source: s })}
           >
-            {s}
+            {s === "basic" ? "Items" : "From a list"}
           </button>
         ))}
       </div>
 
       {!dbMode && (
         <>
-          <label className="dw-config-label">List title</label>
+          <label className="dw-config-label">Title</label>
           <input
             className="cell-input dw-config-input"
             value={title}
@@ -278,7 +278,7 @@ export function ListConfigForm({ widget, dash }: WidgetProps) {
 
       {dbMode && (
         <>
-          <label className="dw-config-label">Database</label>
+          <label className="dw-config-label">List</label>
           <DbSelect
             store={store}
             value={dbId}

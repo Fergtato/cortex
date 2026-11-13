@@ -241,7 +241,7 @@ export function ActionButtonWidget({ widget, dash, editing }: WidgetProps) {
 const ACTIONS: { value: ButtonAction; label: string }[] = [
   { value: "none", label: "Choose action" },
   { value: "reset-list", label: "Reset a list" },
-  { value: "create-row", label: "Add a database row" },
+  { value: "create-row", label: "Add a list row" },
   { value: "swap-widgets", label: "Swap two widgets" },
   { value: "run-api", label: "Run API call" },
 ];
@@ -343,7 +343,7 @@ export function ActionButtonConfigForm({ widget, dash }: WidgetProps) {
 
       {action === "create-row" && (
         <>
-          <label className="dw-config-label">Database</label>
+          <label className="dw-config-label">List</label>
           <DbSelect
             store={store}
             value={dbId}

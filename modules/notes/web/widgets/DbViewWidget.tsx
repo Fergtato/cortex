@@ -19,7 +19,7 @@ export function DbViewWidget({ widget }: WidgetProps) {
   const view = db?.views.find((v) => v.id === viewId) ?? db?.views[0];
 
   if (!db || !view) {
-    return <div className="dw-unconfigured">Choose a database in settings</div>;
+    return <div className="dw-unconfigured">Choose a list in settings</div>;
   }
 
   return (
@@ -27,7 +27,7 @@ export function DbViewWidget({ widget }: WidgetProps) {
       <div className="dw-dbview-head">
         <button
           className="dw-dbview-link"
-          title="Open database"
+          title="Open list"
           onClick={() => nav.openDatabase(db.id)}
         >
           {db.name || "untitled"} / {view.name} ↗
@@ -49,7 +49,7 @@ export function DbViewConfigForm({ widget, dash }: WidgetProps) {
 
   return (
     <div className="dw-config-form">
-      <label className="dw-config-label">Database</label>
+      <label className="dw-config-label">List</label>
       <DbSelect
         store={store}
         value={dbId}

@@ -141,10 +141,10 @@ export function NotesSidebar({ subpath }: ModuleViewProps) {
         />
       )}
 
-      <SectionHead label="Databases">
-        <Button size="sm" variant="ghost" icon="plus" aria-label="New database" title="New database" onClick={() => setPending({ kind: "database", id: store.createDatabase() })} />
+      <SectionHead label="Lists">
+        <Button size="sm" variant="ghost" icon="plus" aria-label="New list" title="New list" onClick={() => setPending({ kind: "database", id: store.createDatabase() })} />
         <Button size="sm" variant="ghost" icon="archive" aria-label="New folder" title="New folder" onClick={() => setRenamingFolderId(store.createFolder())} />
-        <Button size="sm" variant="ghost" icon="arrow-down" aria-label="Import database" title="Import database (.json or .csv)" onClick={() => importRef.current?.click()} />
+        <Button size="sm" variant="ghost" icon="arrow-down" aria-label="Import list" title="Import list (.json or .csv)" onClick={() => importRef.current?.click()} />
         <input
           ref={importRef}
           type="file"
@@ -206,7 +206,7 @@ export function NotesPage({ subpath }: ModuleViewProps) {
   if (page) return <PageView page={page} />;
   if (database) {
     return (
-      <PageFrame crumbs={["Notes", "Databases", database.name || "Untitled"]}>
+      <PageFrame crumbs={["Notes", "Lists", database.name || "Untitled"]}>
         <div className="notes-root notes-db-page">
           <ErrorBoundary>
             <DatabaseBlock db={database} store={store} />
@@ -219,7 +219,7 @@ export function NotesPage({ subpath }: ModuleViewProps) {
     <PageFrame
       crumbs={["Notes"]}
       title={subpath === "/" ? "Notes" : "Not found"}
-      subtitle={subpath === "/" ? "Pick a page or database in the sidebar, or start a new one." : "This page or database doesn't exist. It may have been renamed or deleted."}
+      subtitle={subpath === "/" ? "Pick a page or list in the sidebar, or start a new one." : "This page or list doesn't exist. It may have been renamed or deleted."}
     >
       <div className="notes-empty-actions">
         {subpath === "/" ? (

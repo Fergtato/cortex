@@ -119,7 +119,7 @@ function Welcome({ onCreate }: { onCreate: () => void }) {
       <Grid>
         <Panel span={8} label="Get started">
           <div className="dash-welcome">
-            <p>Create a dashboard, then press Edit to add widgets: clocks, notes, database views, metrics, habit trackers, charts and live data from your connected APIs.</p>
+            <p>Create a dashboard, then press Edit to add widgets: clocks, notes, list views, metrics, habit trackers, charts and live data from your connected APIs.</p>
             <div>
               <Button variant="primary" icon="plus" bracket onClick={onCreate}>
                 Create dashboard
@@ -128,7 +128,7 @@ function Welcome({ onCreate }: { onCreate: () => void }) {
           </div>
         </Panel>
         <Panel span={4} label="Moving from Cortex v0?">
-          <p className="dash-welcome-note">Import your v0 backup in Settings, Backup. Pages, databases and dashboards come across together.</p>
+          <p className="dash-welcome-note">Import your v0 backup in Settings, Backup. Pages, lists and dashboards come across together.</p>
         </Panel>
       </Grid>
     </PageFrame>

@@ -21,7 +21,7 @@ export function DbSelect({
       value={value}
       onChange={(e) => onChange(e.target.value)}
     >
-      <option value="">Choose database</option>
+      <option value="">Choose list</option>
       {store.databases.map((db) => (
         <option key={db.id} value={db.id}>
           {db.name || "untitled"}

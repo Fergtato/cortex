@@ -14,7 +14,7 @@ const L = (name: keyof Loaded) =>
 export const NOTES_WIDGETS: WidgetDef[] = [
   {
     type: "db-view",
-    label: "Database view",
+    label: "List view",
     icon: "grid",
     defaultSize: { w: 6, h: 4 },
     defaultConfig: { databaseId: "", viewId: "" },
@@ -23,7 +23,7 @@ export const NOTES_WIDGETS: WidgetDef[] = [
   },
   {
     type: "list",
-    label: "List",
+    label: "Checklist",
     icon: "check",
     defaultSize: { w: 3, h: 4 },
     defaultConfig: { source: "basic", title: "", items: [], databaseId: "", viewId: "", checkPropId: "" },
@@ -33,7 +33,7 @@ export const NOTES_WIDGETS: WidgetDef[] = [
   // v0 legacy: merged into "list" (source: database); existing widgets still render.
   {
     type: "db-list",
-    label: "List",
+    label: "Checklist",
     icon: "check",
     defaultSize: { w: 3, h: 4 },
     defaultConfig: { databaseId: "", viewId: "", checkPropId: "" },

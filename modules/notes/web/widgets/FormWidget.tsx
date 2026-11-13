@@ -47,7 +47,7 @@ export function FormWidget({ widget }: WidgetProps) {
   const inputFields = fields.filter((f) => f.mode === "input");
 
   if (!db || inputFields.length === 0) {
-    return <div className="dw-unconfigured">Choose a database + fields in settings</div>;
+    return <div className="dw-unconfigured">Choose a list + fields in settings</div>;
   }
 
   function submit() {
@@ -124,7 +124,7 @@ export function FormConfigForm({ widget, dash }: WidgetProps) {
 
   return (
     <div className="dw-config-form dw-form-config">
-      <label className="dw-config-label">Database</label>
+      <label className="dw-config-label">List</label>
       <DbSelect
         store={store}
         value={dbId}

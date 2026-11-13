@@ -85,9 +85,9 @@ export function DatabaseBlock({
           <ExportControls db={db} />
           <button
             className="db-del"
-            title="Delete database"
+            title="Delete list"
             onClick={async () => {
-              const ok = await dialog.confirm(`Delete database "${db.name}"?`, {
+              const ok = await dialog.confirm(`Delete list "${db.name}"?`, {
                 confirmLabel: "Delete",
                 danger: true,
               });

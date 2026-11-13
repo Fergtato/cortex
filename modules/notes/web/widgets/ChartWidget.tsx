@@ -35,7 +35,7 @@ export function ChartWidget({ widget }: WidgetProps) {
   const cfg = chartConfigOf(widget.config);
 
   if (!db || !cfg.xPropId) {
-    return <div className="dw-unconfigured">Choose a database + x axis in settings</div>;
+    return <div className="dw-unconfigured">Choose a list + x axis in settings</div>;
   }
 
   const view = db.views.find((v) => v.id === viewId); // undefined = all rows
@@ -59,7 +59,7 @@ export function ChartConfigForm({ widget, dash }: WidgetProps) {
 
   return (
     <div className="dw-config-form">
-      <label className="dw-config-label">Database</label>
+      <label className="dw-config-label">List</label>
       <DbSelect
         store={store}
         value={dbId}

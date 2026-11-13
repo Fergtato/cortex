@@ -120,7 +120,7 @@ const ITEMS: SlashItem[] = [
     },
   },
   {
-    title: "Database", hint: "Embed a database", icon: "▤", keywords: "table db embed",
+    title: "Embed list", hint: "Embed one of your lists", icon: "▤", keywords: "list table database db embed",
     run: (e, r, a) => {
       del(e, r).run();
       a.insertDatabase();

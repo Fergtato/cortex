@@ -19,7 +19,7 @@ export const notesBackup: ModuleBackup = {
     const c = count(store.snapshot());
     return {
       ready: store.loaded,
-      summary: `${c.pages} pages · ${c.databases} databases`,
+      summary: `${c.pages} pages · ${c.databases} lists`,
       exportData: () => store.snapshot(),
       importData: (data, mode) => {
         const d = data as Partial<NotesBackup>;
@@ -36,6 +36,6 @@ export const notesBackup: ModuleBackup = {
     raw.pages || raw.databases ? { pages: (raw.pages ?? {}) as PageMap, databases: (raw.databases ?? {}) as DatabaseMap } : undefined,
   describe: (data) => {
     const c = count(data as Partial<NotesBackup>);
-    return `${c.pages} pages · ${c.databases} databases`;
+    return `${c.pages} pages · ${c.databases} lists`;
   },
 };

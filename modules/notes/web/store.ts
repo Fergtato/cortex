@@ -448,7 +448,7 @@ export function useStore(): Store {
     const tableView = { id: uid(), name: "Table", type: "table" as ViewType };
     const db: Database = {
       id,
-      name: "Untitled database",
+      name: "Untitled list",
       properties: [titleProp, statusProp, dateProp],
       rows: [
         { id: uid(), cells: { [titleProp.id]: "First item" }, createdAt: now, updatedAt: now, seq: 1 },

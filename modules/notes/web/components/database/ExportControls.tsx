@@ -62,7 +62,7 @@ export function ExportControls({ db }: Props) {
     <div className="export-wrap" ref={wrapRef}>
       <button
         className="export-btn"
-        title="Export database"
+        title="Export list"
         onClick={() => setOpen((v) => !v)}
       >
         Export ▾

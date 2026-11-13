@@ -63,7 +63,7 @@ export function DatabaseTree({
   const items = store.topLevelDbItems;
 
   if (items.length === 0) {
-    return <p className="empty-hint">No databases yet.</p>;
+    return <p className="empty-hint">No lists yet.</p>;
   }
 
   return (
@@ -201,7 +201,7 @@ function DbRow({
         <span className="tree-menu-wrap">
           <button
             className="row-btn row-btn-menu"
-            title="Database menu"
+            title="List menu"
             draggable={false}
             onClick={(e) => {
               e.stopPropagation();
@@ -236,7 +236,7 @@ function DbRow({
                     e.stopPropagation();
                     setMenuOpen(false);
                     const ok = await dialog.confirm(
-                      `Delete database "${db.name || "Untitled"}"?`,
+                      `Delete list "${db.name || "Untitled"}"?`,
                       { confirmLabel: "Delete", danger: true }
                     );
                     if (ok) store.deleteDatabase(db.id);
@@ -329,7 +329,7 @@ function FolderRow({
         setMenuOpen(false);
         const ok = await dialog.confirm(
           children.length
-            ? `Delete folder "${folder.name}"? Its ${children.length} database${
+            ? `Delete folder "${folder.name}"? Its ${children.length} list${
                 children.length === 1 ? "" : "s"
               } will move back to the top level.`
             : `Delete folder "${folder.name}"?`,
@@ -429,7 +429,7 @@ function FolderRow({
           />
         ))}
       {open && children.length === 0 && (
-        <li className="db-folder-empty">Empty. Drop a database here.</li>
+        <li className="db-folder-empty">Empty. Drop a list here.</li>
       )}
     </>
   );

@@ -110,7 +110,7 @@ export function importFromJSON(text: string): ImportData | null {
   });
 
   return {
-    name: typeof data.name === "string" && data.name ? data.name : "Imported database",
+    name: typeof data.name === "string" && data.name ? data.name : "Imported list",
     properties,
     rows,
   };

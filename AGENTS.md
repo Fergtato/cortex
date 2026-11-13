@@ -94,6 +94,11 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
 
 ### Notes (`modules/notes`)
 
+- **"Lists" in the UI, `database` in code.** People see Notes databases as
+  *lists*; types, store methods, tables, routes, widget ids and the backup
+  format keep `database` / `db` so existing data and v0 imports keep working.
+  Write "list" in any new copy. The checklist widget is labelled "Checklist".
+
 - **Ported from v0, styled by a variable bridge.** `notes.css` is the v0
   stylesheet trimmed to Notes. `@cortex/ui/compat.css` maps v0 variables
   (`--bg`, `--fg`, `--line`…) onto design-system tokens (shared with Home), and

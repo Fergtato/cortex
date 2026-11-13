@@ -27,12 +27,12 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
   const db = dbId ? store.getDatabase(dbId) : undefined;
 
   async function pick() {
-    const choice = await dialog.choose("Embed which database?", [
+    const choice = await dialog.choose("Embed which list?", [
       ...store.databases.map((d) => ({
         label: `▤ ${d.name || "Untitled"}`,
         value: d.id,
       })),
-      { label: "＋ create new database", value: NEW },
+      { label: "＋ create new list", value: NEW },
     ]);
     if (!choice) return;
     updateAttributes({
@@ -53,7 +53,7 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
       {!db ? (
         <div className="db-embed-empty">
           <span className="db-embed-msg">
-            {dbId ? "Database not found" : "No database selected"}
+            {dbId ? "List not found" : "No list selected"}
           </span>
           <span className="db-embed-actions">
             <button className="meta-btn" onClick={pick}>
@@ -73,7 +73,7 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
           <div className="db-embed-bar">
             <button
               className="db-embed-open"
-              title="Open database"
+              title="Open list"
               onClick={() => nav.openDatabase(db.id)}
             >
               ▤ {db.name || "Untitled"} ↗
@@ -89,7 +89,7 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
               {editing && (
                 <button
                   className="row-btn"
-                  title="Embed a different database"
+                  title="Embed a different list"
                   onClick={pick}
                 >
                   ⇄
@@ -98,7 +98,7 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
               {editing && (
                 <button
                   className="row-btn"
-                  title="Remove embed (keeps the database)"
+                  title="Remove embed (keeps the list)"
                   onClick={() => deleteNode()}
                 >
                   ×
