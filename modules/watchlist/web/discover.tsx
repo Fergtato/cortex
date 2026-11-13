@@ -6,6 +6,7 @@ import { STATUS_LABELS, type MediaSummary, type TrackStatus } from "../shared/ty
 import { Poster, QuickAddMenu, titlePath, useImg, year } from "./components";
 import { discoverPath, libApi, markWatched, useEntryMap, useGenreNames, useInfinite, useLibMutation } from "./data";
 import { Frame } from "./views";
+import { useQueryParam } from "./browse";
 
 /*
  * Discover: one title at a time. Skip it (remembered on the server so it
@@ -28,8 +29,10 @@ export function DiscoverPage() {
   const qc = useQueryClient();
   const img = useImg();
   const genres = useGenreNames();
-  const [kind, setKind] = useState<Kind>("movie");
-  const [source, setSource] = useState<Source>("popular");
+  const [kindRaw, setKind] = useQueryParam("type", "movie");
+  const [sourceRaw, setSource] = useQueryParam("source", "popular");
+  const kind = kindRaw as Kind;
+  const source = sourceRaw as Source;
   const entries = useEntryMap();
   const dismissed = useDismissed();
   const type = kind === "anime" ? "tv" : kind;
@@ -63,6 +66,14 @@ export function DiscoverPage() {
 
   const current = deck[0];
   const next = deck[1];
+
+  // Warm the cache for the next posters so a promoted card never shows a blank or stale image.
+  useEffect(() => {
+    for (const m of deck.slice(1, 4)) {
+      const src = img(m.posterPath, "w500");
+      if (src) new Image().src = src;
+    }
+  }, [deck, img]);
 
   const setStatus = useLibMutation((a: { m: MediaSummary; s: TrackStatus }) => (a.s === "completed" ? markWatched(a.m) : libApi.setStatus(a.m.mediaType, a.m.id, a.s)));
 
@@ -181,14 +192,14 @@ export function DiscoverPage() {
       <div className="wl-discover">
         <div className="wl-deck">
           {next && (
-            <div className="wl-swipe wl-swipe--next" aria-hidden>
+            <div key={`${next.mediaType}:${next.id}`} className={`wl-swipe wl-swipe--next${drag || leaving ? " is-visible" : ""}`} aria-hidden>
               <Poster path={next.posterPath} title={next.title} size="w500" />
             </div>
           )}
           {current ? (
             <article
               key={`${current.mediaType}:${current.id}`}
-              className={`wl-swipe${drag ? " is-dragging" : ""}${hint ? ` hint-${hint}` : ""}`}
+              className={`wl-swipe wl-swipe--current${drag ? " is-dragging" : ""}${hint ? ` hint-${hint}` : ""}`}
               style={{ transform }}
               onPointerDown={onDown}
               onDragStart={(e) => e.preventDefault()}

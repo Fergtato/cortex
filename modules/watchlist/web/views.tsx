@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { api, PageFrame, useRouter, type ModuleViewProps } from "@cortex/core";
+import { api, PageFrame, useRouter, type Crumb, type ModuleViewProps } from "@cortex/core";
 import { Button, Grid, Icon, Input, Panel, Sidebar } from "@cortex/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import "./watchlist.css";
-import { STATUS_LABELS, type MediaSummary } from "../shared/types";
+import { isContinuing, STATUS_LABELS, type MediaSummary } from "../shared/types";
 import { BASE, entryToMedia, MediaRow, QuickAddMenu, titlePath, useImg, year } from "./components";
 import { useConfig, useDebounced, useEntryMap, useFirstPage, useLibrary, useQuickSearch, useRecommended, useUpcoming } from "./data";
 import { AnimePage, BrowsePage, SearchPage } from "./browse";
@@ -45,6 +45,7 @@ export function WatchlistSidebar({ subpath }: ModuleViewProps) {
             { id: "/library?status=watching", label: "Watching", count: count("watching") },
             { id: "/library?status=watchlist", label: "Watchlist", count: count("watchlist") },
             { id: "/library?status=completed", label: "Watched", count: count("completed") },
+            ...(count("dropped") ? [{ id: "/library?status=dropped", label: "Stopped", count: count("dropped") }] : []),
           ],
         },
         ...(lib.data?.lists.length ? [{ label: "Lists", items: lib.data.lists.map((l) => ({ id: `/lists/${l.id}`, label: l.name, count: l.items.length })) }] : []),
@@ -161,7 +162,7 @@ export function SearchBox() {
   );
 }
 
-export function Frame({ crumbs, children, title, subtitle, actions }: { crumbs: ReactNode[]; children: ReactNode; title?: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
+export function Frame({ crumbs, children, title, subtitle, actions }: { crumbs: Crumb[]; children: ReactNode; title?: ReactNode; subtitle?: ReactNode; actions?: ReactNode }) {
   return (
     <PageFrame
       crumbs={crumbs}
@@ -308,7 +309,7 @@ function Home() {
   const upcomingMovies = useFirstPage(["list", "movie", "upcoming"], "/watchlist/tmdb/list/movie/upcoming?page=1");
   const recommended = useRecommended(hasLibrary);
   const upcoming = useUpcoming(hasLibrary);
-  const watching = lib.data?.entries.filter((e) => e.status === "watching").map(entryToMedia);
+  const watching = lib.data?.entries.filter(isContinuing).map(entryToMedia);
   const hero = trending.data?.results.find((m) => m.backdropPath) ?? trending.data?.results[0];
   return (
     <Frame crumbs={["Watchlist"]}>

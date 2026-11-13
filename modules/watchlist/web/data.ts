@@ -51,6 +51,8 @@ export function useInfinite(key: unknown[], path: (page: number) => string, enab
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.totalPages ? last.page + 1 : undefined),
     staleTime: TMDB_STALE,
+    // Keep loaded pages around, so going back to a list rebuilds it (and its scroll position) instantly.
+    gcTime: TMDB_STALE,
     enabled,
   });
 }

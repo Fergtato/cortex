@@ -143,3 +143,80 @@ export async function plexWatched(ctx: ServerContext, base: string, token: strin
   }
   return { movies, shows: [...shows.values()], episodes };
 }
+
+/* ------------------------------------------------------- Plex account (PIN) */
+
+const PLEX_TV = process.env.PLEX_TV_BASE ?? "https://plex.tv";
+
+const plexHeaders = (clientId: string, token?: string) => ({
+  accept: "application/json",
+  "x-plex-product": "Cortex",
+  "x-plex-client-identifier": clientId,
+  ...(token ? { "x-plex-token": token } : {}),
+});
+
+/** Starts a sign-in: the person approves the PIN on plex.tv; we poll for the token. */
+export async function plexPin(ctx: ServerContext, clientId: string): Promise<{ id: number; code: string; authUrl: string }> {
+  const res = await ctx.outbound(`${PLEX_TV}/api/v2/pins?strong=true`, { ...plexHeaders(clientId), "content-type": "application/x-www-form-urlencoded" }, { method: "POST", body: "strong=true" });
+  if (res.status >= 400) throw new PlexError(`plex.tv answered HTTP ${res.status}.`);
+  const j = res.json<{ id: number; code: string }>();
+  const q = new URLSearchParams({ clientID: clientId, code: j.code, "context[device][product]": "Cortex" });
+  return { id: j.id, code: j.code, authUrl: `https://app.plex.tv/auth#?${q}` };
+}
+
+/** The account token once the PIN is approved, else null. */
+export async function plexPinToken(ctx: ServerContext, clientId: string, id: number): Promise<string | null> {
+  const res = await ctx.outbound(`${PLEX_TV}/api/v2/pins/${id}`, plexHeaders(clientId));
+  if (res.status === 404) throw new PlexError("That sign-in expired. Start again.", 400);
+  if (res.status >= 400) throw new PlexError(`plex.tv answered HTTP ${res.status}.`);
+  return res.json<{ authToken: string | null }>().authToken ?? null;
+}
+
+export interface PlexServer {
+  id: string;
+  name: string;
+  owned: boolean;
+  /** Who shared it, for friends' servers. */
+  owner: string | null;
+  /** Token for this server (shared servers have their own). */
+  accessToken: string;
+  /** Addresses to try, best first: direct remote, local, then Plex's relay. */
+  urls: string[];
+}
+
+/** Every server the account can reach: your own and ones shared with you. */
+export async function plexServers(ctx: ServerContext, clientId: string, token: string): Promise<PlexServer[]> {
+  const res = await ctx.outbound(`${PLEX_TV}/api/v2/resources?includeHttps=1&includeRelay=1`, plexHeaders(clientId, token));
+  if (res.status === 401) throw new PlexError("Plex signed you out. Sign in again.", 400);
+  if (res.status >= 400) throw new PlexError(`plex.tv answered HTTP ${res.status}.`);
+  const all = res.json<any[]>();
+  return all
+    .filter((r) => String(r.provides ?? "").split(",").includes("server") && r.accessToken)
+    .map((r) => {
+      const conns = (r.connections ?? []) as { uri: string; local: boolean; relay: boolean }[];
+      const rank = (c: { local: boolean; relay: boolean }) => (c.relay ? 2 : c.local ? 1 : 0);
+      return {
+        id: String(r.clientIdentifier),
+        name: String(r.name),
+        owned: !!r.owned,
+        owner: r.owned ? null : (r.sourceTitle ?? null),
+        accessToken: String(r.accessToken),
+        urls: [...conns].sort((a, b) => rank(a) - rank(b)).map((c) => c.uri),
+      };
+    });
+}
+
+/** The first address of a server that answers, with its libraries. */
+export async function plexReach(ctx: ServerContext, urls: string[], token: string): Promise<{ base: string; sections: PlexSection[] }> {
+  let last: Error | null = null;
+  for (const u of urls.slice(0, 6)) {
+    try {
+      const base = plexBase(u);
+      return { base, sections: await plexSections(ctx, base, token) };
+    } catch (e) {
+      last = e as Error;
+      if (e instanceof PlexError && e.status === 400 && /token/.test(e.message)) throw e;
+    }
+  }
+  throw new PlexError(`Couldn't reach that server${last ? `: ${last.message}` : "."}`);
+}

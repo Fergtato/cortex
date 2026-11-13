@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useDialog, useRouter } from "@cortex/core";
 import { Badge, Button, Icon } from "@cortex/ui";
 import { STATUS_LABELS, type LibraryEntry, type MediaSummary, type MediaType, type TrackStatus } from "../shared/types";
-import { libApi, markWatched, useConfig, useEntryMap, useLibMutation, useLibrary, usePerson } from "./data";
+import { libApi, markWatched, useConfig, useDetails, useEntryMap, useGenreNames, useLibMutation, useLibrary, usePerson } from "./data";
 
 export const BASE = "/watchlist";
 export const titlePath = (m: { mediaType: MediaType; id: number }) => `${BASE}/${m.mediaType}/${m.id}`;
@@ -94,7 +94,7 @@ export function QuickAddMenu({ media, entry, anchor, onClose }: { media: MediaSu
   });
   const busy = setStatus.isPending || remove.isPending;
 
-  const item = (s: TrackStatus, icon: "bell" | "clock" | "check") => (
+  const item = (s: TrackStatus, icon: "bell" | "clock" | "check" | "x") => (
     <button type="button" role="menuitemradio" aria-checked={entry?.status === s} className={`wl-pop__item${entry?.status === s ? " is-on" : ""}`} disabled={busy} onClick={() => setStatus.mutate(s, { onSuccess: onClose })}>
       <Icon name={icon} size={14} />
       <span>{STATUS_LABELS[s]}</span>
@@ -114,6 +114,7 @@ export function QuickAddMenu({ media, entry, anchor, onClose }: { media: MediaSu
       {item("watchlist", "bell")}
       {item("watching", "clock")}
       {item("completed", "check")}
+      {(entry || media.mediaType === "tv") && item("dropped", "x")}
       <div className="wl-pop__sep" />
       <div className="cx-label wl-pop__label">Lists</div>
       {lists.map((l) => {
@@ -174,11 +175,11 @@ const QUICK: { status: TrackStatus; icon: "bell" | "clock" | "check" }[] = [
  * again takes the title out of the library.
  */
 export function MediaCard({ media, subtitle }: { media: MediaSummary; subtitle?: ReactNode }) {
-  const { navigate } = useRouter();
   const dialog = useDialog();
   const entry = useEntryMap().get(`${media.mediaType}:${media.id}`);
   const more = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const [peek, setPeek] = useState(false);
   const setStatus = useLibMutation((s: TrackStatus) => (s === "completed" ? markWatched(media) : libApi.setStatus(media.mediaType, media.id, s)));
   const remove = useLibMutation(() => libApi.remove(media.mediaType, media.id));
   const busy = setStatus.isPending || remove.isPending;
@@ -192,7 +193,7 @@ export function MediaCard({ media, subtitle }: { media: MediaSummary; subtitle?:
 
   return (
     <div className={`wl-card${entry ? ` is-${entry.status}` : ""}${open ? " is-open" : ""}`}>
-      <button type="button" className="wl-card__hit" onClick={() => navigate(titlePath(media))} aria-label={`${media.title}${year(media.releaseDate) ? ` (${year(media.releaseDate)})` : ""}`}>
+      <button type="button" className="wl-card__hit" onClick={() => setPeek(true)} aria-label={`${media.title}${year(media.releaseDate) ? ` (${year(media.releaseDate)})` : ""}`}>
         <Poster path={media.posterPath} title={media.title} />
         {entry && (
           <span className="wl-card__status">
@@ -239,7 +240,96 @@ export function MediaCard({ media, subtitle }: { media: MediaSummary; subtitle?:
         </span>
       </div>
       {open && more.current && <QuickAddMenu media={media} entry={entry} anchor={more.current} onClose={() => setOpen(false)} />}
+      {peek && <PeekModal media={media} onClose={() => setPeek(false)} />}
     </div>
+  );
+}
+
+/* -------------------------------------------------------------- PeekModal */
+
+/** A quick look at a title: the basics and the one-click actions, with the full page a button away. */
+export function PeekModal({ media, onClose }: { media: MediaSummary; onClose: () => void }) {
+  const { navigate } = useRouter();
+  const dialog = useDialog();
+  const img = useImg();
+  const details = useDetails(media.mediaType, media.id);
+  const entry = useEntryMap().get(`${media.mediaType}:${media.id}`);
+  const genres = useGenreNames();
+  const [lists, setLists] = useState<HTMLElement | null>(null);
+  const [trailer, setTrailer] = useState(false);
+  const setStatus = useLibMutation((s: TrackStatus) => (s === "completed" ? markWatched(media) : libApi.setStatus(media.mediaType, media.id, s)));
+  const remove = useLibMutation(() => libApi.remove(media.mediaType, media.id));
+  const d = details.data;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !lists && !trailer && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, lists, trailer]);
+
+  const backdrop = img(d?.backdropPath ?? media.backdropPath, "w780");
+  const facts = [
+    media.mediaType === "movie" ? "Movie" : "TV",
+    year(media.releaseDate),
+    d && d.runtime ? (media.mediaType === "movie" ? `${Math.floor(d.runtime / 60)}h ${d.runtime % 60}m` : `${d.runtime} min episodes`) : null,
+    d && media.mediaType === "tv" ? ((n) => `${n} season${n === 1 ? "" : "s"}`)(d.seasons.filter((x) => x.seasonNumber > 0).length) : null,
+    d?.status && media.mediaType === "tv" ? d.status : null,
+  ].filter(Boolean);
+  const genreNames = d ? d.genres.map((g) => g.name) : media.genreIds.map((g) => genres.get(g)).filter(Boolean);
+  const statuses: TrackStatus[] = media.mediaType === "tv" ? ["watchlist", "watching", "completed", "dropped"] : ["watchlist", "completed"];
+  const progress = entry && media.mediaType === "tv" && entry.airedEpisodes ? `${entry.watchedCount} of ${entry.airedEpisodes} episodes` : null;
+
+  const choose = async (s: TrackStatus) => {
+    if (entry?.status !== s) return setStatus.mutate(s);
+    if (entry.watchedCount && !(await dialog.confirm(`Remove "${media.title}" and its watch history from your library?`, { confirmLabel: "Remove", danger: true }))) return;
+    remove.mutate(undefined);
+  };
+
+  return createPortal(
+    <div className="cx-dialog-scrim" onMouseDown={onClose}>
+      <div className="cx-dialog wl-peek" role="dialog" aria-modal="true" aria-label={media.title} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="wl-peek__hero">
+          {backdrop && <img src={backdrop} alt="" />}
+          <span className="wl-peek__shade" />
+          <Button className="wl-peek__close" size="sm" variant="secondary" icon="x" aria-label="Close" onClick={onClose} />
+        </div>
+        <div className="wl-peek__body">
+          <Poster path={media.posterPath} title={media.title} size="w342" className="wl-peek__poster" />
+          <div className="wl-peek__info">
+            <span className="cx-label">{facts.join(" · ")}</span>
+            <h2 className="wl-peek__title">{media.title}</h2>
+            <span className="wl-muted wl-small">
+              {media.rating > 0 && <span className="wl-rating">★ {media.rating.toFixed(1)}</span>} {genreNames.slice(0, 4).join(" · ")}
+            </span>
+            {d?.tagline && <p className="wl-tagline">{d.tagline}</p>}
+            <p className="wl-peek__overview">{(d?.overview ?? media.overview) || "No overview yet."}</p>
+            {progress && <span className="wl-muted wl-small">{progress}</span>}
+            <div className="wl-peek__actions" role="group" aria-label="Status">
+              {statuses.map((s) => (
+                <Button key={s} size="sm" variant={entry?.status === s ? "primary" : "secondary"} aria-pressed={entry?.status === s} onClick={() => choose(s)} disabled={setStatus.isPending || remove.isPending}>
+                  {STATUS_LABELS[s]}
+                </Button>
+              ))}
+              <Button size="sm" variant="ghost" icon="list" onClick={(e) => setLists(e.currentTarget)}>
+                Lists
+              </Button>
+            </div>
+            <div className="wl-peek__actions">
+              <Button variant="primary" iconRight="arrow-up-right" onClick={() => navigate(titlePath(media))}>
+                {media.mediaType === "tv" ? "Episodes and details" : "Full details"}
+              </Button>
+              {d?.trailerKey && (
+                <Button variant="ghost" icon="chevron-right" onClick={() => setTrailer(true)}>
+                  Trailer
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+        {lists && <QuickAddMenu media={media} entry={entry} anchor={lists} onClose={() => setLists(null)} />}
+        {trailer && d?.trailerKey && <TrailerModal videoKey={d.trailerKey} title={media.title} onClose={() => setTrailer(false)} />}
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -261,7 +351,7 @@ export const entryToMedia = (e: { mediaType: MediaType; tmdbId: number; title: s
 /* ---------------------------------------------------------- rows + grids */
 
 /** Columns a `.wl-grid` of this width holds (mirrors its minmax() in CSS). */
-function useGridColumns(ref: React.RefObject<HTMLElement>, mounted: boolean) {
+export function useGridColumns(ref: React.RefObject<HTMLElement>, mounted: boolean) {
   const [cols, setCols] = useState(6);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -318,7 +408,7 @@ export function MediaRow({ title, items, loading, to, empty, lines = 1 }: { titl
 }
 
 /** A responsive poster grid that loads the next page when its end scrolls into view. */
-export function MediaGrid({ items, hasMore, loadMore, loading, empty }: { items: MediaSummary[]; hasMore?: boolean; loadMore?: () => void; loading?: boolean; empty?: string }) {
+export function MediaGrid({ items, hasMore, loadMore, loading, empty, subtitle }: { items: MediaSummary[]; hasMore?: boolean; loadMore?: () => void; loading?: boolean; empty?: string; subtitle?: (m: MediaSummary) => ReactNode }) {
   const sentinel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!hasMore || !loadMore || !sentinel.current) return;
@@ -339,7 +429,7 @@ export function MediaGrid({ items, hasMore, loadMore, loading, empty }: { items:
     <>
       <div className="wl-grid">
         {unique.map((m) => (
-          <MediaCard key={`${m.mediaType}:${m.id}`} media={m} />
+          <MediaCard key={`${m.mediaType}:${m.id}`} media={m} subtitle={subtitle?.(m)} />
         ))}
         {loading && Array.from({ length: 12 }, (_, i) => <div key={`s${i}`} className="wl-card wl-card--skeleton" />)}
       </div>
@@ -380,6 +470,39 @@ export function PersonModal({ id, onClose }: { id: number; onClose: () => void }
         {p?.biography && <p className="wl-person__bio">{p.biography}</p>}
         {seen.length > 0 && <MediaRow title={`You've seen them in · ${seen.length}`} items={seen} />}
         {p && <MediaRow title="Known for" items={p.credits.slice(0, 16)} />}
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/* ----------------------------------------------------------- TrailerModal */
+
+/** Plays a YouTube trailer in place (privacy-enhanced embed) instead of opening a new tab. */
+export function TrailerModal({ videoKey, title, onClose }: { videoKey: string; title: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return createPortal(
+    <div className="cx-dialog-scrim" onMouseDown={onClose}>
+      <div className="cx-dialog wl-trailer" role="dialog" aria-modal="true" aria-label={`${title} trailer`} onMouseDown={(e) => e.stopPropagation()}>
+        <div className="wl-trailer__head">
+          <p className="cx-dialog__message">{title}</p>
+          <a className="cx-btn cx-btn--ghost cx-btn--sm" href={`https://www.youtube.com/watch?v=${videoKey}`} target="_blank" rel="noreferrer">
+            <Icon name="arrow-up-right" size={14} /> YouTube
+          </a>
+          <Button size="sm" variant="ghost" icon="x" aria-label="Close" onClick={onClose} />
+        </div>
+        <div className="wl-trailer__frame">
+          <iframe
+            src={`https://www.youtube-nocookie.com/embed/${encodeURIComponent(videoKey)}?autoplay=1&rel=0&modestbranding=1`}
+            title={`${title} trailer`}
+            allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+          />
+        </div>
       </div>
     </div>,
     document.body,

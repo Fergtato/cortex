@@ -1,6 +1,7 @@
 import { strConf, useRouter, type WidgetProps } from "@cortex/core";
 import { Stat } from "@cortex/ui";
 import "./watchlist.css";
+import { isContinuing } from "../shared/types";
 import { entryToMedia, Poster, titlePath } from "./components";
 import { useConfig, useLibrary, useStats, useUpcoming } from "./data";
 
@@ -15,7 +16,7 @@ function PosterStrip({ status, empty }: { status: "watching" | "watchlist"; empt
   const config = useConfig();
   const lib = useLibrary();
   if (config.data && !config.data.configured) return <NotSetUp />;
-  const items = (lib.data?.entries ?? []).filter((e) => e.status === status).map(entryToMedia);
+  const items = (lib.data?.entries ?? []).filter((e) => (status === "watching" ? isContinuing(e) : e.status === status)).map(entryToMedia);
   if (lib.data && !items.length) return <div className="dw-unconfigured">{empty}</div>;
   return (
     <div className="wl-w">

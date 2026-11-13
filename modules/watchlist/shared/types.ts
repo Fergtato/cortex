@@ -4,9 +4,17 @@
  */
 
 export type MediaType = "movie" | "tv";
-export type TrackStatus = "watchlist" | "watching" | "completed";
+/** "dropped" = stopped watching: kept with its history, out of the way. */
+export type TrackStatus = "watchlist" | "watching" | "completed" | "dropped";
 
-export const STATUS_LABELS: Record<TrackStatus, string> = { watchlist: "Watchlist", watching: "Watching", completed: "Watched" };
+export const STATUS_LABELS: Record<TrackStatus, string> = { watchlist: "Watchlist", watching: "Watching", completed: "Watched", dropped: "Stopped" };
+
+/** Every aired episode watched, but the show isn't over: waiting for new episodes, not "continue watching". */
+export const isCaughtUp = (e: { mediaType: MediaType; status: TrackStatus; watchedCount: number; airedEpisodes: number | null }) =>
+  e.mediaType === "tv" && e.status === "watching" && !!e.airedEpisodes && e.watchedCount >= e.airedEpisodes;
+
+/** In progress with something left to watch. */
+export const isContinuing = (e: { mediaType: MediaType; status: TrackStatus; watchedCount: number; airedEpisodes: number | null }) => e.status === "watching" && !isCaughtUp(e);
 
 export interface Genre {
   id: number;

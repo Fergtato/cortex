@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useDialog } from "@cortex/core";
 import { Badge, Button, Icon, Meter, Segmented } from "@cortex/ui";
 import { STATUS_LABELS, type Episode, type MediaDetails, type MediaType, type SeasonSummary, type TrackStatus } from "../shared/types";
-import { MediaRow, PersonModal, Poster, QuickAddMenu, useImg, year } from "./components";
+import { MediaRow, PersonModal, Poster, QuickAddMenu, TrailerModal, useGridColumns, useImg, year } from "./components";
 import { libApi, markWatched, useDetails, useEntryMap, useEvents, useLibMutation, useSeason } from "./data";
 import { Frame } from "./views";
 
@@ -24,6 +24,7 @@ function Detail({ d }: { d: MediaDetails }) {
   const entry = useEntryMap().get(`${d.mediaType}:${d.id}`);
   const [listAnchor, setListAnchor] = useState<HTMLElement | null>(null);
   const [person, setPerson] = useState<number | null>(null);
+  const [trailer, setTrailer] = useState(false);
   const setStatus = useLibMutation((s: TrackStatus | "none") => {
     if (s === "none") return libApi.remove(d.mediaType, d.id);
     return s === "completed" ? markWatched(d) : libApi.setStatus(d.mediaType, d.id, s);
@@ -32,7 +33,7 @@ function Detail({ d }: { d: MediaDetails }) {
   const backdrop = img(d.backdropPath, "w1280");
 
   return (
-    <Frame crumbs={["Watchlist", d.mediaType === "movie" ? "Movies" : "TV shows", d.title]}>
+    <Frame crumbs={["Watchlist", d.mediaType === "movie" ? { label: "Movies", to: "/watchlist/movies" } : { label: "TV shows", to: "/watchlist/tv" }, d.title]}>
       <section className="wl-detail">
         {backdrop && <img className="wl-detail__backdrop" src={backdrop} alt="" />}
         <div className="wl-detail__shade" />
@@ -67,6 +68,7 @@ function Detail({ d }: { d: MediaDetails }) {
                   { value: "watchlist", label: STATUS_LABELS.watchlist },
                   { value: "watching", label: STATUS_LABELS.watching },
                   { value: "completed", label: STATUS_LABELS.completed },
+                  ...(d.mediaType === "tv" || entry?.status === "dropped" ? [{ value: "dropped", label: STATUS_LABELS.dropped }] : []),
                 ]}
                 value={entry?.status ?? "none"}
                 onChange={async (v) => {
@@ -95,9 +97,9 @@ function Detail({ d }: { d: MediaDetails }) {
             </div>
             <div className="wl-links">
               {d.trailerKey && (
-                <a className="cx-btn cx-btn--ghost cx-btn--sm" href={`https://www.youtube.com/watch?v=${d.trailerKey}`} target="_blank" rel="noreferrer">
-                  <Icon name="arrow-up-right" size={14} /> Trailer
-                </a>
+                <Button size="sm" variant="secondary" icon="chevron-right" onClick={() => setTrailer(true)}>
+                  Watch trailer
+                </Button>
               )}
               {d.imdbId && (
                 <a className="cx-btn cx-btn--ghost cx-btn--sm" href={`https://www.imdb.com/title/${d.imdbId}/`} target="_blank" rel="noreferrer">
@@ -114,28 +116,11 @@ function Detail({ d }: { d: MediaDetails }) {
 
       {d.mediaType === "movie" ? <MovieWatches d={d} /> : <TvProgress d={d} />}
 
-      {d.cast.length > 0 && (
-        <section className="wl-row">
-          <header className="wl-row__head">
-            <h2 className="cx-label">Cast</h2>
-          </header>
-          <div className="wl-cast">
-            {d.cast.map((c) => (
-              <button key={`${c.id}-${c.character}`} type="button" className="wl-person-chip" onClick={() => setPerson(c.id)}>
-                <span className="wl-person-chip__photo">{img(c.profilePath, "w185") ? <img src={img(c.profilePath, "w185")!} alt="" loading="lazy" /> : <Icon name="user" size={20} />}</span>
-                <span className="wl-person-chip__name">{c.name}</span>
-                <span className="wl-person-chip__role">
-                  {c.character}
-                  {c.episodeCount ? ` · ${c.episodeCount} eps` : ""}
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
+      {d.cast.length > 0 && <CastGrid cast={d.cast} onPick={setPerson} />}
       <MediaRow title="More like this" items={d.recommendations} />
       {listAnchor && <QuickAddMenu media={d} entry={entry} anchor={listAnchor} onClose={() => setListAnchor(null)} />}
       {person !== null && <PersonModal id={person} onClose={() => setPerson(null)} />}
+      {trailer && d.trailerKey && <TrailerModal videoKey={d.trailerKey} title={d.title} onClose={() => setTrailer(false)} />}
     </Frame>
   );
 }
@@ -304,5 +289,40 @@ function SeasonBlock({ showId, season, seasons, watched }: { showId: number; sea
         </ul>
       )}
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ cast */
+
+/** One line of cast members; "See all" expands the rest (no sideways scrolling). */
+function CastGrid({ cast, onPick }: { cast: MediaDetails["cast"]; onPick: (id: number) => void }) {
+  const img = useImg();
+  const grid = useRef<HTMLDivElement>(null);
+  const cols = useGridColumns(grid, true);
+  const [all, setAll] = useState(false);
+  const shown = all ? cast : cast.slice(0, cols);
+  return (
+    <section className="wl-row">
+      <header className="wl-row__head">
+        <h2 className="cx-label">Cast</h2>
+        {cast.length > cols && (
+          <Button size="sm" variant="ghost" iconRight={all ? "arrow-up" : "chevron-down"} onClick={() => setAll((a) => !a)}>
+            {all ? "Show less" : `See all ${cast.length}`}
+          </Button>
+        )}
+      </header>
+      <div ref={grid} className="wl-cast">
+        {shown.map((c) => (
+          <button key={`${c.id}-${c.character}`} type="button" className="wl-person-chip" onClick={() => onPick(c.id)}>
+            <span className="wl-person-chip__photo">{img(c.profilePath, "w185") ? <img src={img(c.profilePath, "w185")!} alt="" loading="lazy" /> : <Icon name="user" size={20} />}</span>
+            <span className="wl-person-chip__name">{c.name}</span>
+            <span className="wl-person-chip__role">
+              {c.character}
+              {c.episodeCount ? ` · ${c.episodeCount} eps` : ""}
+            </span>
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

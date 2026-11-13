@@ -4,7 +4,8 @@ import { z } from "zod";
 import { forUser, newId, type AppEnv, type CortexServerModule, type ServerContext } from "@cortex/core/server";
 import type { CustomList, LibraryEntry, LibraryState, MediaDetails, MediaSummary, MediaType, Stats, TrackStatus, TypeStats, UpcomingItem, WatchEvent, WatchlistConfig } from "../shared/types";
 import { isAnime } from "../shared/types";
-import { plexBase, PlexError, plexSections, plexWatched, type PlexIds, type PlexSection } from "./plex";
+import { similarity, variants } from "./fuzzy";
+import { plexBase, PlexError, plexPin, plexPinToken, plexReach, plexSections, plexServers, plexWatched, type PlexIds, type PlexSection } from "./plex";
 import { airedEpisodeCount, TMDB_IMAGE_BASE, TmdbError, tmdbGet, toDetails, toEpisode, toPaged, toPerson, TTL } from "./tmdb";
 
 /*
@@ -26,7 +27,7 @@ const T = {
 const num = (v: unknown) => Number(v ?? 0);
 const now = () => new Date().toISOString();
 const MEDIA = z.enum(["movie", "tv"]);
-const STATUS = z.enum(["watchlist", "watching", "completed"]);
+const STATUS = z.enum(["watchlist", "watching", "completed", "dropped"]);
 
 // ------------------------------------------------------------- migrations
 
@@ -248,6 +249,8 @@ async function recomputeTv(ctx: ServerContext, uid: string, id: number) {
   const watched = new Set(eps.map((e) => `${e.season}x${e.episode}`)).size;
   const aired = entry.aired_episodes === null ? null : num(entry.aired_episodes);
   let status: TrackStatus = entry.status;
+  // Stopped shows stay stopped; logging an old episode doesn't revive them.
+  if (status === "dropped") return;
   if (aired && watched >= aired) status = ["Ended", "Canceled"].includes(entry.show_status) ? "completed" : "watching";
   else if (watched > 0) status = "watching";
   if (status !== entry.status) await u.updateTable(T.entries).set({ status, updated_at: now() }).where("media_type", "=", "tv").where("tmdb_id", "=", id).execute();
@@ -353,8 +356,28 @@ function routes(ctx: ServerContext) {
       if (!q) return c.json({ page: 1, totalPages: 0, totalResults: 0, results: [] });
       const type = c.req.query("type");
       const path = type === "movie" || type === "tv" ? `/search/${type}` : "/search/multi";
-      const raw = await tmdb<any>(ctx, path, { query: q, page: Number(c.req.query("page")) || 1, include_adult: "false" }, TTL.search);
-      return c.json(toPaged(raw, type === "movie" || type === "tv" ? type : undefined));
+      const page = Number(c.req.query("page")) || 1;
+      const fallbackType = type === "movie" || type === "tv" ? type : undefined;
+      const first = toPaged(await tmdb<any>(ctx, path, { query: q, page, include_adult: "false" }, TTL.search), fallbackType);
+      // Thin or off-target results on page 1: try other spellings and rank by closeness to what was typed.
+      const best = Math.max(0, ...first.results.slice(0, 5).map((m) => similarity(q, m.title)));
+      if (page !== 1 || (first.results.length >= 5 && best >= 0.75)) return c.json(first);
+      const extra = await Promise.all(
+        variants(q).map((v) => tmdb<any>(ctx, path, { query: v, page: 1, include_adult: "false" }, TTL.search).then((r) => toPaged(r, fallbackType).results).catch(() => [])),
+      );
+      const seen = new Set(first.results.map((m) => `${m.mediaType}:${m.id}`));
+      const found = extra.flat().filter((m) => {
+        const k = `${m.mediaType}:${m.id}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return similarity(q, m.title) >= 0.45;
+      });
+      // Close matches lead (popularity breaks ties); TMDB's own results keep their order after them.
+      const score = (m: MediaSummary) => similarity(q, m.title) + Math.min(0.1, Math.log10(1 + m.voteCount) / 40);
+      const strong = [...first.results, ...found].filter((m) => similarity(q, m.title) >= 0.6).sort((a, b) => score(b) - score(a));
+      const strongKeys = new Set(strong.map((m) => `${m.mediaType}:${m.id}`));
+      const results = [...strong, ...first.results.filter((m) => !strongKeys.has(`${m.mediaType}:${m.id}`)), ...found.filter((m) => !strongKeys.has(`${m.mediaType}:${m.id}`))];
+      return c.json({ ...first, results, totalResults: Math.max(first.totalResults, results.length) });
     }),
   );
 
@@ -695,7 +718,25 @@ function routes(ctx: ServerContext) {
   );
 
   // ---- import from Plex (one-off; the token is used for this request only and never stored)
-  const plexBody = z.object({ url: z.string().min(1), token: z.string().min(1), sections: z.array(z.string()).optional(), dryRun: z.boolean().optional() });
+  const plexBody = z.object({ url: z.string().min(1).optional(), urls: z.array(z.string().min(1)).max(20).optional(), token: z.string().min(1), sections: z.array(z.string()).optional(), dryRun: z.boolean().optional() });
+  /** A stable client id for this Cortex, so Plex lists it as one device. */
+  const plexClientId = async () => {
+    const row: any = await ctx.db.selectFrom(T.config).select("value").where("key", "=", "plex_client_id").executeTakeFirst();
+    if (row?.value) return row.value as string;
+    const id = `cortex-${newId()}`;
+    await ctx.db.insertInto(T.config).values({ key: "plex_client_id", value: id }).execute().catch(() => {});
+    return id;
+  };
+
+  app.post("/import/plex/pin", (c) => plexGuard(c, async () => c.json(await plexPin(ctx, await plexClientId()))));
+  app.get("/import/plex/pin/:id", (c) => plexGuard(c, async () => c.json({ token: await plexPinToken(ctx, await plexClientId(), Number(c.req.param("id"))) })));
+  app.post("/import/plex/servers", (c) =>
+    plexGuard(c, async () => {
+      const b = z.object({ token: z.string().min(1) }).safeParse(await c.req.json().catch(() => null));
+      if (!b.success) return bad(c, "Sign in with Plex first.");
+      return c.json(await plexServers(ctx, await plexClientId(), b.data.token));
+    }),
+  );
   const plexGuard = async (c: Context<AppEnv>, fn: () => Promise<Response>) => {
     try {
       return await guard(c, fn);
@@ -709,8 +750,9 @@ function routes(ctx: ServerContext) {
   app.post("/import/plex/sections", (c) =>
     plexGuard(c, async () => {
       const b = plexBody.safeParse(await c.req.json().catch(() => null));
-      if (!b.success) return bad(c, "Enter the server address and token.");
-      return c.json(await plexSections(ctx, plexBase(b.data.url), b.data.token.trim()));
+      if (!b.success || (!b.data.url && !b.data.urls?.length)) return bad(c, "Enter the server address and token.");
+      const { base, sections } = await plexReach(ctx, b.data.urls ?? [b.data.url!], b.data.token.trim());
+      return c.json({ url: base, sections });
     }),
   );
 
@@ -732,7 +774,7 @@ function routes(ctx: ServerContext) {
   app.post("/import/plex", (c) =>
     plexGuard(c, async () => {
       const b = plexBody.safeParse(await c.req.json().catch(() => null));
-      if (!b.success || !b.data.sections?.length) return bad(c, "Choose at least one library.");
+      if (!b.success || !b.data.sections?.length || !b.data.url) return bad(c, "Choose at least one library.");
       const uid = c.get("userId");
       const base = plexBase(b.data.url);
       const token = b.data.token.trim();

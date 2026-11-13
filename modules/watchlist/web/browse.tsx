@@ -47,7 +47,7 @@ function useGridData(key: unknown[], path: (page: number) => string, enabled = t
 }
 
 /** Category and genre live in the query string so "See all" links and bookmarks land on the right list. */
-function useQueryParam(name: string, fallback: string): [string, (v: string) => void] {
+export function useQueryParam(name: string, fallback: string): [string, (v: string) => void] {
   const { path, search, navigate } = useRouter();
   const value = new URLSearchParams(search).get(name) ?? fallback;
   const set = (v: string) => {
@@ -77,9 +77,10 @@ export function BrowsePage({ type }: { type: MediaType }) {
 }
 
 export function AnimePage() {
-  const [kind, setKind] = useState<MediaType>("tv");
-  const [tab, setTab] = useState("popular");
-  const [genre, setGenre] = useState("");
+  const [kindRaw, setKind] = useQueryParam("kind", "tv");
+  const kind = kindRaw as MediaType;
+  const [tab, setTab] = useQueryParam("list", "popular");
+  const [genre, setGenre] = useQueryParam("genre", "");
   const f: DiscoverFilters = { anime: true, genre, sort: tab === "top" ? "rating" : tab === "new" ? "newest" : "popular", airing: tab === "airing" && kind === "tv" };
   const grid = useGridData(["anime", kind, tab, genre], discoverPath(kind, f));
   return (

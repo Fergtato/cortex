@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useDialog, useRouter } from "@cortex/core";
 import { BarChart, Button, Grid, Panel, RankedBars, Segmented, Stat } from "@cortex/ui";
-import { isAnime, STATUS_LABELS, type MediaType, type TrackStatus, type TypeStats } from "../shared/types";
+import { isAnime, isCaughtUp, STATUS_LABELS, type LibraryEntry, type MediaType, type TrackStatus, type TypeStats } from "../shared/types";
 import { BASE, entryToMedia, MediaGrid, Poster, titlePath } from "./components";
 import { libApi, useGenreNames, useLibMutation, useLibrary, useStats, useUpcoming } from "./data";
 import { Frame, UpcomingCard } from "./views";
@@ -88,6 +88,18 @@ export function StatsPage() {
 
 type Shelf = "movie" | "tv" | "anime";
 
+const time = (s: string | null) => (s ? Date.parse(s) : 0);
+const SORTS = {
+  updated: { label: "Recently changed", cmp: (a: LibraryEntry, b: LibraryEntry) => time(b.updatedAt) - time(a.updatedAt) },
+  added: { label: "Date added", cmp: (a: LibraryEntry, b: LibraryEntry) => time(b.addedAt) - time(a.addedAt) },
+  watched: { label: "Last watched", cmp: (a: LibraryEntry, b: LibraryEntry) => time(b.lastWatchedAt) - time(a.lastWatchedAt) },
+  title: { label: "Title A–Z", cmp: (a: LibraryEntry, b: LibraryEntry) => a.title.localeCompare(b.title) },
+  release: { label: "Release date", cmp: (a: LibraryEntry, b: LibraryEntry) => (b.releaseDate || "").localeCompare(a.releaseDate || "") },
+  rating: { label: "Your rating", cmp: (a: LibraryEntry, b: LibraryEntry) => (b.rating ?? -1) - (a.rating ?? -1) },
+  runtime: { label: "Shortest first", cmp: (a: LibraryEntry, b: LibraryEntry) => a.runtime * (a.airedEpisodes ?? 1) - b.runtime * (b.airedEpisodes ?? 1) },
+} satisfies Record<string, { label: string; cmp: (a: LibraryEntry, b: LibraryEntry) => number }>;
+type SortKey = keyof typeof SORTS;
+
 export function LibraryPage() {
   const { search, navigate } = useRouter();
   const dialog = useDialog();
@@ -96,16 +108,32 @@ export function LibraryPage() {
   const params = new URLSearchParams(search);
   const status = (params.get("status") as TrackStatus | null) ?? "watching";
   const shelf = (params.get("type") as Shelf | null) ?? "movie";
-  const go = (next: { status?: string; type?: string }) => {
+  const sort = (params.get("sort") as SortKey | null) ?? "updated";
+  const go = (next: { status?: string; type?: string; sort?: string }) => {
     const p = new URLSearchParams({ status: next.status ?? status });
     const t = next.type ?? shelf;
     if (t !== "movie") p.set("type", t);
+    const so = next.sort ?? sort;
+    if (so !== "updated") p.set("sort", so);
     navigate(`${BASE}/library?${p}`, { replace: true });
   };
   const createList = useLibMutation((name: string) => libApi.createList(name));
   const entries = lib.data?.entries ?? [];
   const onShelf = entries.filter((e) => (shelf === "anime" ? isAnime(e) : e.mediaType === shelf && !isAnime(e)));
-  const shelfItems = onShelf.filter((e) => e.status === status).map(entryToMedia);
+  const byKey = new Map(entries.map((e) => [`${e.mediaType}:${e.tmdbId}`, e]));
+  const shelfItems = onShelf
+    .filter((e) => e.status === status)
+    .sort(SORTS[sort]?.cmp ?? SORTS.updated.cmp)
+    .map(entryToMedia);
+  const subtitle = (m: { mediaType: string; id: number; releaseDate: string }) => {
+    const e = byKey.get(`${m.mediaType}:${m.id}`);
+    if (!e) return undefined;
+    const bits = [m.releaseDate ? m.releaseDate.slice(0, 4) : "TBA"];
+    if (isCaughtUp(e)) bits.push("Caught up");
+    else if (e.mediaType === "tv" && e.airedEpisodes && e.status !== "watchlist") bits.push(`${e.watchedCount}/${e.airedEpisodes}`);
+    if (e.rating) bits.push(`★ ${e.rating}`);
+    return bits.join(" · ");
+  };
   const counts = (s: TrackStatus) => onShelf.filter((e) => e.status === s).length;
 
   return (
@@ -122,7 +150,7 @@ export function LibraryPage() {
           <Segmented
             size="sm"
             aria-label="Status"
-            options={(["watching", "watchlist", "completed"] as TrackStatus[]).map((s) => ({ value: s, label: `${STATUS_LABELS[s]} ${counts(s)}` }))}
+            options={(["watching", "watchlist", "completed", "dropped"] as TrackStatus[]).filter((s) => s !== "dropped" || counts(s) > 0 || status === "dropped").map((s) => ({ value: s, label: `${STATUS_LABELS[s]} ${counts(s)}` }))}
             value={status}
             onChange={(v) => go({ status: v })}
           />
@@ -137,8 +165,18 @@ export function LibraryPage() {
             value={shelf}
             onChange={(v) => go({ type: v })}
           />
+          <label className="wl-sort">
+            <span className="cx-label">Sort</span>
+            <select className="wl-select" value={sort} onChange={(e) => go({ sort: e.target.value })} aria-label="Sort">
+              {(Object.keys(SORTS) as SortKey[]).map((k) => (
+                <option key={k} value={k}>
+                  {SORTS[k].label}
+                </option>
+              ))}
+            </select>
+          </label>
         </header>
-        <MediaGrid items={shelfItems} empty={`Nothing on your ${STATUS_LABELS[status].toLowerCase()} shelf yet.`} />
+        <MediaGrid items={shelfItems} subtitle={subtitle} empty={`Nothing on your ${STATUS_LABELS[status].toLowerCase()} shelf yet.`} />
       </section>
 
       <section className="wl-section">
@@ -202,7 +240,7 @@ export function ListPage({ id }: { id: string }) {
   if (!list) return <Frame crumbs={["Watchlist", "Lists"]} title="List not found">{null}</Frame>;
   return (
     <Frame
-      crumbs={["Watchlist", "Lists", list.name]}
+      crumbs={["Watchlist", { label: "Lists", to: "/watchlist/library" }, list.name]}
       title={list.name}
       subtitle={`${list.items.length} titles`}
       actions={
