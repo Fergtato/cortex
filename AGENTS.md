@@ -61,7 +61,9 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
   `ALLOW_SIGNUP=true`) blocks private addresses inside the socket's `lookup`.
   Never switch it to `fetch()` or a pre-check DNS lookup: both reopen DNS
   rebinding. Tokens are write-only (AES-GCM with `CORTEX_SECRET`). Changing
-  that secret makes stored tokens unreadable.
+  that secret makes stored tokens unreadable. Module servers that fetch a
+  URL a person typed (the Plex import) or a public API (exchange rates) use
+  `ctx.outbound`, which goes through the same guard. Never `fetch()` those.
 - **Widgets.** Modules contribute `WidgetDef`s (`CortexModule.widgets`).
   Widgets get `{ widget, dash, editing }` and change the dashboard only through
   `dash.patchWidget` / `dash.setWidgets`, never another module's store. Lazy
@@ -75,6 +77,18 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
   `parseMoney` / `formatMoney` (`modules/finance/shared/money.ts`), which take
   currency digits into account (JPY 0, BHD 3). Wrap anything read from SQL in
   `num()`, because Postgres returns bigint and SUM as strings.
+- **Finance transfers** share a `transfer_id` on both halves and are left out
+  of income, spending and budgets. Imports never link silently:
+  `server/transfers.ts` suggests pairs (same currency: opposite amounts within
+  3 days; exchanges: same day and "exchang" wording) for review, and rejected
+  pairs live in `finance_transfer_ignores`. Multi-currency totals convert at
+  today's ECB rates (`/finance/rates`, `convertMinor`); budgets stay in the
+  base currency.
+- **Finance CSV import** logic lives in `web/csv.ts` (parsing, presets,
+  column roles, `applyMapping`), separate from the UI. Rows dedupe on
+  `(account, external_id)`, and the hash scheme must stay stable or
+  re-imports duplicate rows. The Balance column sets the opening balance so
+  Cortex matches the bank. Test with real exports, not only the fake fixture.
 - **Charts follow the dataviz rules**: single series in `--data-1`, the
   highlighted period in `--data-2`, bars at most 24px with a 4px rounded end,
   a tooltip per mark, and a table as the accessible view. Never a dual axis.
@@ -83,7 +97,10 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
   cached and mapped). Never put the key in the browser or call TMDB from web
   code. Images come from `config.imageBase`. Test against the fake TMDB via
   `TMDB_API_BASE` / `TMDB_IMAGE_BASE`. TMDB's terms require the attribution
-  shown on the setup screen; keep it.
+  shown on the setup screen; keep it. Poster cards file a title in one click
+  (status buttons). Discover's skips persist in `watchlist_dismissed`. The
+  Plex import (`server/plex.ts`) never stores the token and skips events
+  already logged.
 - **Router**: `useRouter()` gives `path` and `search`. Keep shareable filters
   in the query string and `navigate(url, { replace: true })` as they change.
 - **Backup.** Every module with data declares `CortexModule.backup`

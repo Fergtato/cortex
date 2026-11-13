@@ -24,6 +24,7 @@ Everything is optional.
 | `ALLOW_SIGNUP` | `false` | `true` lets anyone create an account (hosted mode). |
 | `TMDB_API_KEY` | unset | The TMDB key Watchlist uses (a v4 read access token or a v3 key). Optional: an admin can instead paste it in **Settings → Watchlist**, where it's stored encrypted. The env var wins if both are set. |
 | `TMDB_REGION` | `GB` | Default region for "In cinemas" and "Upcoming". Admins can change it in Settings → Watchlist. |
+| `FX_RATES_URL` | Frankfurter (ECB) | Where Finance gets exchange rates for totals across currencies. Any Frankfurter-compatible `/latest` endpoint works, including a self-hosted one. |
 | `PROXY_PRIVATE_NETWORKS` | `allow` (`deny` when `ALLOW_SIGNUP=true`) | Whether API connections may reach private addresses (LAN, localhost). Self-hosters want `allow` to reach home devices. A hosted instance must use `deny` so people can't probe the server's network. |
 | `MAX_UPLOAD_MB` | `25` | Largest file upload. |
 | `PORT` | `8080` | Port inside the container. |
