@@ -34,7 +34,9 @@ export function similarity(query: string, title: string): number {
   let overlap = 0;
   for (const [g, n] of ga) overlap += Math.min(n, gb.get(g) ?? 0);
   const dice = (2 * overlap) / Math.max(1, a.length - 1 + (b.length - 1));
-  const prefix = b.startsWith(a) || a.startsWith(b) ? 0.15 : 0;
+  // One starting the other only counts when they're close in length ("bladerunn" ~ "bladerunner", not "inter" ~ "interstellar").
+  const close = Math.min(a.length, b.length) / Math.max(a.length, b.length) >= 0.7;
+  const prefix = close && (b.startsWith(a) || a.startsWith(b)) ? 0.15 : 0;
   return Math.min(0.99, dice + prefix);
 }
 
@@ -48,10 +50,15 @@ export function variants(q: string): string[] {
   if (!trimmed.includes(" ") && trimmed.length >= 5 && trimmed.length <= 16) {
     for (let i = 2; i <= trimmed.length - 2; i++) out.add(`${trimmed.slice(0, i)} ${trimmed.slice(i)}`);
   }
-  // The start of the first word catches misspelled endings ("bladrunner" → "blad").
-  const first = trimmed.split(" ")[0];
-  if (first.length >= 6) out.add(first.slice(0, 4));
-  if (first.length >= 8) out.add(first.slice(0, 6));
+  const words = trimmed.split(" ");
+  // Several words: each one alone, so one misspelt word can't sink the rest ("blade runer" → "blade").
+  if (words.length > 1) for (const w of words) if (w.length >= 4) out.add(w);
+  // One long word: its start and its end catch a misspelling in the middle ("bladrunner" → "runner").
+  if (words.length === 1 && trimmed.length >= 6) out.add(trimmed.slice(0, 4));
+  if (words.length === 1 && trimmed.length >= 8) {
+    out.add(trimmed.slice(0, 6));
+    out.add(trimmed.slice(-6));
+  }
   out.delete(trimmed);
-  return [...out].slice(0, 16);
+  return [...out].slice(0, 20);
 }

@@ -89,7 +89,14 @@ async function finance() {
   await tx(acct.cc, daysAgo(1), -899, "Notion Labs", null);
   await tx(acct.cur, daysAgo(6), 45000, "Freelance invoice · Northwind", "Other income");
   await tx(acct.cur, daysAgo(3), 3200, "Vinted sale", "Other income");
-  console.log("finance:", jobs.length + 2, "transactions");
+  // IOUs: a friend's concert ticket (paid from the current account), a dinner share, and one you owe.
+  const ago = (n) => iso(daysAgo(n));
+  await api("/finance/ious", "POST", { person: "Sam", direction: "owed_to_me", amount: 6500, currency: "GBP", date: ago(9), note: "Concert tickets", accountId: acct.cur });
+  await api("/finance/ious", "POST", { person: "Priya", direction: "owed_to_me", amount: 2840, currency: "GBP", date: ago(4), note: "Her half of dinner at Dishoom" });
+  await api("/finance/ious", "POST", { person: "Alex", direction: "i_owe", amount: 1500, currency: "GBP", date: ago(2), note: "Taxi home" });
+  const paid = (await api("/finance/ious", "POST", { person: "Jordan", direction: "owed_to_me", amount: 12000, currency: "GBP", date: ago(40), note: "Festival deposit", accountId: acct.cur })).id;
+  await api(`/finance/ious/${paid}/settle`, "POST", { accountId: acct.cur, date: ago(25) });
+  console.log("finance:", jobs.length + 2, "transactions, 4 IOUs");
   return api("/finance/state");
 }
 
@@ -143,7 +150,13 @@ async function watchlist() {
       console.log("  tv", d.title, eps.length, "episodes");
     } catch (e) { console.log("  tv", sid, e.message.slice(0, 80)); }
   }
-  for (const sid of [37854, 76479, 87108, 119051, 1399]) await api(`/watchlist/library/tv/${sid}`, "PUT", { status: "watchlist" }).catch((e) => console.log("  tv", sid, e.message.slice(0, 60)));
+  // Watched a season of Game of Thrones, then stopped.
+  try {
+    const s1 = await api("/watchlist/tmdb/season/1399/1");
+    await api("/watchlist/library/tv/1399/watch", "POST", { episodes: s1.map((e) => ({ season: 1, episode: e.episodeNumber })), watchedAt: at(240) });
+    await api("/watchlist/library/tv/1399", "PUT", { status: "dropped" });
+  } catch (e) { console.log("  tv 1399", e.message.slice(0, 60)); }
+  for (const sid of [37854, 76479, 87108, 119051]) await api(`/watchlist/library/tv/${sid}`, "PUT", { status: "watchlist" }).catch((e) => console.log("  tv", sid, e.message.slice(0, 60)));
   // Lists
   const addTo = async (listId, type, tid) => {
     const d = await api(`/watchlist/tmdb/details/${type}/${tid}`);

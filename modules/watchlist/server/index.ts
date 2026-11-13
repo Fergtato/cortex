@@ -361,9 +361,13 @@ function routes(ctx: ServerContext) {
       const first = toPaged(await tmdb<any>(ctx, path, { query: q, page, include_adult: "false" }, TTL.search), fallbackType);
       // Thin or off-target results on page 1: try other spellings and rank by closeness to what was typed.
       const best = Math.max(0, ...first.results.slice(0, 5).map((m) => similarity(q, m.title)));
-      if (page !== 1 || (first.results.length >= 5 && best >= 0.75)) return c.json(first);
+      if (page !== 1) return c.json(first);
+      // A close match already: only also try the words run together ("roof man" → "roofman"), one extra call.
+      const joined = q.replace(/\s+/g, "");
+      const tries = best >= 0.9 ? (joined !== q ? [joined] : []) : variants(q);
+      if (!tries.length) return c.json(first);
       const extra = await Promise.all(
-        variants(q).map((v) => tmdb<any>(ctx, path, { query: v, page: 1, include_adult: "false" }, TTL.search).then((r) => toPaged(r, fallbackType).results).catch(() => [])),
+        tries.map((v) => tmdb<any>(ctx, path, { query: v, page: 1, include_adult: "false" }, TTL.search).then((r) => toPaged(r, fallbackType).results).catch(() => [])),
       );
       const seen = new Set(first.results.map((m) => `${m.mediaType}:${m.id}`));
       const found = extra.flat().filter((m) => {
