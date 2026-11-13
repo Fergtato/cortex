@@ -128,7 +128,7 @@ export interface Store {
   movePage: (id: string, newParentId: string | null, index: number) => void;
   updatePage: (
     id: string,
-    patch: Partial<Pick<Page, "title" | "content" | "icon" | "iconColor" | "cover">>
+    patch: Partial<Pick<Page, "title" | "content" | "icon" | "iconColor" | "cover" | "fullWidth">>
   ) => void;
   deletePage: (id: string) => void;
 
@@ -332,7 +332,7 @@ export function useStore(): Store {
   const updatePage = useCallback(
     (
       id: string,
-      patch: Partial<Pick<Page, "title" | "content" | "icon" | "iconColor" | "cover">>
+      patch: Partial<Pick<Page, "title" | "content" | "icon" | "iconColor" | "cover" | "fullWidth">>
     ) => {
       setPages((prev) => {
         const existing = prev[id];

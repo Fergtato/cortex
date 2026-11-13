@@ -286,7 +286,7 @@ function PageView({ page }: { page: Page }) {
 
   return (
     <PageFrame crumbs={crumbs}>
-      <div className="notes-root page">
+      <div className={`notes-root page${page.fullWidth ? " page--wide" : ""}`}>
         {page.cover && (
           <div className="page-cover">
             <StoredImg src={page.cover} alt="" />
@@ -339,6 +339,9 @@ function PageView({ page }: { page: Page }) {
               Add cover
             </Button>
           )}
+          <Button size="sm" variant="ghost" aria-pressed={!!page.fullWidth} onClick={() => store.updatePage(page.id, { fullWidth: !page.fullWidth })}>
+            {page.fullWidth ? "Narrow width" : "Full width"}
+          </Button>
         </div>
 
         <ErrorBoundary>

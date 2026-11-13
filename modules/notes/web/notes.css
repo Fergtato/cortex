@@ -82,6 +82,7 @@
 .page {
   width: 100%;
   max-width: 880px;
+  transition: max-width .25s cubic-bezier(.2, .8, .2, 1);
   margin: 0 auto;
   padding-bottom: 120px;
 }
@@ -2243,6 +2244,7 @@
 /* ---------- Notes sidebar (shell Sidebar + trees) ---------- */
 .notes-side .cx-side__body { gap: 2px; }
 .page-meta .cx-btn { font-family: var(--font-sans); }
+.page.page--wide { max-width: none; }
 .notes-empty-actions { display: flex; gap: var(--space-2); }
 
 /* =========================================================================

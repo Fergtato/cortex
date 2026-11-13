@@ -13,6 +13,8 @@ export interface Page {
   cover?: string;
   /** Sort position among siblings (same parentId). Lower shows first. */
   order?: number;
+  /** Use the full width of the canvas instead of the reading column. */
+  fullWidth?: boolean;
   createdAt: number;
   updatedAt: number;
 }
