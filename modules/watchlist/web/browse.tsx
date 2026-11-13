@@ -3,7 +3,7 @@ import { useRouter } from "@cortex/core";
 import { Input, Segmented } from "@cortex/ui";
 import type { MediaType } from "../shared/types";
 import { BASE, MediaGrid } from "./components";
-import { discoverPath, listPath, searchPath, useGenres, useInfinite, type DiscoverFilters } from "./data";
+import { discoverPath, listPath, searchPath, useDebounced, useGenres, useInfinite, type DiscoverFilters } from "./data";
 import { Frame } from "./views";
 
 const CATEGORIES: Record<MediaType, { value: string; label: string }[]> = {
@@ -46,9 +46,22 @@ function useGridData(key: unknown[], path: (page: number) => string, enabled = t
   return { items, hasMore: !!q.hasNextPage, loadMore: () => !q.isFetchingNextPage && q.fetchNextPage(), loading: q.isPending || q.isFetchingNextPage, error: q.error };
 }
 
+/** Category and genre live in the query string so "See all" links and bookmarks land on the right list. */
+function useQueryParam(name: string, fallback: string): [string, (v: string) => void] {
+  const { path, search, navigate } = useRouter();
+  const value = new URLSearchParams(search).get(name) ?? fallback;
+  const set = (v: string) => {
+    const p = new URLSearchParams(search);
+    if (v === fallback) p.delete(name);
+    else p.set(name, v);
+    navigate(`${path}${p.toString() ? `?${p}` : ""}`, { replace: true });
+  };
+  return [value, set];
+}
+
 export function BrowsePage({ type }: { type: MediaType }) {
-  const [category, setCategory] = useState("popular");
-  const [genre, setGenre] = useState("");
+  const [category, setCategory] = useQueryParam("category", "popular");
+  const [genre, setGenre] = useQueryParam("genre", "");
   // A genre switches to Discover (TMDB's category lists can't filter by genre).
   const grid = useGridData(genre ? ["discover", type, genre, category] : ["list", type, category, "all"], genre ? discoverPath(type, { genre, sort: category === "top_rated" ? "rating" : "popular" }) : listPath(type, category));
   return (
@@ -108,15 +121,6 @@ const SORTS = [
   { value: "rating", label: "Top rated" },
   { value: "newest", label: "Newest" },
 ];
-
-function useDebounced<T>(value: T, ms = 300): T {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
-    return () => clearTimeout(t);
-  }, [value, ms]);
-  return v;
-}
 
 export function SearchPage() {
   const { search, navigate } = useRouter();

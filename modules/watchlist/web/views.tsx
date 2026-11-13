@@ -1,14 +1,15 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api, PageFrame, useRouter, type ModuleViewProps } from "@cortex/core";
-import { Button, Grid, Input, Panel, Sidebar } from "@cortex/ui";
+import { Button, Grid, Icon, Input, Panel, Sidebar } from "@cortex/ui";
 import { useQueryClient } from "@tanstack/react-query";
 import "./watchlist.css";
-import type { MediaSummary } from "../shared/types";
+import { STATUS_LABELS, type MediaSummary } from "../shared/types";
 import { BASE, entryToMedia, MediaRow, QuickAddMenu, titlePath, useImg, year } from "./components";
-import { useConfig, useEntryMap, useFirstPage, useLibrary, useRecommended, useUpcoming } from "./data";
+import { useConfig, useDebounced, useEntryMap, useFirstPage, useLibrary, useQuickSearch, useRecommended, useUpcoming } from "./data";
 import { AnimePage, BrowsePage, SearchPage } from "./browse";
 import { DetailPage } from "./detail";
-import { LibraryPage, ListPage } from "./library";
+import { DiscoverPage } from "./discover";
+import { LibraryPage, ListPage, StatsPage } from "./library";
 
 const NAV = [
   { id: "/", label: "Home", icon: "home" as const },
@@ -16,7 +17,9 @@ const NAV = [
   { id: "/movies", label: "Movies", icon: "film" as const },
   { id: "/tv", label: "TV shows", icon: "grid" as const },
   { id: "/anime", label: "Anime", icon: "bolt" as const },
-  { id: "/library", label: "Library & stats", icon: "list" as const },
+  { id: "/discover", label: "Discover", icon: "pulse" as const },
+  { id: "/library", label: "Library", icon: "list" as const },
+  { id: "/stats", label: "Stats", icon: "clock" as const },
 ];
 
 export function WatchlistSidebar({ subpath }: ModuleViewProps) {
@@ -51,20 +54,108 @@ export function WatchlistSidebar({ subpath }: ModuleViewProps) {
   );
 }
 
-/** Topbar search box shared by every Watchlist page. */
-export function SearchBox({ initial = "" }: { initial?: string }) {
+/** Topbar search box shared by every Watchlist page: live results while typing, Enter for the full search. */
+export function SearchBox() {
   const { navigate } = useRouter();
-  const [q, setQ] = useState(initial);
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(-1);
+  const box = useRef<HTMLFormElement>(null);
+  const dq = useDebounced(q.trim(), 250);
+  const results = useQuickSearch(dq);
+  const items = q.trim().length >= 2 ? (results.data?.results ?? []).slice(0, 6) : [];
+  const img = useImg();
+  const entries = useEntryMap();
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => !box.current?.contains(e.target as Node) && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+  useEffect(() => setActive(-1), [dq]);
+
+  const go = (to: string) => {
+    setOpen(false);
+    setQ("");
+    navigate(to);
+  };
+  const showAll = () => go(`${BASE}/search?q=${encodeURIComponent(q.trim())}`);
+
   return (
     <form
+      ref={box}
       className="wl-searchbox"
       role="search"
       onSubmit={(e) => {
         e.preventDefault();
-        navigate(`${BASE}/search?q=${encodeURIComponent(q.trim())}`);
+        if (active >= 0 && items[active]) go(titlePath(items[active]));
+        else if (q.trim()) showAll();
       }}
     >
-      <Input icon="search" placeholder="Search movies & TV" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search movies and TV" />
+      <Input
+        icon="search"
+        placeholder="Search movies & TV"
+        value={q}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setOpen(true);
+            setActive((i) => Math.min(items.length - 1, i + 1));
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActive((i) => Math.max(-1, i - 1));
+          }
+        }}
+        aria-label="Search movies and TV"
+        role="combobox"
+        aria-expanded={open && q.trim().length >= 2}
+        aria-controls="wl-search-results"
+        aria-activedescendant={active >= 0 ? `wl-sr-${active}` : undefined}
+        autoComplete="off"
+      />
+      {open && q.trim().length >= 2 && (
+        <div className="wl-sr" id="wl-search-results" role="listbox" aria-label="Search results">
+          {items.map((m, i) => {
+            const src = img(m.posterPath, "w92");
+            const entry = entries.get(`${m.mediaType}:${m.id}`);
+            return (
+              <button
+                key={`${m.mediaType}:${m.id}`}
+                id={`wl-sr-${i}`}
+                type="button"
+                role="option"
+                aria-selected={i === active}
+                className={`wl-sr__item${i === active ? " is-active" : ""}`}
+                onMouseEnter={() => setActive(i)}
+                onClick={() => go(titlePath(m))}
+              >
+                <span className="wl-sr__thumb">{src ? <img src={src} alt="" /> : <Icon name="film" size={14} />}</span>
+                <span className="wl-sr__text">
+                  <span className="wl-sr__title">{m.title}</span>
+                  <span className="wl-sr__meta">
+                    {m.mediaType === "movie" ? "Movie" : "TV"}
+                    {year(m.releaseDate) && ` · ${year(m.releaseDate)}`}
+                    {entry && ` · ${STATUS_LABELS[entry.status]}`}
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+          {!items.length && <p className="wl-sr__empty">{results.isFetching || dq !== q.trim() ? "Searching…" : `No matches for “${q.trim()}”.`}</p>}
+          <button type="button" className="wl-sr__all" onClick={showAll}>
+            <Icon name="search" size={14} />
+            <span>All results for “{q.trim()}”</span>
+          </button>
+        </div>
+      )}
     </form>
   );
 }
@@ -100,6 +191,8 @@ export function WatchlistPage({ subpath }: ModuleViewProps) {
   if (subpath.startsWith("/search")) return <SearchPage />;
   if (subpath.startsWith("/lists/")) return <ListPage id={subpath.split("/")[2]} />;
   if (subpath.startsWith("/library")) return <LibraryPage />;
+  if (subpath.startsWith("/stats")) return <StatsPage />;
+  if (subpath.startsWith("/discover")) return <DiscoverPage />;
   return <Home />;
 }
 
@@ -204,7 +297,6 @@ function Hero({ media }: { media: MediaSummary }) {
 }
 
 function Home() {
-  const { navigate } = useRouter();
   const lib = useLibrary();
   const hasLibrary = (lib.data?.entries.length ?? 0) > 0;
   const trending = useFirstPage(["trending"], "/watchlist/tmdb/trending");
@@ -216,16 +308,10 @@ function Home() {
   const upcoming = useUpcoming(hasLibrary);
   const watching = lib.data?.entries.filter((e) => e.status === "watching").map(entryToMedia);
   const hero = trending.data?.results.find((m) => m.backdropPath) ?? trending.data?.results[0];
-  const more = (to: string) => (
-    <Button size="sm" variant="ghost" iconRight="arrow-up-right" onClick={() => navigate(BASE + to)}>
-      More
-    </Button>
-  );
-
   return (
     <Frame crumbs={["Watchlist"]}>
       {hero && <Hero media={hero} />}
-      {watching && watching.length > 0 && <MediaRow title="Continue watching" items={watching} action={more("/library?status=watching")} />}
+      {watching && watching.length > 0 && <MediaRow title="Continue watching" items={watching} to={`${BASE}/library?status=watching`} />}
       {upcoming.data && upcoming.data.length > 0 && (
         <section className="wl-row">
           <header className="wl-row__head">
@@ -239,11 +325,11 @@ function Home() {
         </section>
       )}
       {hasLibrary && <MediaRow title="Recommended for you" items={recommended.data} loading={recommended.isPending} />}
-      <MediaRow title="Trending" items={trending.data?.results} loading={trending.isPending} />
-      <MediaRow title="Popular movies" items={popularMovies.data?.results} loading={popularMovies.isPending} action={more("/movies")} />
-      <MediaRow title="Popular TV" items={popularTv.data?.results} loading={popularTv.isPending} action={more("/tv")} />
-      <MediaRow title="Top rated" items={topRated.data?.results} loading={topRated.isPending} />
-      <MediaRow title="Coming soon" items={upcomingMovies.data?.results} loading={upcomingMovies.isPending} />
+      <MediaRow title="Trending" items={trending.data?.results} loading={trending.isPending} to={`${BASE}/movies?category=trending`} />
+      <MediaRow title="Popular movies" items={popularMovies.data?.results} loading={popularMovies.isPending} to={`${BASE}/movies`} />
+      <MediaRow title="Popular TV" items={popularTv.data?.results} loading={popularTv.isPending} to={`${BASE}/tv`} />
+      <MediaRow title="Top rated" items={topRated.data?.results} loading={topRated.isPending} to={`${BASE}/movies?category=top_rated`} />
+      <MediaRow title="Coming soon" items={upcomingMovies.data?.results} loading={upcomingMovies.isPending} to={`${BASE}/movies?category=upcoming`} />
     </Frame>
   );
 }

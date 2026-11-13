@@ -42,15 +42,66 @@ function StatsPanel({ s, kind }: { s: TypeStats; kind: MediaType }) {
   );
 }
 
+export function StatsPage() {
+  const { navigate } = useRouter();
+  const stats = useStats();
+  const [statsKind, setStatsKind] = useState<MediaType>("tv");
+  return (
+    <Frame
+      crumbs={["Watchlist", "Stats"]}
+      actions={
+        <Segmented
+          size="sm"
+          aria-label="Stats type"
+          options={[
+            { value: "tv", label: "TV" },
+            { value: "movie", label: "Movies" },
+          ]}
+          value={statsKind}
+          onChange={(v) => setStatsKind(v as MediaType)}
+        />
+      }
+    >
+      <Grid>
+        {stats.data && <StatsPanel s={stats.data[statsKind]} kind={statsKind} />}
+        <Panel span={12} label="Recent activity" flush>
+          {stats.data?.recent.length ? (
+            <ul className="wl-activity">
+              {stats.data.recent.slice(0, 20).map((e) => (
+                <li key={e.id}>
+                  <button type="button" className="wl-activity__title" onClick={() => navigate(titlePath({ mediaType: e.mediaType, id: e.tmdbId }))}>
+                    {e.title}
+                  </button>
+                  <span className="wl-muted">{e.season !== null ? `S${e.season} E${e.episode}` : "Movie"}</span>
+                  <span className="wl-muted wl-small">{new Date(e.watchedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="wl-empty wl-pad">Nothing watched yet.</p>
+          )}
+        </Panel>
+      </Grid>
+    </Frame>
+  );
+}
+
+type Shelf = "movie" | "tv" | "anime";
+
 export function LibraryPage() {
   const { search, navigate } = useRouter();
   const dialog = useDialog();
   const lib = useLibrary();
-  const stats = useStats();
   const upcoming = useUpcoming();
-  const [statsKind, setStatsKind] = useState<MediaType>("tv");
-  const [shelf, setShelf] = useState<"movie" | "tv" | "anime">("movie");
-  const status = (new URLSearchParams(search).get("status") as TrackStatus | null) ?? "watching";
+  const params = new URLSearchParams(search);
+  const status = (params.get("status") as TrackStatus | null) ?? "watching";
+  const shelf = (params.get("type") as Shelf | null) ?? "movie";
+  const go = (next: { status?: string; type?: string }) => {
+    const p = new URLSearchParams({ status: next.status ?? status });
+    const t = next.type ?? shelf;
+    if (t !== "movie") p.set("type", t);
+    navigate(`${BASE}/library?${p}`, { replace: true });
+  };
   const createList = useLibMutation((name: string) => libApi.createList(name));
   const entries = lib.data?.entries ?? [];
   const onShelf = entries.filter((e) => (shelf === "anime" ? isAnime(e) : e.mediaType === shelf && !isAnime(e)));
@@ -58,54 +109,29 @@ export function LibraryPage() {
   const counts = (s: TrackStatus) => onShelf.filter((e) => e.status === s).length;
 
   return (
-    <Frame crumbs={["Watchlist", "Library & stats"]}>
-      {upcoming.data && upcoming.data.length > 0 && (
-        <section className="wl-row">
-          <header className="wl-row__head">
-            <h2 className="cx-label">Upcoming episodes</h2>
-          </header>
-          <div className="wl-upcoming">
-            {upcoming.data.map((u) => (
-              <UpcomingCard key={u.tmdbId} item={u} />
-            ))}
-          </div>
-        </section>
-      )}
-
+    <Frame crumbs={["Watchlist", "Library"]}>
       <section className="wl-section">
         <header className="wl-row__head">
-          <h2 className="cx-label">Stats</h2>
           <Segmented
             size="sm"
-            aria-label="Stats type"
+            aria-label="Status"
+            options={(["watching", "watchlist", "completed"] as TrackStatus[]).map((s) => ({ value: s, label: `${STATUS_LABELS[s]} ${counts(s)}` }))}
+            value={status}
+            onChange={(v) => go({ status: v })}
+          />
+          <Segmented
+            size="sm"
+            aria-label="Shelf type"
             options={[
-              { value: "tv", label: "TV" },
               { value: "movie", label: "Movies" },
+              { value: "tv", label: "TV" },
+              { value: "anime", label: "Anime" },
             ]}
-            value={statsKind}
-            onChange={(v) => setStatsKind(v as MediaType)}
+            value={shelf}
+            onChange={(v) => go({ type: v })}
           />
         </header>
-        <Grid>
-          {stats.data && <StatsPanel s={stats.data[statsKind]} kind={statsKind} />}
-          <Panel span={12} label="Recent activity" flush>
-            {stats.data?.recent.length ? (
-              <ul className="wl-activity">
-                {stats.data.recent.slice(0, 10).map((e) => (
-                  <li key={e.id}>
-                    <button type="button" className="wl-activity__title" onClick={() => navigate(titlePath({ mediaType: e.mediaType, id: e.tmdbId }))}>
-                      {e.title}
-                    </button>
-                    <span className="wl-muted">{e.season !== null ? `S${e.season} E${e.episode}` : "Movie"}</span>
-                    <span className="wl-muted wl-small">{new Date(e.watchedAt).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="wl-empty wl-pad">Nothing watched yet.</p>
-            )}
-          </Panel>
-        </Grid>
+        <MediaGrid items={shelfItems} empty={`Nothing on your ${STATUS_LABELS[status].toLowerCase()} shelf yet.`} />
       </section>
 
       <section className="wl-section">
@@ -138,36 +164,22 @@ export function LibraryPage() {
             ))}
           </div>
         ) : (
-          <p className="wl-empty">No lists yet. Use + on any poster to start one.</p>
+          <p className="wl-empty">No lists yet. Use the ⋯ button on any poster to start one.</p>
         )}
       </section>
 
-      <section className="wl-section">
-        <header className="wl-row__head">
-          <h2 className="cx-label">Shelves</h2>
-          <span className="wl-inline">
-            <Segmented
-              size="sm"
-              aria-label="Shelf type"
-              options={[
-                { value: "movie", label: "Movies" },
-                { value: "tv", label: "TV" },
-                { value: "anime", label: "Anime" },
-              ]}
-              value={shelf}
-              onChange={(v) => setShelf(v as typeof shelf)}
-            />
-            <Segmented
-              size="sm"
-              aria-label="Status"
-              options={(["watching", "watchlist", "completed"] as TrackStatus[]).map((s) => ({ value: s, label: `${STATUS_LABELS[s]} ${counts(s)}` }))}
-              value={status}
-              onChange={(v) => navigate(`${BASE}/library?status=${v}`, { replace: true })}
-            />
-          </span>
-        </header>
-        <MediaGrid items={shelfItems} empty={`Nothing on your ${STATUS_LABELS[status].toLowerCase()} shelf yet.`} />
-      </section>
+      {upcoming.data && upcoming.data.length > 0 && (
+        <section className="wl-section">
+          <header className="wl-row__head">
+            <h2 className="cx-label">Upcoming episodes</h2>
+          </header>
+          <div className="wl-upcoming">
+            {upcoming.data.map((u) => (
+              <UpcomingCard key={u.tmdbId} item={u} />
+            ))}
+          </div>
+        </section>
+      )}
     </Frame>
   );
 }
@@ -212,7 +224,7 @@ export function ListPage({ id }: { id: string }) {
         </>
       }
     >
-      <MediaGrid items={list.items.map(entryToMedia)} empty="This list is empty. Use + on any poster to add to it." />
+      <MediaGrid items={list.items.map(entryToMedia)} empty="This list is empty. Use the ⋯ button on any poster to add to it." />
     </Frame>
   );
 }

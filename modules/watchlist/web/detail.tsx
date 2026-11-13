@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useDialog } from "@cortex/core";
 import { Badge, Button, Icon, Meter, Segmented } from "@cortex/ui";
-import { STATUS_LABELS, type MediaDetails, type MediaType, type SeasonSummary, type TrackStatus } from "../shared/types";
+import { STATUS_LABELS, type Episode, type MediaDetails, type MediaType, type SeasonSummary, type TrackStatus } from "../shared/types";
 import { MediaRow, PersonModal, Poster, QuickAddMenu, useImg, year } from "./components";
 import { libApi, markWatched, useDetails, useEntryMap, useEvents, useLibMutation, useSeason } from "./data";
 import { Frame } from "./views";
@@ -204,7 +204,7 @@ function TvProgress({ d }: { d: MediaDetails }) {
       )}
       <div className="wl-seasons">
         {seasons.map((s) => (
-          <SeasonBlock key={s.seasonNumber} showId={d.id} season={s} watched={watched} />
+          <SeasonBlock key={s.seasonNumber} showId={d.id} season={s} seasons={d.seasons} watched={watched} />
         ))}
       </div>
     </section>
@@ -217,7 +217,8 @@ function countAired(d: MediaDetails): number {
   return d.seasons.reduce((n, s) => (s.seasonNumber <= 0 ? n : s.seasonNumber < last.seasonNumber ? n + s.episodeCount : s.seasonNumber === last.seasonNumber ? n + last.episodeNumber : n), 0);
 }
 
-function SeasonBlock({ showId, season, watched }: { showId: number; season: SeasonSummary; watched: Map<string, number> }) {
+function SeasonBlock({ showId, season, seasons, watched }: { showId: number; season: SeasonSummary; seasons: SeasonSummary[]; watched: Map<string, number> }) {
+  const dialog = useDialog();
   const [open, setOpen] = useState(false);
   const episodes = useSeason(showId, season.seasonNumber, open);
   const watch = useLibMutation((eps: { season: number; episode: number }[]) => libApi.watchEpisodes(showId, eps));
@@ -225,6 +226,31 @@ function SeasonBlock({ showId, season, watched }: { showId: number; season: Seas
   const markSeason = useLibMutation(() => libApi.markAll(showId, season.seasonNumber));
   const done = [...watched.keys()].filter((k) => k.startsWith(`${season.seasonNumber}x`)).length;
   const day = today();
+
+  /** Ticking an episode with unwatched earlier ones (this season and earlier seasons) offers to mark those too. */
+  const tick = async (e: Episode, all: Episode[]) => {
+    const missed: { season: number; episode: number }[] = [];
+    if (season.seasonNumber > 0) {
+      for (const s of seasons) {
+        if (s.seasonNumber <= 0 || s.seasonNumber >= season.seasonNumber) continue;
+        for (let n = 1; n <= s.episodeCount; n++) if (!watched.has(`${s.seasonNumber}x${n}`)) missed.push({ season: s.seasonNumber, episode: n });
+      }
+      for (const x of all) {
+        if (x.episodeNumber >= e.episodeNumber || !x.airDate || x.airDate > day) continue;
+        if (!watched.has(`${x.seasonNumber}x${x.episodeNumber}`)) missed.push({ season: x.seasonNumber, episode: x.episodeNumber });
+      }
+    }
+    const self = { season: e.seasonNumber, episode: e.episodeNumber };
+    if (!missed.length) return watch.mutate([self]);
+    const n = missed.length;
+    const choice = await dialog.choose(`You haven't marked ${n === 1 ? "the episode" : `${n} episodes`} before this one. Mark ${n === 1 ? "it" : "them"} as watched too?`, [
+      { value: "all", label: `Mark ${n + 1} episodes as watched` },
+      { value: "one", label: `Just episode ${e.episodeNumber}` },
+    ]);
+    if (choice === "all") watch.mutate([...missed, self]);
+    else if (choice === "one") watch.mutate([self]);
+  };
+
   return (
     <div className={`wl-season${open ? " is-open" : ""}`}>
       <div className="wl-season__head">
@@ -259,7 +285,7 @@ function SeasonBlock({ showId, season, watched }: { showId: number; season: Seas
                   aria-label={`${times ? "Unmark" : "Mark"} episode ${e.episodeNumber} watched`}
                   className={`wl-check${times ? " is-on" : ""}`}
                   disabled={!aired && !times}
-                  onClick={() => (times ? unwatch.mutate(eps) : watch.mutate(eps))}
+                  onClick={() => (times ? unwatch.mutate(eps) : tick(e, episodes.data ?? []))}
                 >
                   {times > 0 && <Icon name="check" size={10} strokeWidth={2.5} />}
                 </button>

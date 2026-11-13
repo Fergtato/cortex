@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useDialog, useRouter } from "@cortex/core";
 import { Badge, Button, Icon } from "@cortex/ui";
@@ -162,14 +162,36 @@ export function QuickAddMenu({ media, entry, anchor, onClose }: { media: MediaSu
 
 /* -------------------------------------------------------------- MediaCard */
 
+const QUICK: { status: TrackStatus; icon: "bell" | "clock" | "check" }[] = [
+  { status: "watchlist", icon: "bell" },
+  { status: "watching", icon: "clock" },
+  { status: "completed", icon: "check" },
+];
+
+/**
+ * Poster card. Hovering shows one button per status (one click to file it)
+ * plus a menu for custom lists; the current status is lit and clicking it
+ * again takes the title out of the library.
+ */
 export function MediaCard({ media, subtitle }: { media: MediaSummary; subtitle?: ReactNode }) {
   const { navigate } = useRouter();
+  const dialog = useDialog();
   const entry = useEntryMap().get(`${media.mediaType}:${media.id}`);
-  const btn = useRef<HTMLButtonElement>(null);
+  const more = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
+  const setStatus = useLibMutation((s: TrackStatus) => (s === "completed" ? markWatched(media) : libApi.setStatus(media.mediaType, media.id, s)));
+  const remove = useLibMutation(() => libApi.remove(media.mediaType, media.id));
+  const busy = setStatus.isPending || remove.isPending;
   const progress = entry && media.mediaType === "tv" && entry.airedEpisodes ? Math.min(1, entry.watchedCount / entry.airedEpisodes) : null;
+
+  const quick = async (s: TrackStatus) => {
+    if (entry?.status !== s) return setStatus.mutate(s);
+    const msg = entry.watchedCount ? `Remove "${media.title}" and its watch history from your library?` : null;
+    if (!msg || (await dialog.confirm(msg, { confirmLabel: "Remove", danger: true }))) remove.mutate(undefined);
+  };
+
   return (
-    <div className={`wl-card${entry ? ` is-${entry.status}` : ""}`}>
+    <div className={`wl-card${entry ? ` is-${entry.status}` : ""}${open ? " is-open" : ""}`}>
       <button type="button" className="wl-card__hit" onClick={() => navigate(titlePath(media))} aria-label={`${media.title}${year(media.releaseDate) ? ` (${year(media.releaseDate)})` : ""}`}>
         <Poster path={media.posterPath} title={media.title} />
         {entry && (
@@ -183,9 +205,28 @@ export function MediaCard({ media, subtitle }: { media: MediaSummary; subtitle?:
           </span>
         )}
       </button>
-      <button ref={btn} type="button" className={`wl-card__add${entry ? " is-tracked" : ""}`} aria-label={`Add ${media.title} to a list`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <Icon name={entry ? "check" : "plus"} size={16} strokeWidth={2} />
-      </button>
+      <div className="wl-card__actions" role="group" aria-label={`Add ${media.title}`}>
+        {QUICK.map((q) => {
+          const on = entry?.status === q.status;
+          return (
+            <button
+              key={q.status}
+              type="button"
+              className={`wl-card__btn${on ? " is-on" : ""}`}
+              aria-pressed={on}
+              disabled={busy}
+              title={on ? `${STATUS_LABELS[q.status]} · click to remove` : STATUS_LABELS[q.status]}
+              aria-label={STATUS_LABELS[q.status]}
+              onClick={() => quick(q.status)}
+            >
+              <Icon name={q.icon} size={14} strokeWidth={2} />
+            </button>
+          );
+        })}
+        <button ref={more} type="button" className="wl-card__btn" title="Lists and more" aria-label={`More for ${media.title}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+          <Icon name="more" size={14} strokeWidth={2.5} />
+        </button>
+      </div>
       <div className="wl-card__meta">
         <span className="wl-card__title">{media.title}</span>
         <span className="wl-card__sub">
@@ -197,7 +238,7 @@ export function MediaCard({ media, subtitle }: { media: MediaSummary; subtitle?:
           )}
         </span>
       </div>
-      {open && btn.current && <QuickAddMenu media={media} entry={entry} anchor={btn.current} onClose={() => setOpen(false)} />}
+      {open && more.current && <QuickAddMenu media={media} entry={entry} anchor={more.current} onClose={() => setOpen(false)} />}
     </div>
   );
 }
@@ -219,19 +260,59 @@ export const entryToMedia = (e: { mediaType: MediaType; tmdbId: number; title: s
 
 /* ---------------------------------------------------------- rows + grids */
 
-export function MediaRow({ title, items, loading, action, empty }: { title: string; items: MediaSummary[] | undefined; loading?: boolean; action?: ReactNode; empty?: string }) {
-  if (!loading && items && !items.length && !empty) return null;
+/** Columns a `.wl-grid` of this width holds (mirrors its minmax() in CSS). */
+function useGridColumns(ref: React.RefObject<HTMLElement>, mounted: boolean) {
+  const [cols, setCols] = useState(6);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const cs = getComputedStyle(el);
+      const track = cs.gridTemplateColumns.split(" ").filter(Boolean).length;
+      if (track > 0) setCols(track);
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    measure();
+    return () => ro.disconnect();
+  }, [ref, mounted]);
+  return cols;
+}
+
+/**
+ * A titled section showing one line of posters. "See all" opens the full
+ * page when there is one (`to`), otherwise expands the section in place.
+ */
+export function MediaRow({ title, items, loading, to, empty, lines = 1 }: { title: string; items: MediaSummary[] | undefined; loading?: boolean; to?: string; empty?: string; lines?: number }) {
+  const { navigate } = useRouter();
+  const grid = useRef<HTMLDivElement>(null);
+  const hidden = !loading && !!items && !items.length && !empty;
+  const cols = useGridColumns(grid, !hidden);
+  const [expanded, setExpanded] = useState(false);
+  const limit = expanded ? Infinity : cols * lines;
+  const overflow = (items?.length ?? 0) > cols * lines;
+  if (hidden) return null;
   return (
     <section className="wl-row">
       <header className="wl-row__head">
         <h2 className="cx-label">{title}</h2>
-        {action}
+        {to ? (
+          <Button size="sm" variant="ghost" iconRight="arrow-up-right" onClick={() => navigate(to)}>
+            See all
+          </Button>
+        ) : (
+          overflow && (
+            <Button size="sm" variant="ghost" iconRight={expanded ? "arrow-up" : "chevron-down"} onClick={() => setExpanded((e) => !e)}>
+              {expanded ? "Show less" : `See all ${items!.length}`}
+            </Button>
+          )
+        )}
       </header>
-      <div className="wl-row__track">
-        {loading && !items && Array.from({ length: 8 }, (_, i) => <div key={i} className="wl-card wl-card--skeleton" />)}
-        {items?.map((m) => <MediaCard key={`${m.mediaType}:${m.id}`} media={m} />)}
-        {items && !items.length && empty && <p className="wl-empty">{empty}</p>}
+      <div ref={grid} className="wl-grid">
+        {loading && !items && Array.from({ length: cols * lines }, (_, i) => <div key={i} className="wl-card wl-card--skeleton" />)}
+        {items?.slice(0, limit).map((m) => <MediaCard key={`${m.mediaType}:${m.id}`} media={m} />)}
       </div>
+      {items && !items.length && empty && <p className="wl-empty">{empty}</p>}
     </section>
   );
 }

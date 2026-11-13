@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@cortex/core";
 import type {
@@ -149,4 +149,24 @@ export const libApi = {
 export async function markWatched(m: { mediaType: MediaType; id: number }) {
   if (m.mediaType === "movie") return libApi.setStatus("movie", m.id, "completed");
   return libApi.markAll(m.id);
+}
+
+export function useDebounced<T>(value: T, ms = 300): T {
+  const [v, setV] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return v;
+}
+
+/** First page of a multi search, for the topbar's live results. */
+export function useQuickSearch(q: string) {
+  return useQuery({
+    queryKey: ["watchlist", "tmdb", "search", q, "multi", "quick"],
+    queryFn: () => api<Paged<MediaSummary>>(searchPath(q, "multi")(1)),
+    staleTime: TMDB_STALE,
+    enabled: q.length >= 2,
+    placeholderData: (prev) => prev,
+  });
 }

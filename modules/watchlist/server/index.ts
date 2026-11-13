@@ -19,6 +19,7 @@ const T = {
   events: "watchlist_events",
   lists: "watchlist_lists",
   items: "watchlist_list_items",
+  dismissed: "watchlist_dismissed",
 } as const;
 
 const num = (v: unknown) => Number(v ?? 0);
@@ -86,6 +87,19 @@ const migrations = {
         .addColumn("release_date", "text", (c) => c.notNull())
         .addColumn("added_at", "text", (c) => c.notNull())
         .addPrimaryKeyConstraint(`${T.items}_pk`, ["user_id", "list_id", "media_type", "tmdb_id"])
+        .execute();
+    },
+  },
+  // Titles skipped in Discover, so they don't come round again.
+  "0002_dismissed": {
+    async up(db: Kysely<any>) {
+      await db.schema
+        .createTable(T.dismissed)
+        .addColumn("user_id", "text", (c) => c.notNull())
+        .addColumn("media_type", "text", (c) => c.notNull())
+        .addColumn("tmdb_id", "integer", (c) => c.notNull())
+        .addColumn("dismissed_at", "text", (c) => c.notNull())
+        .addPrimaryKeyConstraint(`${T.dismissed}_pk`, ["user_id", "media_type", "tmdb_id"])
         .execute();
     },
   },
@@ -679,11 +693,34 @@ function routes(ctx: ServerContext) {
     }),
   );
 
+  // ---- discover: skipped titles
+  app.get("/dismissed", async (c) => {
+    const rows = await forUser(ctx.db, c.get("userId")).selectFrom(T.dismissed).select(["media_type", "tmdb_id"]).execute();
+    return c.json((rows as any[]).map((r) => `${r.media_type}:${num(r.tmdb_id)}`));
+  });
+  const dismissBody = z.object({ mediaType: MEDIA, tmdbId: z.number().int() });
+  app.post("/dismissed", async (c) => {
+    const b = dismissBody.safeParse(await c.req.json().catch(() => null));
+    if (!b.success) return bad(c, "Expected { mediaType, tmdbId }");
+    const u = forUser(ctx.db, c.get("userId"));
+    await u.deleteFrom(T.dismissed).where("media_type", "=", b.data.mediaType).where("tmdb_id", "=", b.data.tmdbId).execute();
+    await u.insertInto(T.dismissed, { media_type: b.data.mediaType, tmdb_id: b.data.tmdbId, dismissed_at: now() }).execute();
+    return c.json({ ok: true });
+  });
+  app.delete("/dismissed/:type/:id", async (c) => {
+    await forUser(ctx.db, c.get("userId")).deleteFrom(T.dismissed).where("media_type", "=", MEDIA.parse(c.req.param("type"))).where("tmdb_id", "=", Number(c.req.param("id"))).execute();
+    return c.json({ ok: true });
+  });
+  app.delete("/dismissed", async (c) => {
+    await forUser(ctx.db, c.get("userId")).deleteFrom(T.dismissed).execute();
+    return c.json({ ok: true });
+  });
+
   // ---- backup
   app.get("/backup", async (c) => {
     const u = forUser(ctx.db, c.get("userId"));
     const all = async (t: string) => (await u.selectFrom(t).selectAll().execute()).map(({ user_id: _u, ...rest }: any) => rest);
-    return c.json({ entries: await all(T.entries), events: await all(T.events), lists: await all(T.lists), items: await all(T.items) });
+    return c.json({ entries: await all(T.entries), events: await all(T.events), lists: await all(T.lists), items: await all(T.items), dismissed: await all(T.dismissed) });
   });
 
   app.post("/backup", async (c) => {
@@ -694,6 +731,7 @@ function routes(ctx: ServerContext) {
       ["events", T.events, ["id"]],
       ["lists", T.lists, ["id"]],
       ["items", T.items, ["list_id", "media_type", "tmdb_id"]],
+      ["dismissed", T.dismissed, ["media_type", "tmdb_id"]],
     ];
     const uid = c.get("userId");
     const counts: Record<string, number> = {};
