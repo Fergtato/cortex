@@ -43,16 +43,17 @@ export function BarChart({ bars, format, formatTick, height = 200, label }: { ba
     return () => ro.disconnect();
   }, []);
 
-  const padL = 52;
   const padB = 24;
   const padT = 20;
-  const plotW = Math.max(0, width - padL);
   const plotH = height - padB - padT;
   const max = Math.max(0, ...bars.map((b) => b.value));
   const step = niceStep(max);
   const top = Math.max(step, Math.ceil(max / step) * step);
   // No data: just the baseline (a 0..1 minor-unit axis would label both ends "£0").
   const ticks = max > 0 ? Array.from({ length: Math.round(top / step) + 1 }, (_, i) => i * step) : [0];
+  // Left gutter fits the longest tick label (¥1,200,000 needs far more than £30); mono digits ≈ 7px at 11px.
+  const padL = Math.max(36, Math.ceil(Math.max(...ticks.map((t) => formatTick(t).length)) * 7) + 16);
+  const plotW = Math.max(0, width - padL);
   const band = bars.length ? plotW / bars.length : 0;
   const barW = Math.min(24, Math.max(4, band * 0.5));
   const y = (v: number) => padT + plotH - (v / top) * plotH;
