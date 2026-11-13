@@ -30,7 +30,13 @@ export function createAuth(db: Kysely<any>, dialect: Dialect) {
     emailAndPassword: { enabled: true, minPasswordLength: 8 },
     // migrateAuth() brings the schema up to date before the server listens, so
     // the startup check would only log a scary (false) mismatch on first boot.
-    advanced: { database: { validateSchema: false } },
+    advanced: {
+      database: { validateSchema: false },
+      // Secure cookies only over HTTPS. Better Auth turns them on whenever NODE_ENV=production (the
+      // Docker image), but browsers drop Secure cookies on plain http (except localhost), so a phone
+      // opening http://192.168.x.x:8080 could sign in and immediately look signed out again.
+      useSecureCookies: config.publicUrl?.startsWith("https://") ?? false,
+    },
     plugins: [admin()],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {

@@ -18,7 +18,7 @@ Everything is optional.
 
 | Variable | Default | What it does |
 | --- | --- | --- |
-| `CORTEX_URL` | unset | Public address, e.g. `https://cortex.example.com`. Set it when you're behind a reverse proxy or on HTTPS. Unset, Cortex trusts whatever address the browser used, which suits LAN installs. |
+| `CORTEX_URL` | unset | Public address, e.g. `https://cortex.example.com`. Set it when you're behind a reverse proxy or on HTTPS: an `https://` address also makes the session cookie `Secure`. Unset, Cortex trusts whatever address the browser used, which suits LAN installs. |
 | `CORTEX_SECRET` | generated | Signs sessions and encrypts connector tokens. If unset, Cortex generates one on first start and keeps it in `/data/secret`. **Back it up with the data.** |
 | `DATABASE_URL` | unset (SQLite) | A Postgres connection string. Used by the hosted version. Self-hosters can stay on SQLite. |
 | `ALLOW_SIGNUP` | `false` | `true` lets anyone create an account (hosted mode). |

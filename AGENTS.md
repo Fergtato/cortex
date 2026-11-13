@@ -23,7 +23,10 @@ its last commit if you need to look something up.
 - **Auth is Better Auth** (`apps/server/src/auth.ts`). The first sign-up
   becomes admin, then sign-up is closed unless `ALLOW_SIGNUP=true`. Admins add
   people in Settings → Users (admin plugin). **DO NOT** add an open sign-up
-  path. `/api/*` other than `/api/auth/*`, `/api/instance` and `/api/health`
+  path. Session cookies are `Secure` only when `CORTEX_URL` is https:
+  browsers drop Secure cookies on plain-http LAN addresses, so a phone could
+  never stay signed in. Test sign-in at `http://<LAN IP>:8080`, not just
+  localhost. `/api/*` other than `/api/auth/*`, `/api/instance` and `/api/health`
   requires a session.
 - **Module contract.** Web: `CortexModule` (`packages/core/src/module.ts`),
   registered in `apps/web/src/modules.tsx`. Server: `CortexServerModule`,
