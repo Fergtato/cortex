@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { cx } from "../cx";
+import { CountUp } from "./motion";
 import { Icon } from "./Icon";
 
 export interface GridProps {
@@ -83,7 +84,7 @@ export function Stat({ label, value, unit, delta, trend, good, size, footer, cla
     <div className={cx("cx-stat", size && size !== "md" && `cx-stat--${size}`, className)}>
       {label && <span className="cx-label">{label}</span>}
       <div className="cx-stat__row">
-        <span className="cx-stat__value">{value}</span>
+        <span className="cx-stat__value">{typeof value === "string" ? <CountUp text={value} /> : value}</span>
         {unit && <span className="cx-stat__unit">{unit}</span>}
         {delta && (
           <span className={cx("cx-delta", isGood ? "cx-delta--good" : "cx-delta--bad")}>

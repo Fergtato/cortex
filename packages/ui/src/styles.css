@@ -415,9 +415,12 @@ button { font: inherit; color: inherit; }
 .cx-rail__mark {
   width: 36px; height: 36px; margin-bottom: var(--space-3);
   display: grid; place-items: center;
-  background: var(--ink-100); color: var(--bg-000); border-radius: var(--radius-xs);
-  font-family: var(--font-mono); font-size: 12px; font-weight: 600; letter-spacing: 0.04em;
 }
+.cx-logo { display: block; overflow: visible; }
+.cx-logo__block { fill: var(--ink-100); }
+.cx-logo__slot { fill: none; stroke: var(--line-300); stroke-width: 1; }
+.cx-logo__lift { fill: var(--accent); transform: translate(2.5px, -3px); transition: transform .32s cubic-bezier(.2, .8, .2, 1); }
+.cx-rail__mark:hover .cx-logo__lift, .cx-logo:hover .cx-logo__lift { transform: none; }
 .cx-rail__btn {
   position: relative; width: 40px; height: 40px; display: grid; place-items: center;
   background: none; border: 1px solid transparent; border-radius: var(--radius-xs);
@@ -498,6 +501,8 @@ button { font: inherit; color: inherit; }
 .cx-crumbs li { color: var(--ink-300); white-space: nowrap; }
 .cx-crumbs li + li::before { content: "/"; margin-right: var(--space-2); color: var(--line-300); }
 .cx-crumbs li[aria-current="page"] { color: var(--ink-100); font-weight: 500; }
+.cx-crumb-link { color: inherit; text-decoration: none; border-radius: var(--radius-xs); }
+.cx-crumb-link:hover { color: var(--ink-100); text-decoration: underline; text-decoration-color: var(--line-300); text-underline-offset: 3px; }
 .cx-top__actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
 
 /* ---------- AppShell ---------- */
@@ -510,8 +515,44 @@ button { font: inherit; color: inherit; }
   background-position: -8px -8px;
 }
 
+/* ---------- Motion: short, linear, instrument-like ---------- */
+.cx-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.cx-top { position: relative; }
+/* The sweep is clipped by its own box, so it never widens the page. */
+.cx-top__scan { position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; overflow: hidden; pointer-events: none; }
+.cx-top__scan::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, var(--accent) 50%, transparent);
+  transform: translateX(-100%); animation: cx-scan .7s cubic-bezier(.4, 0, .2, 1) forwards;
+}
+@keyframes cx-scan { to { transform: translateX(100%); opacity: 0; } }
+@keyframes cx-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes cx-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cx-pop { from { opacity: 0; transform: translateY(4px) scale(.985); } to { opacity: 1; transform: none; } }
+.cx-enter > * { animation: cx-rise .26s cubic-bezier(.2, .8, .2, 1) both; }
+/* Panels in a grid arrive one after another along the reading order. */
+.cx-enter .cx-grid > * { animation: cx-rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+.cx-enter .cx-grid > :nth-child(2) { animation-delay: 30ms; }
+.cx-enter .cx-grid > :nth-child(3) { animation-delay: 60ms; }
+.cx-enter .cx-grid > :nth-child(4) { animation-delay: 90ms; }
+.cx-enter .cx-grid > :nth-child(5) { animation-delay: 120ms; }
+.cx-enter .cx-grid > :nth-child(6) { animation-delay: 150ms; }
+.cx-enter .cx-grid > :nth-child(n + 7) { animation-delay: 180ms; }
+.cx-dialog-scrim { animation: cx-fade .14s ease both; }
+.cx-dialog { animation: cx-pop .18s cubic-bezier(.2, .8, .2, 1) both; }
+.cx-type { position: relative; }
+.cx-type__rest { visibility: hidden; }
+.cx-type__cursor {
+  display: inline-block; width: .5em; height: .9em; margin: 0 1px -0.08em; vertical-align: baseline;
+  background: var(--accent); animation: cx-blink .5s steps(1) infinite;
+}
+@keyframes cx-blink { 50% { opacity: 0; } }
+.cx-stat__value { font-variant-numeric: tabular-nums; }
+
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+  *, *::before, *::after { animation: none !important; }
+  .cx-top__scan { display: none; }
 }
 
 /* ---------- Dialog (useDialog) ----------

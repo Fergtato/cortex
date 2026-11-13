@@ -1,5 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 import { cx, useControlled } from "../cx";
+import { LogoMark } from "./Logo";
 import { Icon, type IconName } from "./Icon";
 import { Kbd } from "./controls";
 
@@ -40,7 +41,7 @@ export function AppRail({ apps, active, onSelect, logo, footer, className }: App
   );
   return (
     <nav className={cx("cx-rail", className)} aria-label="Apps">
-      <div className="cx-rail__mark">{logo ?? "CX"}</div>
+      <div className="cx-rail__mark">{logo ?? <LogoMark />}</div>
       {apps.filter((a) => !a.bottom).map(btn)}
       <div className="cx-rail__spacer" />
       {apps.filter((a) => a.bottom).map(btn)}

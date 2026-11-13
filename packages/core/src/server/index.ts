@@ -24,7 +24,7 @@ export interface ServerContext {
    * same private-network policy as /api/proxy (enforced in the socket's DNS
    * lookup, so no rebinding window). Never use fetch() for user-given URLs.
    */
-  outbound: (url: string, headers?: Record<string, string>) => Promise<OutboundResponse>;
+  outbound: (url: string, headers?: Record<string, string>, init?: { method?: "GET" | "POST"; body?: string }) => Promise<OutboundResponse>;
 }
 
 export interface OutboundResponse {

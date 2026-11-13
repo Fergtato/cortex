@@ -20,10 +20,11 @@ const ctx: ServerContext = {
   dialect,
   dataDir: config.dataDir,
   secrets: { encrypt: encryptToken, decrypt: decryptToken },
-  outbound: async (url, headers = {}) => {
+  outbound: async (url, headers = {}, init = {}) => {
     const target = new URL(url);
     if (target.protocol !== "http:" && target.protocol !== "https:") throw new Error("Only http and https URLs are allowed.");
-    const res = await upstreamRequest(target, { method: "GET", headers: { "user-agent": "Cortex", ...headers } });
+    const body = init.body !== undefined ? Buffer.from(init.body) : undefined;
+    const res = await upstreamRequest(target, { method: init.method ?? "GET", headers: { "user-agent": "Cortex", ...headers, ...(body ? { "content-length": String(body.length) } : {}) }, body });
     const text = () => res.body.toString("utf8");
     return { status: res.status, headers: res.headers, text, json: <T,>() => JSON.parse(text()) as T };
   },

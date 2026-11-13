@@ -1,10 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { splitPath, useRouter, useSettings } from "@cortex/core";
 import { AppRail, Button, type RailApp } from "@cortex/ui";
 import { HOME_ID, MODULES } from "./modules";
 import { SettingsPage, SettingsSidebar } from "./settings/SettingsPage";
 
 const SETTINGS_ID = "settings";
+const LAST_KEY = "cortex.lastPaths";
+
+function readLast(): Record<string, string> {
+  try {
+    return JSON.parse(sessionStorage.getItem(LAST_KEY) ?? "{}") ?? {};
+  } catch {
+    return {};
+  }
+}
 
 /**
  * The frame every module renders inside: app rail, the active module's
@@ -12,7 +21,7 @@ const SETTINGS_ID = "settings";
  * `/settings/…` is the built-in settings app.
  */
 export function Shell() {
-  const { path, navigate } = useRouter();
+  const { path, search, navigate } = useRouter();
   const { settings } = useSettings();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -24,6 +33,22 @@ export function Shell() {
   // Close the narrow-screen sidebar overlay whenever the route changes.
   useEffect(() => setSidebarOpen(false), [path]);
 
+  // Each app remembers where you were, so switching apps and back returns there.
+  const last = useRef<Record<string, string>>(readLast());
+  useEffect(() => {
+    last.current[activeId] = path + search;
+    try {
+      sessionStorage.setItem(LAST_KEY, JSON.stringify(last.current));
+    } catch {
+      /* storage unavailable: memory still works for this tab */
+    }
+  }, [activeId, path, search]);
+  const openApp = (id: string) => {
+    const root = id === HOME_ID ? "/" : `/${id}`;
+    // Clicking the app you're in goes to its start; another app resumes where you left it.
+    navigate(id === activeId ? root : (last.current[id] ?? root));
+  };
+
   const apps: RailApp[] = [
     ...enabled.map((m) => ({ id: m.id, label: m.name, icon: m.icon })),
     { id: SETTINGS_ID, label: "Settings", icon: "sliders", bottom: true },
@@ -34,7 +59,7 @@ export function Shell() {
 
   return (
     <div className="cx-shell" data-sidebar-open={sidebarOpen}>
-      <AppRail apps={apps} active={activeId} onSelect={(id) => navigate(id === HOME_ID ? "/" : `/${id}`)} />
+      <AppRail apps={apps} active={activeId} onSelect={openApp} />
       {Sidebar && <Sidebar subpath={subpath} />}
       <main className="cx-main">
         {Sidebar && (

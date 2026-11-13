@@ -1,7 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type InstanceInfo } from "@cortex/core";
-import { Button, Input, Panel } from "@cortex/ui";
+import { Button, Input, LogoMark, Panel } from "@cortex/ui";
 import { authClient } from "./auth";
 
 /**
@@ -32,7 +32,7 @@ function AuthFrame({ title, subtitle, children }: { title: string; subtitle?: Re
     <div className="auth-screen">
       <Panel className="auth-card">
         <div className="auth-brand">
-          <span className="cx-rail__mark">CX</span>
+          <span className="cx-rail__mark"><LogoMark /></span>
           <span className="cx-label">Cortex</span>
         </div>
         <div className="cx-page-head">

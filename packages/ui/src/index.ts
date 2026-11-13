@@ -7,3 +7,5 @@ export * from "./theme/schema";
 export * from "./theme/engine";
 export { ThemeScope, type ThemeScopeProps } from "./theme/ThemeScope";
 export { BarChart, RankedBars, type Bar } from "./components/charts";
+export { LogoMark } from "./components/Logo";
+export { CountUp, TypeText } from "./components/motion";
