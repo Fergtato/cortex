@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { PageFrame, useRouter, type ModuleViewProps } from "@cortex/core";
+import { api, PageFrame, useDialog, useRouter, type ModuleViewProps } from "@cortex/core";
+import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, Grid, Meter, Panel, Sidebar, Stat, Toggle } from "@cortex/ui";
 import "./finance.css";
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_LABELS, type AccountType, type FinanceState, type Rates, type Summary } from "../shared/types";
@@ -9,6 +10,7 @@ import { budgetFor, financeApi, useFinanceMutation, useFinancePrefs, useFinanceS
 import { CURRENCIES, TransactionForm } from "./forms";
 import { AccountsPage, BudgetsPage, CategoriesPage, TransactionsPage } from "./pages";
 import { ImportPage } from "./import";
+import { IousPage } from "./ious";
 
 export const BASE = "/finance";
 
@@ -17,6 +19,7 @@ const SECTIONS = [
   { id: "/transactions", label: "Transactions", icon: "list" as const },
   { id: "/accounts", label: "Accounts", icon: "wallet" as const },
   { id: "/budgets", label: "Budgets", icon: "calendar" as const },
+  { id: "/ious", label: "IOUs", icon: "user" as const },
   { id: "/categories", label: "Categories & rules", icon: "sliders" as const },
   { id: "/import", label: "Import CSV", icon: "arrow-down" as const },
 ];
@@ -25,7 +28,6 @@ export function FinanceSidebar({ subpath }: ModuleViewProps) {
   const { navigate } = useRouter();
   const state = useFinanceState();
   const summary = useSummary(currentMonth(), 1);
-  const { prefs } = useFinancePrefs();
   const balances = new Map(summary.data?.balances.map((b) => [b.accountId, b.balance]));
   const active = SECTIONS.find((s) => s.id !== "/" && subpath.startsWith(s.id))?.id ?? (subpath.startsWith("/accounts/") ? "/accounts" : "/");
   const accounts = (state.data?.accounts ?? []).filter((a) => !a.archived);
@@ -49,8 +51,49 @@ export function FinanceSidebar({ subpath }: ModuleViewProps) {
       ]}
       active={subpath.startsWith("/accounts/") ? subpath : active}
       onSelect={(id) => navigate(id === "/" ? BASE : BASE + id)}
-      footer={<span className="notes-side-count">Totals in {prefs.baseCurrency}</span>}
+      footer={<MainCurrency state={state.data} />}
     />
+  );
+}
+
+/**
+ * The main currency every total is shown in. Switching offers to convert
+ * budgets (they're stored in the main currency) at today's rate.
+ */
+function MainCurrency({ state }: { state: FinanceState | undefined }) {
+  const dialog = useDialog();
+  const { prefs, setPrefs } = useFinancePrefs();
+  const base = prefs.baseCurrency;
+  const fullRates = useQuery({ queryKey: ["finance", "rates-all", base], queryFn: () => api<Rates>(`/finance/rates?base=${base}`), staleTime: 3600_000, enabled: !!state });
+  const options = [...new Set([base, ...(state?.accounts.map((a) => a.currency) ?? []), ...CURRENCIES])];
+  const change = async (next: string) => {
+    if (next === base || !state) return;
+    const r = fullRates.data;
+    const budgets = state.budgets.filter((b) => b.amount > 0);
+    if (budgets.length && r) {
+      const convert = await dialog.choose(`Your ${budgets.length} budgets are in ${base}. Convert them to ${next} at today's rate?`, [
+        { value: "convert", label: `Convert budgets to ${next}` },
+        { value: "keep", label: "Keep the numbers as they are" },
+      ]);
+      if (convert === null) return;
+      if (convert === "convert") {
+        for (const b of budgets) {
+          const v = convertMinor(b.amount, base, next, r.rates);
+          if (v !== null) await financeApi.setBudget(b.categoryId, b.month, v);
+        }
+      }
+    }
+    setPrefs({ baseCurrency: next });
+  };
+  return (
+    <label className="fin-main-cur">
+      <span className="notes-side-count">Main currency</span>
+      <select className="fin-select fin-select--inline" value={base} onChange={(e) => void change(e.target.value)} aria-label="Main currency">
+        {options.map((c) => (
+          <option key={c}>{c}</option>
+        ))}
+      </select>
+    </label>
   );
 }
 
@@ -66,6 +109,7 @@ export function FinancePage({ subpath }: ModuleViewProps) {
   if (subpath.startsWith("/budgets")) return <BudgetsPage state={s} />;
   if (subpath.startsWith("/categories")) return <CategoriesPage state={s} />;
   if (subpath.startsWith("/import")) return <ImportPage state={s} />;
+  if (subpath.startsWith("/ious")) return <IousPage state={s} />;
   return <Overview state={s} />;
 }
 
@@ -167,7 +211,10 @@ export function useMonthFigures(state: FinanceState | undefined, summary: Summar
     const sum = <T,>(items: T[], val: (x: T) => number, cur: (x: T) => string) => items.reduce((s, x) => s + (conv(val(x), cur(x)) ?? 0), 0);
     const balances = new Map(summary.balances.map((b) => [b.accountId, b.balance]));
     const accounts = state.accounts.filter((a) => !a.archived || (balances.get(a.id) ?? 0) !== 0);
-    const netWorth = sum(accounts, (a) => balances.get(a.id) ?? 0, (a) => a.currency);
+    // Outstanding IOUs: money owed to you adds, money you owe subtracts.
+    const openIous = (state.ious ?? []).filter((i) => !i.settledAt);
+    const iouNet = sum(openIous, (i) => (i.direction === "owed_to_me" ? i.amount : -i.amount), (i) => i.currency);
+    const netWorth = sum(accounts, (a) => balances.get(a.id) ?? 0, (a) => a.currency) + iouNet;
     // What's held in each currency, and accounts we couldn't convert.
     const holdings = [...new Set(accounts.map((a) => a.currency))].map((cur) => ({ currency: cur, total: accounts.filter((a) => a.currency === cur).reduce((s, a) => s + (balances.get(a.id) ?? 0), 0) }));
     const unconverted = holdings.filter((h) => conv(h.total, h.currency) === null).map((h) => h.currency);
@@ -201,7 +248,7 @@ export function useMonthFigures(state: FinanceState | undefined, summary: Summar
         .filter((cur) => cur !== base)
         .map((cur) => ({ currency: cur, value: rates ? convertMinor(minor, base, cur, rates.rates) : null }))
         .filter((x): x is { currency: string; value: number } => x.value !== null);
-    return { netWorth, holdings, unconverted, income, spending, prevSpending, trend, spendRows, budgeted, budgetTotal, budgetSpent, alsoIn, converted: !!rates };
+    return { netWorth, iouNet, holdings, unconverted, income, spending, prevSpending, trend, spendRows, budgeted, budgetTotal, budgetSpent, alsoIn, converted: !!rates };
   }, [state, summary, base, month, rates]);
 }
 
@@ -252,7 +299,21 @@ function Overview({ state }: { state: FinanceState }) {
     >
       <Grid>
         <Panel span={4} label="Net worth" meta={base}>
-          <Stat value={f ? money(f.netWorth) : "—"} footer={f ? <AlsoIn values={f.alsoIn(f.netWorth)} /> : undefined} />
+          <Stat
+            value={f ? money(f.netWorth) : "—"}
+            footer={
+              f ? (
+                <>
+                  <AlsoIn values={f.alsoIn(f.netWorth)} />
+                  {f.iouNet !== 0 && (
+                    <button type="button" className="fin-linkish" onClick={() => navigate(`${BASE}/ious`)}>
+                      incl. {formatMoney(f.iouNet, base, { signDisplay: "always" })} IOUs
+                    </button>
+                  )}
+                </>
+              ) : undefined
+            }
+          />
         </Panel>
         <Panel span={4} label="Money in" meta={monthLabel(month)}>
           <Stat value={f ? money(f.income) : "—"} footer={f ? <AlsoIn values={f.alsoIn(f.income)} /> : undefined} />

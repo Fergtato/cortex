@@ -118,6 +118,16 @@
 .fin-holdings li { display: flex; flex-direction: column; gap: 2px; }
 .fin-holdings__value { font-family: var(--font-display, var(--font-sans)); font-size: 20px; font-variant-numeric: tabular-nums; }
 
+.fin-main-cur { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.fin-main-cur .fin-select { width: auto; min-width: 84px; }
+
+/* IOUs */
+.fin-people { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.fin-people li { display: flex; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--line-100); font-size: 13px; }
+.fin-people li:first-child { border-top: 0; }
+.fin-small { font-size: 12px; }
+.fin-linkish { padding: 0; background: none; border: 0; color: inherit; font: inherit; cursor: pointer; text-decoration: underline; text-decoration-color: var(--line-300); text-underline-offset: 3px; }
+
 /* transfers */
 .fin-transfer-box { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line-100); border-radius: var(--radius-xs); }
 .fin-xfers { margin: var(--space-3) 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; max-height: 60vh; overflow: auto; }

@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { sql, type Kysely } from "kysely";
 import { z } from "zod";
 import { forUser, newId, type AppEnv, type CortexServerModule, type ServerContext } from "@cortex/core/server";
-import { ACCOUNT_TYPES, type Account, type Budget, type Category, type FinanceState, type Rule, type Summary, type Transaction, type TransferSuggestion } from "../shared/types";
+import { ACCOUNT_TYPES, type Account, type Budget, type Category, type FinanceState, type Rule, type Summary, type Iou, type Transaction, type TransferSuggestion } from "../shared/types";
 import { findTransferPairs, pairKey, type MatchTx } from "./transfers";
 
 /*
@@ -19,6 +19,7 @@ const T = {
   budgets: "finance_budgets",
   rules: "finance_rules",
   ignores: "finance_transfer_ignores",
+  ious: "finance_ious",
 } as const;
 
 const num = (v: unknown) => Number(v ?? 0);
@@ -110,6 +111,27 @@ const migrations = {
         .execute();
     },
   },
+  // Money owed to you or by you. Linked transactions (the loan going out, the repayment coming in)
+  // carry iou_id and stay out of income and spending, like transfers.
+  "0003_ious": {
+    async up(db: Kysely<any>) {
+      await db.schema
+        .createTable(T.ious)
+        .addColumn("user_id", "text", (c) => c.notNull())
+        .addColumn("id", "text", (c) => c.notNull())
+        .addColumn("person", "text", (c) => c.notNull())
+        .addColumn("direction", "text", (c) => c.notNull())
+        .addColumn("amount", "bigint", (c) => c.notNull())
+        .addColumn("currency", "text", (c) => c.notNull())
+        .addColumn("date", "text", (c) => c.notNull())
+        .addColumn("note", "text", (c) => c.notNull())
+        .addColumn("settled_at", "text")
+        .addColumn("created_at", "text", (c) => c.notNull())
+        .addPrimaryKeyConstraint(`${T.ious}_pk`, ["user_id", "id"])
+        .execute();
+      await db.schema.alterTable(T.tx).addColumn("iou_id", "text").execute();
+    },
+  },
 };
 
 // ---------------------------------------------------------------- mapping
@@ -134,7 +156,18 @@ const toTx = (r: any): Transaction => ({
   categoryId: r.category_id ?? null,
   transferId: r.transfer_id ?? null,
   transferAccountId: null,
+  iouId: r.iou_id ?? null,
   source: r.source,
+});
+const toIou = (r: any): Iou => ({
+  id: r.id,
+  person: r.person,
+  direction: r.direction,
+  amount: num(r.amount),
+  currency: r.currency,
+  date: r.date,
+  note: r.note,
+  settledAt: r.settled_at ?? null,
 });
 
 export const DEFAULT_CATEGORIES: { group: string; kind: "expense" | "income"; names: string[] }[] = [
@@ -182,6 +215,7 @@ function routes(ctx: ServerContext) {
       categories: (await u.selectFrom(T.categories).selectAll().orderBy("sort").orderBy("name").execute()).map(toCategory),
       budgets: (await u.selectFrom(T.budgets).selectAll().execute()).map((r: any): Budget => ({ categoryId: r.category_id, month: r.month, amount: num(r.amount) })),
       rules: (await u.selectFrom(T.rules).selectAll().orderBy("created_at").execute()).map((r: any): Rule => ({ id: r.id, match: r.match, categoryId: r.category_id })),
+      ious: (await u.selectFrom(T.ious).selectAll().orderBy("date", "desc").execute()).map(toIou),
     };
     return c.json(state);
   });
@@ -452,7 +486,7 @@ function routes(ctx: ServerContext) {
   const suggestions = async (uid: string, accountIds?: string[]): Promise<TransferSuggestion[]> => {
     const u = forUser(ctx.db, uid);
     const currency = new Map(((await u.selectFrom(T.accounts).select(["id", "currency"]).execute()) as any[]).map((a) => [a.id, a.currency]));
-    let query = u.selectFrom(T.tx).select(["id", "account_id", "date", "amount", "payee"]).where("transfer_id", "is", null);
+    let query = u.selectFrom(T.tx).select(["id", "account_id", "date", "amount", "payee"]).where("transfer_id", "is", null).where("iou_id", "is", null);
     // Only look near the touched accounts' dates when given (after an import).
     if (accountIds?.length) {
       const range = (await u.selectFrom(T.tx).select([(eb) => eb.fn.min("date").as("lo"), (eb) => eb.fn.max("date").as("hi")]).where("account_id", "in", accountIds).executeTakeFirst()) as any;
@@ -563,6 +597,82 @@ function routes(ctx: ServerContext) {
     return c.json(result);
   });
 
+  // ---- IOUs
+  const iouBody = z.object({
+    person: z.string().trim().min(1).max(100),
+    direction: z.enum(["owed_to_me", "i_owe"]),
+    amount: MONEY.positive(),
+    currency: CURRENCY,
+    date: DATE,
+    note: z.string().max(500).optional(),
+    /** Record the money leaving (owed to me) or arriving (I owe) in this account. */
+    accountId: z.string().optional(),
+  });
+  app.post("/ious", async (c) => {
+    const b = await parse(c.req.raw, iouBody);
+    if (b instanceof Response) return b;
+    const id = newId();
+    const t = now();
+    await ctx.db.transaction().execute(async (trx) => {
+      const u = forUser(trx, c.get("userId"));
+      await u.insertInto(T.ious, { id, person: b.person, direction: b.direction, amount: b.amount, currency: b.currency, date: b.date, note: b.note ?? "", settled_at: null, created_at: t }).execute();
+      if (b.accountId) {
+        const sign = b.direction === "owed_to_me" ? -1 : 1;
+        await u
+          .insertInto(T.tx, { id: newId(), account_id: b.accountId, date: b.date, amount: sign * b.amount, payee: b.direction === "owed_to_me" ? `Lent to ${b.person}` : `Borrowed from ${b.person}`, notes: b.note ?? "", category_id: null, transfer_id: null, iou_id: id, source: "manual", external_id: null, created_at: t, updated_at: t })
+          .execute();
+      }
+    });
+    return c.json({ id }, 201);
+  });
+  app.patch("/ious/:id", async (c) => {
+    const b = await parse(c.req.raw, iouBody.omit({ accountId: true }).partial());
+    if (b instanceof Response) return b;
+    const set: Record<string, unknown> = {};
+    for (const [k, col] of [["person", "person"], ["direction", "direction"], ["amount", "amount"], ["currency", "currency"], ["date", "date"], ["note", "note"]] as const) if (b[k] !== undefined) set[col] = b[k];
+    if (Object.keys(set).length) await q(c).updateTable(T.ious).set(set).where("id", "=", c.req.param("id")).execute();
+    return c.json({ ok: true });
+  });
+  /**
+   * Settles an IOU: link an existing transaction (the repayment), or record a
+   * new one in an account, or just mark it settled. Linked rows leave income/spending.
+   */
+  app.post("/ious/:id/settle", async (c) => {
+    const b = await parse(c.req.raw, z.object({ transactionId: z.string().optional(), accountId: z.string().optional(), date: DATE.optional() }));
+    if (b instanceof Response) return b;
+    const id = c.req.param("id");
+    const t = now();
+    const result = await ctx.db.transaction().execute(async (trx) => {
+      const u = forUser(trx, c.get("userId"));
+      const iou: any = await u.selectFrom(T.ious).selectAll().where("id", "=", id).executeTakeFirst();
+      if (!iou) return "Not found";
+      const date = b.date ?? new Date().toISOString().slice(0, 10);
+      if (b.transactionId) {
+        await u.updateTable(T.tx).set({ iou_id: id, category_id: null, updated_at: t }).where("id", "=", b.transactionId).where("transfer_id", "is", null).execute();
+      } else if (b.accountId) {
+        const sign = iou.direction === "owed_to_me" ? 1 : -1;
+        await u
+          .insertInto(T.tx, { id: newId(), account_id: b.accountId, date, amount: sign * num(iou.amount), payee: iou.direction === "owed_to_me" ? `Repaid by ${iou.person}` : `Repaid ${iou.person}`, notes: iou.note, category_id: null, transfer_id: null, iou_id: id, source: "manual", external_id: null, created_at: t, updated_at: t })
+          .execute();
+      }
+      await u.updateTable(T.ious).set({ settled_at: date }).where("id", "=", id).execute();
+      return null;
+    });
+    if (result) return bad(result);
+    return c.json({ ok: true });
+  });
+  app.post("/ious/:id/reopen", async (c) => {
+    await q(c).updateTable(T.ious).set({ settled_at: null }).where("id", "=", c.req.param("id")).execute();
+    return c.json({ ok: true });
+  });
+  /** Deletes an IOU; linked transactions stay, as ordinary transactions. */
+  app.delete("/ious/:id", async (c) => {
+    const u = q(c);
+    await u.updateTable(T.tx).set({ iou_id: null, updated_at: now() }).where("iou_id", "=", c.req.param("id")).execute();
+    await u.deleteFrom(T.ious).where("id", "=", c.req.param("id")).execute();
+    return c.body(null, 204);
+  });
+
   // ---- budgets
   app.put("/budgets", async (c) => {
     const b = await parse(c.req.raw, z.object({ categoryId: z.string().min(1), month: z.union([MONTH, z.literal("*")]), amount: MONEY.nonnegative().nullable() }));
@@ -638,6 +748,7 @@ function routes(ctx: ServerContext) {
 
     const totals = (await joined()
       .where("t.transfer_id", "is", null)
+      .where("t.iou_id", "is", null)
       .where(monthExpr, "=", month)
       .select([
         "a.currency as currency",
@@ -649,6 +760,7 @@ function routes(ctx: ServerContext) {
 
     const byCategory = (await joined()
       .where("t.transfer_id", "is", null)
+      .where("t.iou_id", "is", null)
       .where(monthExpr, "=", month)
       .select(["a.currency as currency", "t.category_id as category_id", (eb) => eb.fn.sum("t.amount").as("amount")])
       .groupBy(["a.currency", "t.category_id"])
@@ -656,6 +768,7 @@ function routes(ctx: ServerContext) {
 
     const trend = (await joined()
       .where("t.transfer_id", "is", null)
+      .where("t.iou_id", "is", null)
       .where(monthExpr, ">", start)
       .where(monthExpr, "<=", month)
       .select([
@@ -770,7 +883,7 @@ function routes(ctx: ServerContext) {
   app.get("/backup", async (c) => {
     const u = q(c);
     const all = async (table: string) => (await u.selectFrom(table).selectAll().execute()).map(({ user_id: _u, ...rest }: any) => rest);
-    return c.json({ accounts: await all(T.accounts), categories: await all(T.categories), transactions: await all(T.tx), budgets: await all(T.budgets), rules: await all(T.rules), transferIgnores: await all(T.ignores) });
+    return c.json({ accounts: await all(T.accounts), categories: await all(T.categories), transactions: await all(T.tx), budgets: await all(T.budgets), rules: await all(T.rules), transferIgnores: await all(T.ignores), ious: await all(T.ious) });
   });
 
   app.post("/backup", async (c) => {
@@ -784,6 +897,7 @@ function routes(ctx: ServerContext) {
       ["budgets", T.budgets, ["category_id", "month"]],
       ["rules", T.rules, ["id"]],
       ["transferIgnores", T.ignores, ["pair"]],
+      ["ious", T.ious, ["id"]],
     ];
     const counts: Record<string, number> = {};
     await ctx.db.transaction().execute(async (trx) => {

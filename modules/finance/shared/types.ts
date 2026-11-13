@@ -52,6 +52,8 @@ export interface Transaction {
   transferId: string | null;
   /** The account on the other side of a transfer (filled by the transactions list). */
   transferAccountId: string | null;
+  /** Set when this is the loan or the repayment of an IOU (kept out of income and spending). */
+  iouId: string | null;
   /** "manual", "csv", later connector ids. */
   source: string;
 }
@@ -70,11 +72,24 @@ export interface Rule {
   categoryId: string;
 }
 
+/** Money owed to you ("owed_to_me") or by you ("i_owe"). Outstanding IOUs count in net worth. */
+export interface Iou {
+  id: string;
+  person: string;
+  direction: "owed_to_me" | "i_owe";
+  amount: number;
+  currency: string;
+  date: string;
+  note: string;
+  settledAt: string | null;
+}
+
 export interface FinanceState {
   accounts: Account[];
   categories: Category[];
   budgets: Budget[];
   rules: Rule[];
+  ious: Iou[];
 }
 
 export interface AccountBalance {

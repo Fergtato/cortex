@@ -220,7 +220,9 @@ export function TransactionTable({
                     {t.notes && <span className="fin-notes">{t.notes}</span>}
                   </td>
                   <td className="fin-cat">
-                    {t.transferId ? (
+                    {t.iouId ? (
+                      <span className="fin-transfer">IOU {t.amount < 0 ? "out" : "repaid"}</span>
+                    ) : t.transferId ? (
                       <span className="fin-transfer">
                         Transfer {t.amount < 0 ? "to" : "from"} {other?.name ?? "another account"}
                       </span>

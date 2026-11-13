@@ -93,11 +93,11 @@ export function AccountsPage({ state, accountId }: { state: FinanceState; accoun
   const account = accountId ? state.accounts.find((a) => a.id === accountId) : undefined;
 
   if (accountId) {
-    if (!account) return <PageFrame crumbs={["Finance", "Accounts", "Not found"]} title="Account not found" />;
+    if (!account) return <PageFrame crumbs={["Finance", { label: "Accounts", to: `${BASE}/accounts` }, "Not found"]} title="Account not found" />;
     const bal = balances.get(account.id) ?? account.openingBalance;
     return (
       <PageFrame
-        crumbs={["Finance", "Accounts", account.name]}
+        crumbs={["Finance", { label: "Accounts", to: `${BASE}/accounts` }, account.name]}
         actions={
           <>
             <Button size="sm" variant="ghost" onClick={() => setForm(account.id)}>
