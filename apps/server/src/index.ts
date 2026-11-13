@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import type { AppEnv, InstanceInfo, ServerContext } from "@cortex/core/server";
 import { countUsers, createAuth, migrateAuth } from "./auth";
 import { config } from "./config";
-import { connectionsRouter, decryptToken, encryptToken, proxyRouter } from "./connections";
+import { connectionsRouter, decryptToken, encryptToken, proxyRouter, upstreamRequest } from "./connections";
 import { createDb } from "./db";
 import { filesRouter } from "./files";
 import { startJobs } from "./jobs";
@@ -15,7 +15,19 @@ import { SERVER_MODULES } from "./modules";
 import { settingsRouter } from "./settings";
 
 const { db, dialect } = createDb();
-const ctx: ServerContext = { db, dialect, dataDir: config.dataDir, secrets: { encrypt: encryptToken, decrypt: decryptToken } };
+const ctx: ServerContext = {
+  db,
+  dialect,
+  dataDir: config.dataDir,
+  secrets: { encrypt: encryptToken, decrypt: decryptToken },
+  outbound: async (url, headers = {}) => {
+    const target = new URL(url);
+    if (target.protocol !== "http:" && target.protocol !== "https:") throw new Error("Only http and https URLs are allowed.");
+    const res = await upstreamRequest(target, { method: "GET", headers: { "user-agent": "Cortex", ...headers } });
+    const text = () => res.body.toString("utf8");
+    return { status: res.status, headers: res.headers, text, json: <T,>() => JSON.parse(text()) as T };
+  },
+};
 const auth = createAuth(db, dialect);
 
 await migrateAuth(auth);

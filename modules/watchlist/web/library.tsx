@@ -109,7 +109,14 @@ export function LibraryPage() {
   const counts = (s: TrackStatus) => onShelf.filter((e) => e.status === s).length;
 
   return (
-    <Frame crumbs={["Watchlist", "Library"]}>
+    <Frame
+      crumbs={["Watchlist", "Library"]}
+      actions={
+        <Button size="sm" variant="ghost" icon="arrow-down" onClick={() => navigate(`${BASE}/import`)}>
+          Import from Plex
+        </Button>
+      }
+    >
       <section className="wl-section">
         <header className="wl-row__head">
           <Segmented

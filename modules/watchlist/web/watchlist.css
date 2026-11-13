@@ -238,6 +238,12 @@
 .wl-w__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wl-w__date { font: var(--text-data); color: var(--accent); white-space: nowrap; }
 
+/* ---------- import ---------- */
+.wl-error { color: var(--negative); }
+.wl-import-sum { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--space-1); }
+.wl-import-unmatched summary { cursor: pointer; color: var(--ink-300); font-size: 13px; }
+.wl-import-unmatched p { margin: var(--space-2) 0 0; }
+
 /* ---------- discover ---------- */
 .wl-discover { display: grid; grid-template-columns: minmax(240px, 360px) minmax(0, 1fr); gap: var(--space-6); align-items: start; }
 .wl-deck { position: relative; aspect-ratio: 2 / 3; }

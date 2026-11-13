@@ -19,6 +19,19 @@ export interface ServerContext {
   dataDir: string;
   /** AES-GCM with a key derived from CORTEX_SECRET, for secrets modules store (API keys). */
   secrets: { encrypt: (plain: string) => string; decrypt: (stored: string) => string };
+  /**
+   * GET a URL the person supplied (a Plex server) or a public API, under the
+   * same private-network policy as /api/proxy (enforced in the socket's DNS
+   * lookup, so no rebinding window). Never use fetch() for user-given URLs.
+   */
+  outbound: (url: string, headers?: Record<string, string>) => Promise<OutboundResponse>;
+}
+
+export interface OutboundResponse {
+  status: number;
+  headers: Record<string, string | string[] | undefined>;
+  text: () => string;
+  json: <T = unknown>() => T;
 }
 
 /** A recurring background job (connector syncs, reminders, cleanups). */

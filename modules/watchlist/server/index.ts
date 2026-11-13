@@ -4,6 +4,7 @@ import { z } from "zod";
 import { forUser, newId, type AppEnv, type CortexServerModule, type ServerContext } from "@cortex/core/server";
 import type { CustomList, LibraryEntry, LibraryState, MediaDetails, MediaSummary, MediaType, Stats, TrackStatus, TypeStats, UpcomingItem, WatchEvent, WatchlistConfig } from "../shared/types";
 import { isAnime } from "../shared/types";
+import { plexBase, PlexError, plexSections, plexWatched, type PlexIds, type PlexSection } from "./plex";
 import { airedEpisodeCount, TMDB_IMAGE_BASE, TmdbError, tmdbGet, toDetails, toEpisode, toPaged, toPerson, TTL } from "./tmdb";
 
 /*
@@ -690,6 +691,108 @@ function routes(ctx: ServerContext) {
       );
       const results = [...tally.values()].sort((a, b) => b.n - a.n || b.m.rating - a.m.rating).slice(0, 20).map((x) => x.m);
       return c.json(results);
+    }),
+  );
+
+  // ---- import from Plex (one-off; the token is used for this request only and never stored)
+  const plexBody = z.object({ url: z.string().min(1), token: z.string().min(1), sections: z.array(z.string()).optional(), dryRun: z.boolean().optional() });
+  const plexGuard = async (c: Context<AppEnv>, fn: () => Promise<Response>) => {
+    try {
+      return await guard(c, fn);
+    } catch (e) {
+      if (e instanceof PlexError) return c.json({ error: e.message }, e.status as 400);
+      if (e instanceof TypeError) return c.json({ error: "That doesn't look like a server address." }, 400);
+      throw e;
+    }
+  };
+
+  app.post("/import/plex/sections", (c) =>
+    plexGuard(c, async () => {
+      const b = plexBody.safeParse(await c.req.json().catch(() => null));
+      if (!b.success) return bad(c, "Enter the server address and token.");
+      return c.json(await plexSections(ctx, plexBase(b.data.url), b.data.token.trim()));
+    }),
+  );
+
+  /** Resolves Plex ids to a TMDB id: tmdb directly, else TMDB's /find by imdb or tvdb id. */
+  const tmdbIdFor = async (ids: PlexIds, type: MediaType): Promise<number | null> => {
+    if (ids.tmdb) return ids.tmdb;
+    for (const [value, source] of [
+      [ids.imdb, "imdb_id"],
+      [ids.tvdb, "tvdb_id"],
+    ] as const) {
+      if (!value) continue;
+      const r = await tmdb<any>(ctx, `/find/${value}`, { external_source: source }, TTL.details).catch(() => null);
+      const hit = (type === "movie" ? r?.movie_results : r?.tv_results)?.[0];
+      if (hit?.id) return Number(hit.id);
+    }
+    return null;
+  };
+
+  app.post("/import/plex", (c) =>
+    plexGuard(c, async () => {
+      const b = plexBody.safeParse(await c.req.json().catch(() => null));
+      if (!b.success || !b.data.sections?.length) return bad(c, "Choose at least one library.");
+      const uid = c.get("userId");
+      const base = plexBase(b.data.url);
+      const token = b.data.token.trim();
+      const all = await plexSections(ctx, base, token);
+      const chosen: PlexSection[] = all.filter((s) => b.data.sections!.includes(s.id));
+      const { movies, shows, episodes } = await plexWatched(ctx, base, token, chosen);
+      const u = forUser(ctx.db, uid);
+      const have = new Set(
+        ((await u.selectFrom(T.events).select(["media_type", "tmdb_id", "season", "episode"]).execute()) as any[]).map((e) => `${e.media_type}:${num(e.tmdb_id)}:${e.season ?? ""}:${e.episode ?? ""}`),
+      );
+      const unmatched: string[] = [];
+      const result = { movies: { watched: movies.length, added: 0 }, shows: { watched: shows.length, added: 0 }, episodes: { watched: episodes.length, added: 0 }, unmatched };
+
+      // Movies: one viewing each, dated when Plex last saw it played; skipped if already logged.
+      const movieIds: { id: number; m: (typeof movies)[number] }[] = [];
+      for (const m of movies) {
+        const id = await tmdbIdFor(m.ids, "movie");
+        if (!id) unmatched.push(`${m.title}${m.year ? ` (${m.year})` : ""}`);
+        else if (!have.has(`movie:${id}::`) && !movieIds.some((x) => x.id === id)) movieIds.push({ id, m });
+      }
+      result.movies.added = movieIds.length;
+
+      // TV: map each Plex show to TMDB, then add the episodes not logged yet.
+      const showIds = new Map<string, number>();
+      for (const sh of shows) {
+        const id = await tmdbIdFor(sh.ids, "tv");
+        if (id) showIds.set(sh.key, id);
+        else unmatched.push(sh.title);
+      }
+      const newEps = episodes.filter((e) => {
+        const id = showIds.get(e.showKey);
+        return id !== undefined && !have.has(`tv:${id}:${e.season}:${e.episode}`);
+      });
+      const touchedShows = new Set(newEps.map((e) => showIds.get(e.showKey)!));
+      result.episodes.added = newEps.length;
+      result.shows.added = touchedShows.size;
+      if (b.data.dryRun) return c.json(result);
+
+      for (const { id, m } of movieIds) {
+        try {
+          const entry = await upsertEntry(ctx, uid, "movie", id, "completed");
+          await u.insertInto(T.events, { id: newId(), media_type: "movie", tmdb_id: id, season: null, episode: null, watched_at: m.viewedAt, runtime: m.minutes || entry.runtime }).execute();
+        } catch {
+          unmatched.push(m.title);
+          result.movies.added--;
+        }
+      }
+      for (const showId of touchedShows) {
+        try {
+          const entry = await upsertEntry(ctx, uid, "tv", showId);
+          for (const e of newEps) {
+            if (showIds.get(e.showKey) !== showId) continue;
+            await u.insertInto(T.events, { id: newId(), media_type: "tv", tmdb_id: showId, season: e.season, episode: e.episode, watched_at: e.viewedAt, runtime: e.minutes || entry.runtime }).execute();
+          }
+          await recomputeTv(ctx, uid, showId);
+        } catch {
+          result.shows.added--;
+        }
+      }
+      return c.json(result);
     }),
   );
 

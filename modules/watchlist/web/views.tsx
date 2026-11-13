@@ -9,6 +9,7 @@ import { useConfig, useDebounced, useEntryMap, useFirstPage, useLibrary, useQuic
 import { AnimePage, BrowsePage, SearchPage } from "./browse";
 import { DetailPage } from "./detail";
 import { DiscoverPage } from "./discover";
+import { ImportPage } from "./import";
 import { LibraryPage, ListPage, StatsPage } from "./library";
 
 const NAV = [
@@ -193,6 +194,7 @@ export function WatchlistPage({ subpath }: ModuleViewProps) {
   if (subpath.startsWith("/library")) return <LibraryPage />;
   if (subpath.startsWith("/stats")) return <StatsPage />;
   if (subpath.startsWith("/discover")) return <DiscoverPage />;
+  if (subpath.startsWith("/import")) return <ImportPage />;
   return <Home />;
 }
 
