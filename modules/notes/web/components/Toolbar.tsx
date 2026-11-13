@@ -244,7 +244,7 @@ export function Toolbar({
         onMouseDown={(e) => e.preventDefault()}
         onClick={onInsertDatabase}
       >
-        ▤ Database
+        ▤ List
       </button>
       <button
         className="tool-btn tool-subpage"

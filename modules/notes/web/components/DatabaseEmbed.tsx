@@ -57,7 +57,7 @@ function EmbedView({ node, updateAttributes, deleteNode }: NodeViewProps) {
           </span>
           <span className="db-embed-actions">
             <button className="meta-btn" onClick={pick}>
-              Choose database
+              Choose list
             </button>
             <button
               className="row-btn"

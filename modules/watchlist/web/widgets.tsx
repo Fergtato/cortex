@@ -63,7 +63,9 @@ export function UpcomingWidget({ widget }: WidgetProps) {
 
 export function StatsWidget({ widget }: WidgetProps) {
   const stats = useStats();
-  const period = (strConf(widget.config, "period") || "week") as "week" | "sixMonths" | "year" | "lifetime";
+  const raw = strConf(widget.config, "period");
+  // Unknown values (hand-edited or older configs) fall back to this week instead of crashing.
+  const period = (["week", "sixMonths", "year", "lifetime"].includes(raw) ? raw : "week") as "week" | "sixMonths" | "year" | "lifetime";
   if (!stats.data) return null;
   const tv = stats.data.tv[period];
   const mv = stats.data.movie[period];

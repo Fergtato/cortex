@@ -780,7 +780,8 @@
   box-shadow: inset 0 0 0 1px var(--line);
 }
 .dw-habit-cell.lvl-1 {
-  background: var(--accent-dim);
+  background: var(--accent);
+  opacity: 0.25;
 }
 .dw-habit-cell.lvl-2 {
   background: var(--accent);

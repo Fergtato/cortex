@@ -17,9 +17,10 @@ function dayKey(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-/** count -> intensity level 0..4 */
-function level(count: number): number {
-  return count <= 0 ? 0 : Math.min(4, count);
+/** count -> intensity level 0..4, relative to the busiest day shown (a once-a-day habit is fully lit). */
+function level(count: number, max: number): number {
+  if (count <= 0) return 0;
+  return Math.max(1, Math.min(4, Math.ceil((count / Math.max(1, max)) * 4)));
 }
 
 /**
@@ -71,6 +72,7 @@ export function HabitWidget({ widget }: WidgetProps) {
   }
 
   const total = cells.reduce((sum, c) => sum + c.count, 0);
+  const max = cells.reduce((m, c) => Math.max(m, c.count), 0);
 
   return (
     <div className="dw-habit">
@@ -84,7 +86,7 @@ export function HabitWidget({ widget }: WidgetProps) {
         {cells.map((c) => (
           <span
             key={c.key}
-            className={`dw-habit-cell lvl-${level(c.count)}${c.future ? " future" : ""}${
+            className={`dw-habit-cell lvl-${level(c.count, max)}${c.future ? " future" : ""}${
               c.key === todayKey ? " today" : ""
             }`}
             title={`${c.key} · ${c.count}`}

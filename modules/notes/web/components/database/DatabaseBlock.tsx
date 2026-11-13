@@ -94,7 +94,7 @@ export function DatabaseBlock({
               if (ok) store.deleteDatabase(db.id);
             }}
           >
-            Delete database
+            Delete list
           </button>
         </div>
       )}
