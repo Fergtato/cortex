@@ -83,7 +83,9 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
   3 days; exchanges: same day and "exchang" wording) for review, and rejected
   pairs live in `finance_transfer_ignores`. Multi-currency totals convert at
   today's ECB rates (`/finance/rates`, `convertMinor`); budgets stay in the
-  base currency.
+  base currency (switching it offers to convert them). IOUs
+  (`finance_ious`) count in net worth while open. Their linked transactions
+  carry `iou_id` and are excluded from income and spending, like transfers.
 - **Finance CSV import** logic lives in `web/csv.ts` (parsing, presets,
   column roles, `applyMapping`), separate from the UI. Rows dedupe on
   `(account, external_id)`, and the hash scheme must stay stable or
@@ -99,10 +101,23 @@ It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
   `TMDB_API_BASE` / `TMDB_IMAGE_BASE`. TMDB's terms require the attribution
   shown on the setup screen; keep it. Poster cards file a title in one click
   (status buttons). Discover's skips persist in `watchlist_dismissed`. The
-  Plex import (`server/plex.ts`) never stores the token and skips events
-  already logged.
+  Plex import (`server/plex.ts`) signs in with Plex's PIN flow, or takes an
+  address and token, never stores tokens, and skips events already logged.
+  Clicking a poster opens `PeekModal`. Statuses: watchlist, watching,
+  completed, dropped (shown as "Stopped", never revived by `recomputeTv`).
+  `isContinuing` / `isCaughtUp` decide Continue watching. Search fallbacks
+  live in `server/fuzzy.ts`; test them against real TMDB.
 - **Router**: `useRouter()` gives `path` and `search`. Keep shareable filters
   in the query string and `navigate(url, { replace: true })` as they change.
+  `PageFrame` remembers each address's scroll position and the shell
+  remembers each app's last address, so state in the URL survives switching
+  apps and going back. State kept only in `useState` doesn't.
+- **Breadcrumbs** take `{ label, to }` for links. A plain first crumb links to
+  the app's start automatically.
+- **Motion** is short and linear (`styles.css` "Motion"): topbar sweep,
+  rise-in, grid cascade, `CountUp` in `Stat`, `TypeText` for page titles.
+  Never remount page content to replay an animation (Notes needs one stable
+  editor). Everything turns off under `prefers-reduced-motion`.
 - **Backup.** Every module with data declares `CortexModule.backup`
   (`useBackup`, `fromV0`, `describe`). The shell's Settings → Backup builds
   one v2 file across modules and imports v0/v2 files.
