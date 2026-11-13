@@ -121,7 +121,7 @@ export function NotesSidebar({ subpath }: ModuleViewProps) {
       }
       footer={
         <span className="notes-side-count">
-          {Object.keys(store.pages).length} pages · {store.databases.length} databases
+          {Object.keys(store.pages).length} pages · {store.databases.length} lists
         </span>
       }
     >
