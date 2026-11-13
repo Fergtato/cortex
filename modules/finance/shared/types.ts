@@ -50,6 +50,8 @@ export interface Transaction {
   categoryId: string | null;
   /** Set on both halves of a transfer between two accounts. */
   transferId: string | null;
+  /** The account on the other side of a transfer (filled by the transactions list). */
+  transferAccountId: string | null;
   /** "manual", "csv", later connector ids. */
   source: string;
 }
@@ -98,9 +100,47 @@ export interface Summary {
 }
 
 export interface ImportRow {
+  accountId: string;
   date: string;
   amount: number;
   payee: string;
   /** Stable id for de-duplication (hash of the row). */
   externalId: string;
+  /** Grouped rows (monthly interest) are updated when re-imported instead of skipped. */
+  upsert?: boolean;
+}
+
+export interface ImportBalance {
+  accountId: string;
+  /** The bank's balance after a row in the file. */
+  balance: number;
+  /** externalIds of the rows the file lists after that balance (pending payments, later rows). */
+  afterIds: string[];
+}
+
+export interface ImportResult {
+  inserted: number;
+  updated: number;
+  skipped: number;
+  categorised: number;
+  balanceChanges: { accountId: string; from: number; to: number }[];
+  /** Possible transfers involving the imported accounts, for review. */
+  transfers: number;
+}
+
+interface SuggestionSide {
+  accountId: string;
+  date: string;
+  amount: number;
+  payee: string;
+}
+
+/** Two transactions that look like one transfer between the person's accounts. */
+export interface TransferSuggestion {
+  outId: string;
+  inId: string;
+  /** Different currencies (an exchange). */
+  exchange: boolean;
+  out: SuggestionSide;
+  in: SuggestionSide;
 }

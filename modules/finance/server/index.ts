@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { sql, type Kysely } from "kysely";
 import { z } from "zod";
 import { forUser, newId, type AppEnv, type CortexServerModule, type ServerContext } from "@cortex/core/server";
-import { ACCOUNT_TYPES, type Account, type Budget, type Category, type FinanceState, type Rule, type Summary, type Transaction } from "../shared/types";
+import { ACCOUNT_TYPES, type Account, type Budget, type Category, type FinanceState, type Rule, type Summary, type Transaction, type TransferSuggestion } from "../shared/types";
+import { findTransferPairs, pairKey, type MatchTx } from "./transfers";
 
 /*
  * Finance: typed tables so summaries are SQL aggregates. Portable SQL only
@@ -17,6 +18,7 @@ const T = {
   tx: "finance_transactions",
   budgets: "finance_budgets",
   rules: "finance_rules",
+  ignores: "finance_transfer_ignores",
 } as const;
 
 const num = (v: unknown) => Number(v ?? 0);
@@ -96,6 +98,18 @@ const migrations = {
         .execute();
     },
   },
+  // Suggested transfer pairs the person said aren't transfers.
+  "0002_transfer_ignores": {
+    async up(db: Kysely<any>) {
+      await db.schema
+        .createTable(T.ignores)
+        .addColumn("user_id", "text", (c) => c.notNull())
+        .addColumn("pair", "text", (c) => c.notNull())
+        .addColumn("created_at", "text", (c) => c.notNull())
+        .addPrimaryKeyConstraint(`${T.ignores}_pk`, ["user_id", "pair"])
+        .execute();
+    },
+  },
 };
 
 // ---------------------------------------------------------------- mapping
@@ -119,6 +133,7 @@ const toTx = (r: any): Transaction => ({
   notes: r.notes,
   categoryId: r.category_id ?? null,
   transferId: r.transfer_id ?? null,
+  transferAccountId: null,
   source: r.source,
 });
 
@@ -140,6 +155,8 @@ function categoryFor(payee: string, rules: { match: string; category_id: string 
   }
   return best?.category_id ?? null;
 }
+
+const shiftDate = (date: string, n: number) => new Date(Date.parse(`${date}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 // ----------------------------------------------------------------- routes
 
@@ -315,7 +332,17 @@ function routes(ctx: ServerContext) {
     const limit = Math.min(500, Math.max(1, Number(p.limit) || 100));
     const offset = Math.max(0, Number(p.offset) || 0);
     const rows = await query.selectAll().orderBy("date", "desc").orderBy("created_at", "desc").limit(limit).offset(offset).execute();
-    return c.json({ items: rows.map(toTx), total });
+    const items = rows.map(toTx);
+    // The account on the other side of each transfer ("Transfer to Savings").
+    const tids = [...new Set(items.map((t) => t.transferId).filter(Boolean))] as string[];
+    const other = new Map<string, string>();
+    for (let i = 0; i < tids.length; i += 500) {
+      for (const r of (await q(c).selectFrom(T.tx).select(["id", "transfer_id", "account_id"]).where("transfer_id", "in", tids.slice(i, i + 500)).execute()) as any[]) {
+        for (const t of items) if (t.transferId === r.transfer_id && t.id !== r.id) other.set(t.id, r.account_id);
+      }
+    }
+    for (const t of items) t.transferAccountId = other.get(t.id) ?? null;
+    return c.json({ items, total });
   });
 
   const txBody = z.object({
@@ -417,6 +444,121 @@ function routes(ctx: ServerContext) {
     return c.json({ ok: true });
   });
 
+  // ---- transfers between the person's own accounts
+  const suggestions = async (uid: string, accountIds?: string[]): Promise<TransferSuggestion[]> => {
+    const u = forUser(ctx.db, uid);
+    const currency = new Map(((await u.selectFrom(T.accounts).select(["id", "currency"]).execute()) as any[]).map((a) => [a.id, a.currency]));
+    let query = u.selectFrom(T.tx).select(["id", "account_id", "date", "amount", "payee"]).where("transfer_id", "is", null);
+    // Only look near the touched accounts' dates when given (after an import).
+    if (accountIds?.length) {
+      const range = (await u.selectFrom(T.tx).select([(eb) => eb.fn.min("date").as("lo"), (eb) => eb.fn.max("date").as("hi")]).where("account_id", "in", accountIds).executeTakeFirst()) as any;
+      if (range?.lo) query = query.where("date", ">=", shiftDate(range.lo, -3)).where("date", "<=", shiftDate(range.hi, 3));
+    }
+    const txs: MatchTx[] = ((await query.execute()) as any[]).map((r) => ({ id: r.id, accountId: r.account_id, currency: currency.get(r.account_id) ?? "", date: r.date, amount: num(r.amount), payee: r.payee }));
+    const ignored = new Set(((await u.selectFrom(T.ignores).select("pair").execute()) as any[]).map((r) => r.pair));
+    let pairs = findTransferPairs(txs, ignored);
+    if (accountIds?.length) pairs = pairs.filter((p) => accountIds.includes(p.out.accountId) || accountIds.includes(p.in.accountId));
+    return pairs.map((p) => ({ outId: p.out.id, inId: p.in.id, exchange: p.exchange, out: { accountId: p.out.accountId, date: p.out.date, amount: p.out.amount, payee: p.out.payee }, in: { accountId: p.in.accountId, date: p.in.date, amount: p.in.amount, payee: p.in.payee } }));
+  };
+
+  app.get("/transfers/suggestions", async (c) => c.json(await suggestions(c.get("userId"))));
+
+  /** Links pairs as transfers: they leave income and spending, and their categories are cleared. */
+  app.post("/transfers/link", async (c) => {
+    const b = await parse(c.req.raw, z.object({ pairs: z.array(z.tuple([z.string(), z.string()])).min(1).max(5000) }));
+    if (b instanceof Response) return b;
+    const uid = c.get("userId");
+    let linked = 0;
+    await ctx.db.transaction().execute(async (trx) => {
+      const u = forUser(trx, uid);
+      for (const [a, bId] of b.pairs) {
+        const rows = (await u.selectFrom(T.tx).select(["id", "account_id", "amount", "transfer_id"]).where("id", "in", [a, bId]).execute()) as any[];
+        if (rows.length !== 2 || rows.some((r) => r.transfer_id) || rows[0].account_id === rows[1].account_id || Math.sign(num(rows[0].amount)) === Math.sign(num(rows[1].amount))) continue;
+        await u.updateTable(T.tx).set({ transfer_id: newId(), category_id: null, updated_at: now() }).where("id", "in", [a, bId]).execute();
+        linked++;
+      }
+    });
+    return c.json({ linked });
+  });
+
+  /** "Not a transfer": the pair stops being suggested. */
+  app.post("/transfers/ignore", async (c) => {
+    const b = await parse(c.req.raw, z.object({ pairs: z.array(z.tuple([z.string(), z.string()])).min(1).max(5000) }));
+    if (b instanceof Response) return b;
+    const u = q(c);
+    for (const [a, bId] of b.pairs) {
+      const pair = pairKey(a, bId);
+      await u.deleteFrom(T.ignores).where("pair", "=", pair).execute();
+      await u.insertInto(T.ignores, { pair, created_at: now() }).execute();
+    }
+    return c.json({ ok: true });
+  });
+
+  /** Turns a transfer back into two ordinary transactions. */
+  app.post("/transfers/unlink", async (c) => {
+    const b = await parse(c.req.raw, z.object({ id: z.string().min(1) }));
+    if (b instanceof Response) return b;
+    const u = q(c);
+    const row: any = await u.selectFrom(T.tx).select("transfer_id").where("id", "=", b.id).executeTakeFirst();
+    if (row?.transfer_id) {
+      const ids = ((await u.selectFrom(T.tx).select("id").where("transfer_id", "=", row.transfer_id).execute()) as any[]).map((r) => r.id);
+      await u.updateTable(T.tx).set({ transfer_id: null, updated_at: now() }).where("transfer_id", "=", row.transfer_id).execute();
+      if (ids.length === 2) await u.insertInto(T.ignores, { pair: pairKey(ids[0], ids[1]), created_at: now() }).execute().catch(() => {});
+    }
+    return c.json({ ok: true });
+  });
+
+  /**
+   * Marks one transaction as a transfer with another account: links it to
+   * the matching opposite transaction there if one exists (±3 days), else
+   * creates that other half so both balances stay right.
+   */
+  app.post("/transactions/:id/transfer", async (c) => {
+    const b = await parse(c.req.raw, z.object({ accountId: z.string().min(1), otherAmount: MONEY.positive().optional() }));
+    if (b instanceof Response) return b;
+    const uid = c.get("userId");
+    const id = c.req.param("id");
+    const result = await ctx.db.transaction().execute(async (trx) => {
+      const u = forUser(trx, uid);
+      const tx: any = await u.selectFrom(T.tx).selectAll().where("id", "=", id).executeTakeFirst();
+      if (!tx) return { error: "Not found" };
+      if (tx.transfer_id) return { error: "That's already a transfer." };
+      if (tx.account_id === b.accountId) return { error: "Pick a different account." };
+      const accts = new Map(((await u.selectFrom(T.accounts).select(["id", "currency"]).execute()) as any[]).map((a) => [a.id, a.currency]));
+      if (!accts.has(b.accountId)) return { error: "Unknown account" };
+      const same = accts.get(b.accountId) === accts.get(tx.account_id);
+      const amount = num(tx.amount);
+      const transferId = newId();
+      let match: any = null;
+      if (same) {
+        match = await u
+          .selectFrom(T.tx)
+          .selectAll()
+          .where("account_id", "=", b.accountId)
+          .where("transfer_id", "is", null)
+          .where("amount", "=", -amount)
+          .where("date", ">=", shiftDate(tx.date, -3))
+          .where("date", "<=", shiftDate(tx.date, 3))
+          .orderBy("date")
+          .executeTakeFirst();
+      }
+      const t = now();
+      await u.updateTable(T.tx).set({ transfer_id: transferId, category_id: null, updated_at: t }).where("id", "=", id).execute();
+      if (match) {
+        await u.updateTable(T.tx).set({ transfer_id: transferId, category_id: null, updated_at: t }).where("id", "=", match.id).execute();
+        return { linked: match.id };
+      }
+      if (!same && !b.otherAmount) return { error: "Enter the amount in the other account's currency." };
+      const otherAmount = same ? -amount : Math.sign(-amount) * b.otherAmount!;
+      await u
+        .insertInto(T.tx, { id: newId(), account_id: b.accountId, date: tx.date, amount: otherAmount, payee: tx.payee, notes: "", category_id: null, transfer_id: transferId, source: "manual", external_id: null, created_at: t, updated_at: t })
+        .execute();
+      return { created: true };
+    });
+    if ("error" in result) return bad(result.error as string);
+    return c.json(result);
+  });
+
   // ---- budgets
   app.put("/budgets", async (c) => {
     const b = await parse(c.req.raw, z.object({ categoryId: z.string().min(1), month: z.union([MONTH, z.literal("*")]), amount: MONEY.nonnegative().nullable() }));
@@ -514,50 +656,99 @@ function routes(ctx: ServerContext) {
     return c.json(summary);
   });
 
-  // ---- CSV import (rows parsed in the browser)
+  // ---- CSV import (rows parsed and mapped in the browser; may span several accounts)
+  const importBody = z.object({
+    rows: z
+      .array(
+        z.object({
+          accountId: z.string().min(1),
+          date: DATE,
+          amount: MONEY,
+          payee: z.string().max(300),
+          externalId: z.string().min(1).max(200),
+          /** Grouped rows (monthly interest) are updated in place when re-imported. */
+          upsert: z.boolean().optional(),
+        }),
+      )
+      .max(50000),
+    /** Bank balance after a given row: the account's opening balance is set so Cortex agrees. */
+    balances: z.array(z.object({ accountId: z.string().min(1), balance: MONEY, afterIds: z.array(z.string()).max(50000) })).max(50).optional(),
+    dryRun: z.boolean().optional(),
+  });
+
   app.post("/import", async (c) => {
-    const b = await parse(
-      c.req.raw,
-      z.object({
-        accountId: z.string().min(1),
-        rows: z.array(z.object({ date: DATE, amount: MONEY, payee: z.string().max(300), externalId: z.string().min(1).max(200) })).max(20000),
-      }),
-    );
+    const b = await parse(c.req.raw, importBody);
     if (b instanceof Response) return b;
     const uid = c.get("userId");
+    const accountIds = [...new Set(b.rows.map((r) => r.accountId))];
+    const u0 = forUser(ctx.db, uid);
+    const known = new Set(((await u0.selectFrom(T.accounts).select("id").execute()) as any[]).map((a) => a.id));
+    if (accountIds.some((id) => !known.has(id))) return bad("Unknown account");
+
+    // Which rows are already there (per account).
+    const existing = new Map<string, { id: string; amount: number; date: string; payee: string }>();
+    for (const accountId of accountIds) {
+      const ids = b.rows.filter((r) => r.accountId === accountId).map((r) => r.externalId);
+      for (let i = 0; i < ids.length; i += 500) {
+        const found = (await u0.selectFrom(T.tx).select(["id", "external_id", "amount", "date", "payee"]).where("account_id", "=", accountId).where("external_id", "in", ids.slice(i, i + 500)).execute()) as any[];
+        for (const f of found) existing.set(`${accountId}|${f.external_id}`, { id: f.id, amount: num(f.amount), date: f.date, payee: f.payee });
+      }
+    }
+    if (b.dryRun) return c.json({ existing: [...existing.keys()] });
+
     let inserted = 0;
+    let updated = 0;
     let categorised = 0;
+    const balanceChanges: { accountId: string; from: number; to: number }[] = [];
     await ctx.db.transaction().execute(async (trx) => {
       const u = forUser(trx, uid);
-      const acct = await u.selectFrom(T.accounts).select("id").where("id", "=", b.accountId).executeTakeFirst();
-      if (!acct) throw new Error("Unknown account");
       const rules = (await u.selectFrom(T.rules).select(["match", "category_id"]).execute()) as any[];
-      const existing = new Set<string>();
-      const ids = b.rows.map((r) => r.externalId);
-      for (let i = 0; i < ids.length; i += 500) {
-        const found = await u.selectFrom(T.tx).select("external_id").where("account_id", "=", b.accountId).where("external_id", "in", ids.slice(i, i + 500)).execute();
-        for (const f of found as any[]) existing.add(f.external_id);
-      }
       const t = now();
+      const seen = new Set<string>();
       for (const r of b.rows) {
-        if (existing.has(r.externalId)) continue;
-        existing.add(r.externalId);
+        const key = `${r.accountId}|${r.externalId}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const ex = existing.get(key);
+        if (ex) {
+          if (r.upsert && (ex.amount !== r.amount || ex.date !== r.date || ex.payee !== r.payee)) {
+            await u.updateTable(T.tx).set({ amount: r.amount, date: r.date, payee: r.payee, updated_at: t }).where("id", "=", ex.id).execute();
+            updated++;
+          }
+          continue;
+        }
         const categoryId = categoryFor(r.payee, rules);
         if (categoryId) categorised++;
         await u
-          .insertInto(T.tx, { id: newId(), account_id: b.accountId, date: r.date, amount: r.amount, payee: r.payee, notes: "", category_id: categoryId, transfer_id: null, source: "csv", external_id: r.externalId, created_at: t, updated_at: t })
+          .insertInto(T.tx, { id: newId(), account_id: r.accountId, date: r.date, amount: r.amount, payee: r.payee, notes: "", category_id: categoryId, transfer_id: null, source: "csv", external_id: r.externalId, created_at: t, updated_at: t })
           .execute();
         inserted++;
       }
+      // Balance sync: opening = bank balance − (everything in the account − rows the file lists after that balance).
+      for (const bal of b.balances ?? []) {
+        if (!accountIds.includes(bal.accountId)) continue;
+        const total = num((await u.selectFrom(T.tx).select((eb) => eb.fn.sum("amount").as("s")).where("account_id", "=", bal.accountId).executeTakeFirst() as any)?.s);
+        let after = 0;
+        for (let i = 0; i < bal.afterIds.length; i += 500) {
+          after += num((await u.selectFrom(T.tx).select((eb) => eb.fn.sum("amount").as("s")).where("account_id", "=", bal.accountId).where("external_id", "in", bal.afterIds.slice(i, i + 500)).executeTakeFirst() as any)?.s);
+        }
+        const acct: any = await u.selectFrom(T.accounts).select("opening_balance").where("id", "=", bal.accountId).executeTakeFirst();
+        const opening = bal.balance - (total - after);
+        if (num(acct.opening_balance) !== opening) {
+          await u.updateTable(T.accounts).set({ opening_balance: opening, updated_at: t }).where("id", "=", bal.accountId).execute();
+          balanceChanges.push({ accountId: bal.accountId, from: num(acct.opening_balance), to: opening });
+        }
+      }
     });
-    return c.json({ inserted, skipped: b.rows.length - inserted, categorised });
+    const transfers = (await suggestions(uid, accountIds)).length;
+    return c.json({ inserted, updated, skipped: b.rows.length - inserted - updated, categorised, balanceChanges, transfers });
   });
 
   // ---- backup (Settings → Backup)
   app.get("/backup", async (c) => {
     const u = q(c);
     const all = async (table: string) => (await u.selectFrom(table).selectAll().execute()).map(({ user_id: _u, ...rest }: any) => rest);
-    return c.json({ accounts: await all(T.accounts), categories: await all(T.categories), transactions: await all(T.tx), budgets: await all(T.budgets), rules: await all(T.rules) });
+    return c.json({ accounts: await all(T.accounts), categories: await all(T.categories), transactions: await all(T.tx), budgets: await all(T.budgets), rules: await all(T.rules), transferIgnores: await all(T.ignores) });
   });
 
   app.post("/backup", async (c) => {
@@ -570,6 +761,7 @@ function routes(ctx: ServerContext) {
       ["transactions", T.tx, ["id"]],
       ["budgets", T.budgets, ["category_id", "month"]],
       ["rules", T.rules, ["id"]],
+      ["transferIgnores", T.ignores, ["pair"]],
     ];
     const counts: Record<string, number> = {};
     await ctx.db.transaction().execute(async (trx) => {

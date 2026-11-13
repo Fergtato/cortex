@@ -344,6 +344,8 @@ button { font: inherit; color: inherit; }
 .cx-check[aria-checked="true"] .cx-check__box { background: var(--ink-100); border-color: var(--ink-100); color: var(--bg-000); }
 .cx-check[aria-checked="true"] .cx-check__label { color: var(--ink-300); text-decoration: line-through; text-decoration-color: var(--line-300); }
 .cx-check:disabled { opacity: .4; cursor: not-allowed; }
+/* Selection (not a to-do): checked labels stay readable. */
+.cx-check--select[aria-checked="true"] .cx-check__label { color: var(--ink-100); text-decoration: none; }
 
 /* ---------- Panel ---------- */
 .cx-panel {

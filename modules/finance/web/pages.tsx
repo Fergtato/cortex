@@ -7,12 +7,16 @@ import { AccountSelect, Amount, CategorySelect, MoneyInput, TransactionTable } f
 import { budgetFor, financeApi, useFinanceMutation, useFinancePrefs, useSummary, useTransactions } from "./data";
 import { AccountForm, TransactionForm } from "./forms";
 import { BASE, MonthNav } from "./views";
+import { TransferBanner, TransferReview } from "./transfers";
 
 const monthRange = (m: string) => ({ from: `${m}-01`, to: `${m}-31` });
 
 /* ----------------------------------------------------------- Transactions */
 
 export function TransactionsPage({ state, accountId }: { state: FinanceState; accountId?: string }) {
+  const { search, path, navigate } = useRouter();
+  const reviewing = new URLSearchParams(search).get("review") === "transfers";
+  const setReviewing = (on: boolean) => navigate(on ? `${path}?review=transfers` : path, { replace: true });
   const [account, setAccount] = useState(accountId ?? "");
   const [category, setCategory] = useState("");
   const [month, setMonth] = useState<string>("");
@@ -24,6 +28,8 @@ export function TransactionsPage({ state, accountId }: { state: FinanceState; ac
 
   const body = (
     <>
+      {!accountId && <TransferBanner onReview={() => setReviewing(true)} />}
+      {reviewing && <TransferReview state={state} onClose={() => setReviewing(false)} />}
       <div className="fin-filters">
         {!accountId && <AccountSelect accounts={state.accounts} value={account} onChange={setAccount} allLabel="All accounts" />}
         <select className="fin-select" value={category} onChange={(e) => setCategory(e.target.value)}>

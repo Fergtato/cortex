@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, useModulePrefs } from "@cortex/core";
-import type { Account, Category, FinanceState, ImportRow, Summary, Transaction } from "../shared/types";
+import type { Account, Category, FinanceState, Summary, Transaction, TransferSuggestion } from "../shared/types";
 
 /*
  * Finance data on the client: TanStack Query over /api/finance. Every write
@@ -63,9 +63,15 @@ export const financeApi = {
   createRule: (match: string, categoryId: string, applyToExisting: boolean) =>
     api<{ id: string; updated: number }>("/finance/rules", { method: "POST", json: { match, categoryId, applyToExisting } }),
   deleteRule: (id: string) => api(`/finance/rules/${id}`, { method: "DELETE" }),
-  importRows: (accountId: string, rows: ImportRow[]) =>
-    api<{ inserted: number; skipped: number; categorised: number }>("/finance/import", { method: "POST", json: { accountId, rows } }),
+  linkTransfers: (pairs: [string, string][]) => api<{ linked: number }>("/finance/transfers/link", { method: "POST", json: { pairs } }),
+  ignoreTransfers: (pairs: [string, string][]) => api("/finance/transfers/ignore", { method: "POST", json: { pairs } }),
+  unlinkTransfer: (id: string) => api("/finance/transfers/unlink", { method: "POST", json: { id } }),
+  markTransfer: (id: string, accountId: string, otherAmount?: number) => api(`/finance/transactions/${id}/transfer`, { method: "POST", json: { accountId, otherAmount } }),
 };
+
+export function useTransferSuggestions() {
+  return useQuery({ queryKey: [...KEY, "transfer-suggestions"], queryFn: () => api<TransferSuggestion[]>("/finance/transfers/suggestions") });
+}
 
 export interface FinancePrefs extends Record<string, unknown> {
   /** Currency used for totals, budgets and widgets. Accounts in other currencies are listed separately. */

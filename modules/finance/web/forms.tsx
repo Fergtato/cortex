@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useDialog } from "@cortex/core";
-import { Button, Input, Segmented } from "@cortex/ui";
+import { Button, Input, Segmented, Toggle } from "@cortex/ui";
 import { ACCOUNT_TYPES, ACCOUNT_TYPE_LABELS, type Account, type AccountType, type FinanceState, type Transaction } from "../shared/types";
 import { todayIso } from "../shared/money";
 import { AccountSelect, CategorySelect, Modal, MoneyInput } from "./components";
@@ -28,6 +28,12 @@ export function TransactionForm({ state, tx, defaultAccountId, onClose }: { stat
   const currency = state.accounts.find((a) => a.id === accountId)?.currency ?? "GBP";
   const toCurrency = state.accounts.find((a) => a.id === toAccountId)?.currency ?? currency;
   const [toAmount, setToAmount] = useState<number | null>(null);
+  // Editing an ordinary transaction: "this was a transfer" with another account.
+  const [asTransfer, setAsTransfer] = useState(false);
+  const [otherAccountId, setOtherAccountId] = useState(accounts.find((a) => a.id !== (tx?.accountId ?? accountId))?.id ?? "");
+  const [otherAmount, setOtherAmount] = useState<number | null>(null);
+  const otherCurrency = state.accounts.find((a) => a.id === otherAccountId)?.currency ?? currency;
+  const unlink = useFinanceMutation(() => financeApi.unlinkTransfer(tx!.id));
 
   const save = useFinanceMutation(async () => {
     if (!accountId) throw new Error("Add an account first.");
@@ -38,8 +44,14 @@ export function TransactionForm({ state, tx, defaultAccountId, onClose }: { stat
       return financeApi.createTransfer({ fromAccountId: accountId, toAccountId, date, amount, toAmount: toCurrency !== currency ? toAmount! : undefined, payee: payee || undefined });
     }
     const signed = editingTransfer ? (tx!.amount < 0 ? -amount : amount) : kind === "income" ? amount : -amount;
-    const body = { accountId, date, amount: signed, payee: payee.trim(), notes, categoryId: editingTransfer ? undefined : categoryId };
-    return tx ? financeApi.updateTx(tx.id, body) : financeApi.createTx(body);
+    const body = { accountId, date, amount: signed, payee: payee.trim(), notes, categoryId: editingTransfer || asTransfer ? undefined : categoryId };
+    if (!tx) return financeApi.createTx(body);
+    await financeApi.updateTx(tx.id, body);
+    if (asTransfer) {
+      if (!otherAccountId || otherAccountId === accountId) throw new Error("Pick the other account.");
+      if (otherCurrency !== currency && (otherAmount === null || otherAmount <= 0)) throw new Error(`Enter the amount in ${otherCurrency}.`);
+      await financeApi.markTransfer(tx.id, otherAccountId, otherCurrency !== currency ? otherAmount! : undefined);
+    }
   });
 
   const submit = () => {
@@ -102,7 +114,34 @@ export function TransactionForm({ state, tx, defaultAccountId, onClose }: { stat
           <Input label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
         </div>
         <Input label={kind === "transfer" ? "Description" : "Payee"} value={payee} onChange={(e) => setPayee(e.target.value)} placeholder={kind === "transfer" ? "Transfer" : "Who was it?"} />
-        {kind !== "transfer" && (
+        {tx && !editingTransfer && accounts.length > 1 && (
+          <div className="fin-transfer-box">
+            <Toggle checked={asTransfer} onChange={setAsTransfer} label={`This was a transfer ${tx.amount < 0 ? "to" : "from"} another of my accounts`} />
+            {asTransfer && (
+              <>
+                <div className="fin-form__row">
+                  <label className="cx-field">
+                    <span className="cx-label cx-field__label">{tx.amount < 0 ? "To" : "From"}</span>
+                    <AccountSelect accounts={accounts.filter((a) => a.id !== accountId)} value={otherAccountId} onChange={setOtherAccountId} />
+                  </label>
+                  {otherCurrency !== currency && <MoneyInput label={`Amount in ${otherCurrency}`} value={otherAmount} currency={otherCurrency} onChange={setOtherAmount} />}
+                </div>
+                <p className="fin-hint">Links it to the matching transaction in that account, or adds one there. Transfers don't count as income or spending.</p>
+              </>
+            )}
+          </div>
+        )}
+        {editingTransfer && (
+          <div className="fin-transfer-box">
+            <p className="fin-hint">Transfers don't count as income or spending.</p>
+            <div>
+              <Button size="sm" variant="ghost" onClick={() => unlink.mutate(undefined, { onSuccess: onClose })}>
+                Not a transfer: split into two transactions
+              </Button>
+            </div>
+          </div>
+        )}
+        {kind !== "transfer" && !asTransfer && (
           <label className="cx-field">
             <span className="cx-label cx-field__label">Category</span>
             <CategorySelect categories={state.categories} value={categoryId} onChange={setCategoryId} kind={kind === "income" ? "income" : "expense"} noneLabel="Uncategorised (rules may fill it in)" />

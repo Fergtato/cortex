@@ -124,7 +124,7 @@ export function ImportPage() {
           ) : (
             <div className="wl-form">
               {sections.map((s) => (
-                <Checkbox
+                <Checkbox className="cx-check--select"
                   key={s.id}
                   label={`${s.title} · ${s.type === "movie" ? "Movies" : "TV"}`}
                   checked={chosen.has(s.id)}

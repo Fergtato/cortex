@@ -170,8 +170,6 @@ export function TransactionTable({
   const [offerRule, setOfferRule] = useState<{ payee: string; categoryId: string } | null>(null);
   const accounts = new Map(state.accounts.map((a) => [a.id, a]));
   const cats = new Map(state.categories.map((c) => [c.id, c]));
-  // The other half of each transfer, to show "→ Savings".
-  const otherSide = (t: Transaction) => items.find((x) => x.transferId === t.transferId && x.id !== t.id);
 
   if (!items.length) return <p className="fin-empty">{emptyText ?? "No transactions."}</p>;
 
@@ -213,7 +211,7 @@ export function TransactionTable({
           <tbody>
             {items.map((t) => {
               const acct = accounts.get(t.accountId);
-              const other = t.transferId ? otherSide(t) : undefined;
+              const other = t.transferAccountId ? accounts.get(t.transferAccountId) : undefined;
               return (
                 <tr key={t.id}>
                   <td className="fin-date">{new Date(`${t.date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}</td>
@@ -224,7 +222,7 @@ export function TransactionTable({
                   <td className="fin-cat">
                     {t.transferId ? (
                       <span className="fin-transfer">
-                        Transfer {t.amount < 0 ? "to" : "from"} {other ? accounts.get(other.accountId)?.name : "another account"}
+                        Transfer {t.amount < 0 ? "to" : "from"} {other?.name ?? "another account"}
                       </span>
                     ) : (
                       <CategorySelect
