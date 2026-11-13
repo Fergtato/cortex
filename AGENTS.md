@@ -6,9 +6,8 @@ repo, one Docker image, one database. Home dashboards pull widgets from every
 module. Full brief: **[docs/v2-architecture.md](docs/v2-architecture.md)**.
 Self-hosting: [docs/self-hosting.md](docs/self-hosting.md).
 
-`legacy/` is Cortex v0 (the Supabase SPA), kept as the source to port from.
-It is not a workspace, and it gets deleted when `v2` merges to `main`. The tag
-`v0.1.0` marks the last v0 commit.
+Cortex v0 (the Supabase SPA) was ported and removed; the tag `v0.1.0` marks
+its last commit if you need to look something up.
 
 ## ⚠️ Gotchas that will bite you
 

@@ -13,7 +13,6 @@ packages/core/   module/widget/backup contracts, router, API client, useDialog, 
                  settings hook, connections client + proxyFetch, widget registry, backup file helpers
 packages/icons/  the full Lucide icon set + picker (lazy entry: @cortex/icons/lazy; colours: /colors)
 modules/<id>/    web/ (Page, Sidebar, widgets) · server/ (routes, migrations, jobs) · shared/
-legacy/          Cortex v0 (Supabase SPA), kept as reference while porting. Deleted at merge.
 ```
 
 ## Adding a module

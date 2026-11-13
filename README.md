@@ -9,12 +9,13 @@ your data in one volume, and has themes you can swap or write yourself.
 docker run -d -p 8080:8080 -v cortex-data:/data ghcr.io/fergtato/cortex:latest
 ```
 
-> **v2 is in progress on the `v2` branch.** In place so far: the shell,
-> design system, themes, accounts, the server, **Notes**, **Home dashboards**
-> (widgets from every app, plus live API data through Connections),
-> **Finance** (accounts, transactions, budgets, rules, CSV import),
-> **Watchlist** (movies & TV from TMDB, quick add, episode tracking, stats) and
-> a one-file backup that also imports Cortex v0.
+> **This is Cortex v2**: the shell, design system, themes, accounts, the
+> server, **Notes**, **Home dashboards** (widgets from every app, plus live API
+> data through Connections), **Finance** (accounts, transfers, IOUs, budgets,
+> rules, CSV import with Revolut support, totals across currencies) and
+> **Watchlist** (movies & TV from TMDB, Discover, episode tracking, stats,
+> Plex import). One backup file covers every app and also imports Cortex v0.
+> The old v0 (Supabase SPA) is at the tag `v0.1.0`.
 >
 > - Self-hosting: [docs/self-hosting.md](docs/self-hosting.md)
 > - Architecture and adding a module: [docs/v2-architecture.md](docs/v2-architecture.md)
@@ -32,7 +33,7 @@ docker run -d -p 8080:8080 -v cortex-data:/data ghcr.io/fergtato/cortex:latest
 - **Pages & subpages** — infinitely nestable tree with breadcrumbs, recursive
   sidebar, in-place reordering, recursive delete, plus per-page **emoji icons**
   and **cover images**.
-- **Databases** — standalone or embedded in any page, with text / number /
+- **Lists** (databases) — standalone or embedded in any page, with text / number /
   select / multi-select / date / checkbox / url / image / **formula** /
   created-time / last-edited-time / auto-id properties.
   - **Coloured select options** — 9-colour palette; single select tints the

@@ -1,6 +1,5 @@
 **/node_modules
 **/dist
-legacy
 /server
 .github
 .env
