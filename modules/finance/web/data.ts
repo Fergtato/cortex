@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, useModulePrefs } from "@cortex/core";
-import type { Account, Category, FinanceState, Summary, Transaction, TransferSuggestion } from "../shared/types";
+import type { Account, Category, FinanceState, Rates, Summary, Transaction, TransferSuggestion } from "../shared/types";
 
 /*
  * Finance data on the client: TanStack Query over /api/finance. Every write
@@ -87,4 +87,10 @@ export function budgetFor(state: FinanceState, categoryId: string, month: string
   const own = state.budgets.find((b) => b.categoryId === categoryId && b.month === month);
   if (own) return own.amount;
   return state.budgets.find((b) => b.categoryId === categoryId && b.month === "*")?.amount ?? null;
+}
+
+/** Today's rates from `base`, only fetched when some account uses another currency. */
+export function useRates(state: FinanceState | undefined, base: string) {
+  const needed = !!state?.accounts.some((a) => !a.archived && a.currency !== base);
+  return useQuery({ queryKey: [...KEY, "rates", base], queryFn: () => api<Rates>(`/finance/rates?base=${base}`), enabled: needed, staleTime: 3600_000, retry: 1 });
 }

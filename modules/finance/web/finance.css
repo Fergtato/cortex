@@ -65,7 +65,7 @@
 .fin-table tbody tr:hover td { background: var(--bg-400); }
 .fin-num { text-align: right !important; }
 .fin-date { font: var(--text-data); color: var(--ink-300); white-space: nowrap; }
-.fin-payee { max-width: 320px; }
+.fin-payee { width: 100%; max-width: 0; min-width: 140px; }
 .fin-payee > span:first-child { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fin-notes { display: block; font-size: 12px; color: var(--ink-300); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fin-transfer { font-size: 12px; color: var(--info); }
@@ -112,6 +112,11 @@
 .fin-rules li { display: flex; align-items: center; gap: var(--space-2); min-height: var(--control-h); font-size: 13px; }
 .fin-rules code { font-family: var(--font-mono); font-size: 12px; padding: 1px 6px; background: var(--bg-100); border: 1px solid var(--line-100); border-radius: var(--radius-xs); }
 .fin-rules li > span:nth-of-type(2) { flex: 1; }
+
+/* currencies */
+.fin-holdings { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3) var(--space-5); }
+.fin-holdings li { display: flex; flex-direction: column; gap: 2px; }
+.fin-holdings__value { font-family: var(--font-display, var(--font-sans)); font-size: 20px; font-variant-numeric: tabular-nums; }
 
 /* transfers */
 .fin-transfer-box { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line-100); border-radius: var(--radius-xs); }

@@ -156,6 +156,10 @@ function categoryFor(payee: string, rules: { match: string; category_id: string 
   return best?.category_id ?? null;
 }
 
+const RATES_URL = process.env.FX_RATES_URL ?? "https://api.frankfurter.dev/v1/latest";
+const RATE_TTL = 6 * 3600_000;
+const rateCache = new Map<string, { at: number; value: { base: string; date: string; rates: Record<string, number> } }>();
+
 const shiftDate = (date: string, n: number) => new Date(Date.parse(`${date}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 // ----------------------------------------------------------------- routes
@@ -593,6 +597,24 @@ function routes(ctx: ServerContext) {
   app.delete("/rules/:id", async (c) => {
     await q(c).deleteFrom(T.rules).where("id", "=", c.req.param("id")).execute();
     return c.body(null, 204);
+  });
+
+  // ---- exchange rates (ECB reference rates via Frankfurter; no key, cached)
+  app.get("/rates", async (c) => {
+    const base = CURRENCY.safeParse(c.req.query("base")).success ? c.req.query("base")! : "EUR";
+    const hit = rateCache.get(base);
+    if (hit && Date.now() - hit.at < RATE_TTL) return c.json(hit.value);
+    try {
+      const res = await ctx.outbound(`${RATES_URL}?from=${base}`, { accept: "application/json" });
+      if (res.status !== 200) throw new Error(`HTTP ${res.status}`);
+      const j = res.json<{ base: string; date: string; rates: Record<string, number> }>();
+      const value = { base, date: j.date, rates: { ...j.rates, [base]: 1 } };
+      rateCache.set(base, { at: Date.now(), value });
+      return c.json(value);
+    } catch (e) {
+      if (hit) return c.json(hit.value);
+      return c.json({ error: `Couldn't fetch exchange rates: ${(e as Error).message}` }, 502);
+    }
   });
 
   // ---- summary

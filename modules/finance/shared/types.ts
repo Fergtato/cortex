@@ -144,3 +144,10 @@ export interface TransferSuggestion {
   out: SuggestionSide;
   in: SuggestionSide;
 }
+
+/** Units of each currency per one unit of `base` (ECB reference rates). */
+export interface Rates {
+  base: string;
+  date: string;
+  rates: Record<string, number>;
+}

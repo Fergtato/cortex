@@ -71,3 +71,13 @@ export function shiftMonth(month: string, delta: number): string {
 export function todayIso(d = new Date()): string {
   return `${currentMonth(d)}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+/** Converts minor units between currencies with base-relative rates (units per 1 base). Null when a rate is missing. */
+export function convertMinor(minor: number, from: string, to: string, rates: Record<string, number>): number | null {
+  if (from === to) return minor;
+  const rf = rates[from];
+  const rt = rates[to];
+  if (!rf || !rt) return null;
+  const major = minor / 10 ** currencyDigits(from);
+  return Math.round((major / rf) * rt * 10 ** currencyDigits(to));
+}

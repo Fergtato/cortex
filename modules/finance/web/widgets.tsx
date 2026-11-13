@@ -4,7 +4,7 @@ import { Meter, Stat } from "@cortex/ui";
 import "./finance.css";
 import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../shared/money";
 import { Amount, BarChart } from "./components";
-import { useFinancePrefs, useFinanceState, useSummary, useTransactions } from "./data";
+import { useFinancePrefs, useFinanceState, useRates, useSummary, useTransactions } from "./data";
 import { pctDelta, useMonthFigures } from "./views";
 
 /*
@@ -17,7 +17,8 @@ function useFigures() {
   const month = currentMonth();
   const state = useFinanceState();
   const summary = useSummary(month, 6);
-  const f = useMonthFigures(state.data, summary.data, prefs.baseCurrency, month);
+  const rates = useRates(state.data, prefs.baseCurrency);
+  const f = useMonthFigures(state.data, summary.data, prefs.baseCurrency, month, rates.data);
   return { f, state: state.data, summary: summary.data, base: prefs.baseCurrency, month };
 }
 

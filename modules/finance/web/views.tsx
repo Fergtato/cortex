@@ -2,10 +2,10 @@ import { useMemo, useState } from "react";
 import { PageFrame, useRouter, type ModuleViewProps } from "@cortex/core";
 import { Badge, Button, Grid, Meter, Panel, Sidebar, Stat, Toggle } from "@cortex/ui";
 import "./finance.css";
-import { ACCOUNT_TYPES, ACCOUNT_TYPE_LABELS, type AccountType, type FinanceState, type Summary } from "../shared/types";
-import { currentMonth, formatMoney, monthLabel, shiftMonth } from "../shared/money";
+import { ACCOUNT_TYPES, ACCOUNT_TYPE_LABELS, type AccountType, type FinanceState, type Rates, type Summary } from "../shared/types";
+import { convertMinor, currentMonth, formatMoney, monthLabel, shiftMonth } from "../shared/money";
 import { BarChart, CategoryBars, MoneyInput, TransactionTable } from "./components";
-import { budgetFor, financeApi, useFinanceMutation, useFinancePrefs, useFinanceState, useSummary, useTransactions } from "./data";
+import { budgetFor, financeApi, useFinanceMutation, useFinancePrefs, useFinanceState, useRates, useSummary, useTransactions } from "./data";
 import { CURRENCIES, TransactionForm } from "./forms";
 import { AccountsPage, BudgetsPage, CategoriesPage, TransactionsPage } from "./pages";
 import { ImportPage } from "./import";
@@ -154,37 +154,67 @@ export function MonthNav({ month, onChange }: { month: string; onChange: (m: str
 
 /* ------------------------------------------------------- Overview helpers */
 
-/** The numbers Overview and the Home widgets share, in the base currency. */
-export function useMonthFigures(state: FinanceState | undefined, summary: Summary | undefined, base: string, month: string) {
+/**
+ * The numbers Overview and the Home widgets share, in the base currency.
+ * With rates, every account and transaction is converted at today's rate;
+ * without them (offline, or one currency) only base-currency money counts.
+ */
+export function useMonthFigures(state: FinanceState | undefined, summary: Summary | undefined, base: string, month: string, rates?: Rates) {
   return useMemo(() => {
     if (!state || !summary) return null;
     const cats = new Map(state.categories.map((c) => [c.id, c]));
-    const baseAccounts = state.accounts.filter((a) => a.currency === base);
+    const conv = (minor: number, cur: string) => (cur === base ? minor : rates ? convertMinor(minor, cur, base, rates.rates) : null);
+    const sum = <T,>(items: T[], val: (x: T) => number, cur: (x: T) => string) => items.reduce((s, x) => s + (conv(val(x), cur(x)) ?? 0), 0);
     const balances = new Map(summary.balances.map((b) => [b.accountId, b.balance]));
-    const netWorth = baseAccounts.reduce((s, a) => s + (balances.get(a.id) ?? 0), 0);
-    const otherCurrencies = [...new Set(state.accounts.filter((a) => a.currency !== base).map((a) => a.currency))].map((cur) => ({
-      currency: cur,
-      total: state.accounts.filter((a) => a.currency === cur).reduce((s, a) => s + (balances.get(a.id) ?? 0), 0),
-    }));
-    const totals = summary.totals.find((t) => t.currency === base) ?? { income: 0, expense: 0 };
-    const spending = -totals.expense;
+    const accounts = state.accounts.filter((a) => !a.archived || (balances.get(a.id) ?? 0) !== 0);
+    const netWorth = sum(accounts, (a) => balances.get(a.id) ?? 0, (a) => a.currency);
+    // What's held in each currency, and accounts we couldn't convert.
+    const holdings = [...new Set(accounts.map((a) => a.currency))].map((cur) => ({ currency: cur, total: accounts.filter((a) => a.currency === cur).reduce((s, a) => s + (balances.get(a.id) ?? 0), 0) }));
+    const unconverted = holdings.filter((h) => conv(h.total, h.currency) === null).map((h) => h.currency);
+    const monthTotals = summary.totals;
+    const income = sum(monthTotals, (t) => t.income, (t) => t.currency);
+    const spending = -sum(monthTotals, (t) => t.expense, (t) => t.currency);
     const trend = Array.from({ length: 6 }, (_, i) => shiftMonth(month, i - 5)).map((m) => {
-      const t = summary.trend.find((x) => x.currency === base && x.month === m);
-      return { month: m, spending: t ? -t.expense : 0, income: t?.income ?? 0 };
+      const rows = summary.trend.filter((x) => x.month === m);
+      return { month: m, spending: -sum(rows, (t) => t.expense, (t) => t.currency), income: sum(rows, (t) => t.income, (t) => t.currency) };
     });
     const prevSpending = trend[4]?.spending ?? 0;
-    const spendRows = summary.byCategory
-      .filter((r) => r.currency === base && r.amount < 0)
-      .map((r) => {
-        const c = r.categoryId ? cats.get(r.categoryId) : undefined;
-        return { id: r.categoryId ?? "none", name: c?.name ?? "Uncategorised", amount: -r.amount, budget: r.categoryId ? budgetFor(state, r.categoryId, month) : null };
+    const byCat = new Map<string, number>();
+    for (const r of summary.byCategory) {
+      if (r.amount >= 0) continue;
+      const v = conv(-r.amount, r.currency);
+      if (v !== null) byCat.set(r.categoryId ?? "none", (byCat.get(r.categoryId ?? "none") ?? 0) + v);
+    }
+    const spendRows = [...byCat.entries()]
+      .map(([id, amount]) => {
+        const c = id !== "none" ? cats.get(id) : undefined;
+        return { id, name: c?.name ?? "Uncategorised", amount, budget: c ? budgetFor(state, c.id, month) : null };
       })
       .sort((a, b) => b.amount - a.amount);
     const budgeted = state.categories.filter((c) => c.kind === "expense").map((c) => ({ c, budget: budgetFor(state, c.id, month) })).filter((x) => x.budget !== null && x.budget > 0);
     const budgetTotal = budgeted.reduce((s, x) => s + x.budget!, 0);
     const budgetSpent = budgeted.reduce((s, x) => s + (spendRows.find((r) => r.id === x.c.id)?.amount ?? 0), 0);
-    return { netWorth, otherCurrencies, income: totals.income, spending, prevSpending, trend, spendRows, budgeted, budgetTotal, budgetSpent };
-  }, [state, summary, base, month]);
+    // The same figures in each other currency the person holds.
+    const alsoIn = (minor: number) =>
+      holdings
+        .map((h) => h.currency)
+        .filter((cur) => cur !== base)
+        .map((cur) => ({ currency: cur, value: rates ? convertMinor(minor, base, cur, rates.rates) : null }))
+        .filter((x): x is { currency: string; value: number } => x.value !== null);
+    return { netWorth, holdings, unconverted, income, spending, prevSpending, trend, spendRows, budgeted, budgetTotal, budgetSpent, alsoIn, converted: !!rates };
+  }, [state, summary, base, month, rates]);
+}
+
+/** "≈ ¥6,120,000 · ≈ £5,100" under a figure. */
+function AlsoIn({ values }: { values: { currency: string; value: number }[] }) {
+  if (!values.length) return null;
+  return (
+    <>
+      {values.map((v) => (
+        <span key={v.currency}>≈ {formatMoney(v.value, v.currency)}</span>
+      ))}
+    </>
+  );
 }
 
 export function pctDelta(now: number, prev: number): string | undefined {
@@ -203,7 +233,8 @@ function Overview({ state }: { state: FinanceState }) {
   const summary = useSummary(month, 6);
   const recent = useTransactions({ limit: 8 });
   const [adding, setAdding] = useState(false);
-  const f = useMonthFigures(state, summary.data, base, month);
+  const rates = useRates(state, base);
+  const f = useMonthFigures(state, summary.data, base, month, rates.data);
   const money = (v: number) => formatMoney(v, base);
   const delta = f ? pctDelta(f.spending, f.prevSpending) : undefined;
 
@@ -221,26 +252,44 @@ function Overview({ state }: { state: FinanceState }) {
     >
       <Grid>
         <Panel span={4} label="Net worth" meta={base}>
+          <Stat value={f ? money(f.netWorth) : "—"} footer={f ? <AlsoIn values={f.alsoIn(f.netWorth)} /> : undefined} />
+        </Panel>
+        <Panel span={4} label="Money in" meta={monthLabel(month)}>
+          <Stat value={f ? money(f.income) : "—"} footer={f ? <AlsoIn values={f.alsoIn(f.income)} /> : undefined} />
+        </Panel>
+        <Panel span={4} label="Spending" meta={monthLabel(month)}>
+          {/* Spending going up is bad: the delta is coloured as "good" only when it falls. */}
           <Stat
-            value={f ? money(f.netWorth) : "—"}
+            value={f ? money(f.spending) : "—"}
+            delta={delta}
+            good={delta ? delta.startsWith("-") : undefined}
             footer={
-              f && f.otherCurrencies.length ? (
+              f ? (
                 <>
-                  {f.otherCurrencies.map((o) => (
-                    <span key={o.currency}>{formatMoney(o.total, o.currency)}</span>
-                  ))}
+                  <AlsoIn values={f.alsoIn(f.spending)} />
+                  {delta && <span>vs {monthLabel(shiftMonth(month, -1))}</span>}
                 </>
               ) : undefined
             }
           />
         </Panel>
-        <Panel span={4} label="Money in" meta={monthLabel(month)}>
-          <Stat value={f ? money(f.income) : "—"} />
-        </Panel>
-        <Panel span={4} label="Spending" meta={monthLabel(month)}>
-          {/* Spending going up is bad: the delta is coloured as "good" only when it falls. */}
-          <Stat value={f ? money(f.spending) : "—"} delta={delta} good={delta ? delta.startsWith("-") : undefined} footer={delta ? <span>vs {monthLabel(shiftMonth(month, -1))}</span> : undefined} />
-        </Panel>
+        {f && f.holdings.length > 1 && (
+          <Panel span={12} label="By currency" meta={rates.data ? `Rates ${new Date(`${rates.data.date}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })} · ECB` : rates.isError ? "Rates unavailable" : "Loading rates"}>
+            <ul className="fin-holdings">
+              {f.holdings.map((h) => {
+                const inBase = rates.data ? convertMinor(h.total, h.currency, base, rates.data.rates) : null;
+                return (
+                  <li key={h.currency}>
+                    <span className="cx-label">{h.currency}</span>
+                    <span className="fin-holdings__value">{formatMoney(h.total, h.currency)}</span>
+                    {h.currency !== base && <span className="fin-muted">{inBase !== null ? `≈ ${money(inBase)}` : "not converted"}</span>}
+                  </li>
+                );
+              })}
+            </ul>
+            {f.unconverted.length > 0 && <p className="fin-hint">Without exchange rates, totals above only include {base} accounts.</p>}
+          </Panel>
+        )}
 
         <Panel span={8} label="Spending by month" meta="Last 6 months">
           {f && (
