@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import type { Kysely } from "kysely";
 import { z } from "zod";
-import { forUser, newId, type AppEnv, type CortexServerModule, type ServerContext } from "@cortex/core/server";
+import { AiError, forUser, newId, type AppEnv, type CortexServerModule, type ServerContext } from "@cortex/core/server";
 import type { PlanEntry, Recipe, RecipeData } from "../shared/types";
 import { findRecipe, mapRecipe } from "./import";
+import { aiRecipe, recipePrompt, toDraft } from "./ai";
 
 /*
  * Recipes. A recipe's queryable bits (title, favourite, cooking history) are
@@ -214,6 +215,21 @@ function routes(ctx: ServerContext) {
       }
     }
     return c.json(draft);
+  });
+
+  // ---- create from an idea with the person's AI. Returns a draft; nothing is saved.
+  app.post("/ai", async (c) => {
+    const b = z.object({ idea: z.string().trim().min(3, "Describe what you'd like to cook").max(2000), servings: z.number().int().min(1).max(50).nullable().optional() }).safeParse(await c.req.json().catch(() => null));
+    if (!b.success) return bad(c, b.error.issues[0]?.message ?? "Describe what you'd like to cook");
+    const rows = await q(c).selectFrom(T.recipes).select("data").execute();
+    const tags = [...new Set(rows.flatMap((r: any) => { try { return JSON.parse(r.data).tags ?? []; } catch { return []; } }))] as string[];
+    try {
+      const out = await ctx.ai.json(c.get("userId"), recipePrompt(b.data.idea, b.data.servings ?? null, tags), (v) => aiRecipe.parse(v), c.req.raw.signal);
+      return c.json(toDraft(out));
+    } catch (e) {
+      if (e instanceof AiError) return c.json({ error: e.message }, e.status as 400);
+      throw e;
+    }
   });
 
   // ---- week plan

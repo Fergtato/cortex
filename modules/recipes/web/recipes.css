@@ -517,3 +517,5 @@
 @media (max-width: 639px) {
   .rc-grid .rc-hero--empty { aspect-ratio: 16 / 9; }
 }
+.rc-ideas { display: flex; flex-wrap: wrap; gap: 6px; }
+.rc-idea { height: auto; min-height: 24px; padding: 4px 8px; text-transform: none; letter-spacing: 0; font-family: var(--font-sans); font-size: 12px; white-space: normal; text-align: left; }

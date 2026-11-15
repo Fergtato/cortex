@@ -152,12 +152,19 @@ export function writeTicks(id: string, ticks: string[]) {
 // ------------------------------------------------------------ import draft
 
 let pendingDraft: RecipeData | null = null;
+let pendingSource: "import" | "ai" = "import";
 
-/** Hands an imported recipe to the editor at /recipes/new (kept in memory, not the URL). */
-export function setPendingDraft(d: RecipeData | null) {
+/** Hands an imported or AI-written recipe to the editor at /recipes/new (kept in memory, not the URL). */
+export function setPendingDraft(d: RecipeData | null, source: "import" | "ai" = "import") {
   pendingDraft = d;
+  pendingSource = source;
 }
 export const peekPendingDraft = () => pendingDraft;
+export const peekPendingSource = () => pendingSource;
+
+export function useAiRecipe() {
+  return useMutation({ mutationFn: (b: { idea: string; servings: number | null }) => api<RecipeData>(`${R}/ai`, { method: "POST", json: b }) });
+}
 
 export function useImportRecipe() {
   return useMutation({ mutationFn: (url: string) => api<RecipeData>(`${R}/import`, { method: "POST", json: { url } }) });

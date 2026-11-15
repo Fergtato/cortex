@@ -7,7 +7,8 @@ import { RecipeCard, recipeText, Shelf } from "./components";
 import { BASE, useRecipes, useTags } from "./data";
 import { RecipeEditor } from "./editor";
 import { CookMode } from "./cook";
-import { ImportButton, ImportDialog } from "./importer";
+import { AiRecipeButton, AiRecipeDialog, ImportButton, ImportDialog } from "./importer";
+import { useAiStatus } from "@cortex/core";
 import { WeekPlan } from "./plan";
 import { RecipePage } from "./recipe";
 
@@ -16,6 +17,8 @@ export function RecipesSidebar({ subpath }: ModuleViewProps) {
   const recipes = useRecipes().data?.recipes ?? [];
   const tags = useTags().filter((t) => t.count > 0);
   const [importing, setImporting] = useState(false);
+  const [writing, setWriting] = useState(false);
+  const ai = useAiStatus().data?.available;
   const p = new URLSearchParams(search);
   const active =
     subpath === "/all" ? (p.get("fav") ? "/all?fav=1" : p.get("tags") && !p.get("q") && !p.get("tags")!.includes(",") ? `/all?tags=${encodeURIComponent(p.get("tags")!)}` : "/all") : subpath === "/new" ? "/new" : subpath === "/" ? "/" : "";
@@ -31,14 +34,16 @@ export function RecipesSidebar({ subpath }: ModuleViewProps) {
             { id: "/all?fav=1", label: "Favourites", icon: "heart", count: recipes.filter((r) => r.favourite).length },
             { id: "/new", label: "New recipe", icon: "plus" },
             { id: "#import", label: "Import from link", icon: "link" },
+            ...(ai ? [{ id: "#ai", label: "Create with AI", icon: "sparkle" as const }] : []),
           ],
         },
         ...(tags.length ? [{ label: "Tags", items: tags.slice(0, 30).map((t) => ({ id: `/all?tags=${encodeURIComponent(t.name)}`, label: t.name, count: t.count })) }] : []),
       ]}
       active={active}
-      onSelect={(id) => (id === "#import" ? setImporting(true) : navigate(id === "/" ? BASE : BASE + id))}
+      onSelect={(id) => (id === "#import" ? setImporting(true) : id === "#ai" ? setWriting(true) : navigate(id === "/" ? BASE : BASE + id))}
     >
       {importing && <ImportDialog onClose={() => setImporting(false)} />}
+      {writing && <AiRecipeDialog onClose={() => setWriting(false)} />}
     </Sidebar>
   );
 }
@@ -110,6 +115,7 @@ function Home() {
       actions={
         <>
           <SearchBox />
+          <AiRecipeButton />
           <ImportButton />
           <Button size="sm" variant="primary" icon="plus" onClick={() => navigate(`${BASE}/new`)}>
             New recipe
@@ -222,6 +228,7 @@ function Browse() {
       crumbs={["Recipes", title]}
       actions={
         <>
+          <AiRecipeButton />
           <ImportButton />
           <Button size="sm" variant="primary" icon="plus" onClick={() => navigate(`${BASE}/new`)}>
             New recipe

@@ -3,8 +3,8 @@ import { newId, PageFrame, pickImage, StoredImg, useDialog, useRouter } from "@c
 import { Button, Icon, Toggle } from "@cortex/ui";
 import { emptyRecipe, formatQty, parseIngredient, schedule, formatMinutes, type Ingredient, type Recipe, type RecipeData, type Step } from "../shared/types";
 import { HeroPicker, TagInput } from "./components";
-import { BASE, peekPendingDraft, setPendingDraft, useDeleteRecipe, useSaveRecipe } from "./data";
-import { ImportButton } from "./importer";
+import { BASE, peekPendingDraft, peekPendingSource, setPendingDraft, useDeleteRecipe, useSaveRecipe } from "./data";
+import { AiRecipeButton, ImportButton } from "./importer";
 
 /*
  * Create / edit a recipe. Ingredients are rows (paste a list to fill them
@@ -66,6 +66,7 @@ export function RecipeEditor({ recipe }: { recipe?: Recipe }) {
   const [error, setError] = useState("");
   const [dirty, setDirty] = useState(() => !recipe && !!peekPendingDraft());
   const imported = !recipe && !!peekPendingDraft();
+  const [source] = useState(peekPendingSource);
   // The draft is used once: leaving the page (saved or not) drops it.
   useEffect(() => () => setPendingDraft(null), []);
   const [paste, setPaste] = useState<string | null>(null);
@@ -129,7 +130,12 @@ export function RecipeEditor({ recipe }: { recipe?: Recipe }) {
       crumbs={["Recipes", ...(recipe ? [{ label: recipe.title, to: back }] : []), recipe ? "Edit" : "New recipe"]}
       actions={
         <>
-          {!recipe && !imported && <ImportButton label="Import from link" />}
+          {!recipe && !imported && (
+            <>
+              <AiRecipeButton />
+              <ImportButton label="Import from link" />
+            </>
+          )}
           <Button size="sm" variant="ghost" onClick={cancel}>
             Cancel
           </Button>
@@ -147,7 +153,9 @@ export function RecipeEditor({ recipe }: { recipe?: Recipe }) {
         }}
       >
         {imported && !error && (
-          <p className="rc-notice">Imported from {d.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}. Check it over, then save.</p>
+          <p className="rc-notice">
+            {source === "ai" ? "Written by AI from your idea. Check it over, then save." : `Imported from ${d.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}. Check it over, then save.`}
+          </p>
         )}
         {error && (
           <p className="rc-error" role="alert">
