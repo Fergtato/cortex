@@ -52,3 +52,50 @@ export function newId(): string {
   const h = [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
+
+// ------------------------------------------------------------------ AI
+
+/** How Cortex talks to a provider: three wire formats cover every preset. */
+export type AiKind = "anthropic" | "openai" | "gemini";
+
+export interface AiPreset {
+  id: string;
+  label: string;
+  kind: AiKind;
+  baseUrl: string;
+  needsKey: boolean;
+  /** Suggested model; empty means pick from the provider's list. */
+  model: string;
+  hint: string;
+  keyUrl?: string;
+}
+
+export const AI_PRESETS: AiPreset[] = [
+  { id: "claude", label: "Claude", kind: "anthropic", baseUrl: "https://api.anthropic.com", needsKey: true, model: "claude-sonnet-5-5", hint: "Anthropic API key", keyUrl: "https://console.anthropic.com/settings/keys" },
+  { id: "openai", label: "ChatGPT", kind: "openai", baseUrl: "https://api.openai.com/v1", needsKey: true, model: "", hint: "OpenAI API key", keyUrl: "https://platform.openai.com/api-keys" },
+  { id: "gemini", label: "Gemini", kind: "gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta", needsKey: true, model: "", hint: "Google AI Studio key", keyUrl: "https://aistudio.google.com/apikey" },
+  { id: "openrouter", label: "OpenRouter", kind: "openai", baseUrl: "https://openrouter.ai/api/v1", needsKey: true, model: "", hint: "One key for hundreds of models", keyUrl: "https://openrouter.ai/keys" },
+  { id: "ollama", label: "Ollama", kind: "openai", baseUrl: "http://localhost:11434/v1", needsKey: false, model: "", hint: "Models running on your own machine" },
+  { id: "lmstudio", label: "LM Studio", kind: "openai", baseUrl: "http://localhost:1234/v1", needsKey: false, model: "", hint: "LM Studio's local server" },
+  { id: "custom", label: "Other (OpenAI-compatible)", kind: "openai", baseUrl: "", needsKey: false, model: "", hint: "Any server that speaks the OpenAI chat API" },
+];
+
+/** A saved AI connection as the browser sees it (the key never leaves the server). */
+export interface AiConnection {
+  id: string;
+  name: string;
+  preset: string;
+  kind: AiKind;
+  baseUrl: string;
+  model: string;
+  hasKey: boolean;
+  isDefault: boolean;
+  shared: boolean;
+  /** Owned by someone else (the admin's shared connection). */
+  readOnly: boolean;
+}
+
+export interface AiStatus {
+  available: boolean;
+  connection: { id: string; name: string; model: string; shared: boolean } | null;
+}

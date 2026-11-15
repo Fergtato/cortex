@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { Migrator, type Migration } from "kysely/migration";
 import type { CortexServerModule } from "@cortex/core/server";
 import { connectionsMigration } from "./connections";
+import { aiMigration } from "./ai";
 
 /*
  * Portable SQL only: every migration here and in modules must run on SQLite
@@ -45,6 +46,7 @@ const coreMigrations: Record<string, Migration> = {
     },
   },
   "0002_connections": connectionsMigration,
+  "0003_ai": aiMigration,
 };
 
 /** Runs core migrations, then each module's (prefixed `<module>_`) in registry order. */

@@ -3,6 +3,7 @@ import { Sidebar, type SidebarSection } from "@cortex/ui";
 import { authClient } from "../auth";
 import { MODULES } from "../modules";
 import { AccountSettings } from "./AccountSettings";
+import { AiSettings } from "./AiSettings";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { BackupSettings } from "./BackupSettings";
 import { ConnectionsSettings } from "./ConnectionsSettings";
@@ -28,6 +29,7 @@ export function SettingsSidebar({ subpath }: ModuleViewProps) {
         { id: "/", label: "Appearance", icon: "sliders" },
         { id: "/modules", label: "Apps", icon: "grid" },
         { id: "/account", label: "Account", icon: "user" },
+        { id: "/ai", label: "AI", icon: "sparkle" },
         { id: "/connections", label: "Connections", icon: "bolt" },
         { id: "/backup", label: "Backup", icon: "archive" },
         ...(admin ? [{ id: "/users", label: "Users", icon: "list" as const }] : []),
@@ -56,6 +58,8 @@ export function SettingsPage({ subpath }: ModuleViewProps) {
       return <ModuleSettings />;
     case "/account":
       return <AccountSettings />;
+    case "/ai":
+      return <AiSettings />;
     case "/connections":
       return <ConnectionsSettings />;
     case "/backup":

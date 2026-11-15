@@ -6,7 +6,8 @@ import { Hono } from "hono";
 import type { AppEnv, InstanceInfo, ServerContext } from "@cortex/core/server";
 import { countUsers, createAuth, migrateAuth } from "./auth";
 import { config } from "./config";
-import { connectionsRouter, decryptToken, encryptToken, proxyRouter, upstreamRequest } from "./connections";
+import { aiRouter, createAiService } from "./ai";
+import { connectionsRouter, decryptToken, encryptToken, openUpstream, proxyRouter, upstreamRequest } from "./connections";
 import { createDb } from "./db";
 import { filesRouter, saveUserFile } from "./files";
 import { startJobs } from "./jobs";
@@ -15,19 +16,34 @@ import { SERVER_MODULES } from "./modules";
 import { settingsRouter } from "./settings";
 
 const { db, dialect } = createDb();
+const headersFor = (headers: Record<string, string>, body?: Buffer) => ({ "user-agent": "Cortex", ...headers, ...(body ? { "content-length": String(body.length) } : {}) });
+const checkUrl = (url: string) => {
+  const target = new URL(url);
+  if (target.protocol !== "http:" && target.protocol !== "https:") throw new Error("Only http and https URLs are allowed.");
+  return target;
+};
+const outbound: ServerContext["outbound"] = async (url, headers = {}, init = {}) => {
+  const target = checkUrl(url);
+  const body = init.body !== undefined ? Buffer.from(init.body) : undefined;
+  const res = await upstreamRequest(target, { method: init.method ?? "GET", headers: headersFor(headers, body), body, timeoutMs: init.timeoutMs, signal: init.signal });
+  const text = () => res.body.toString("utf8");
+  return { status: res.status, headers: res.headers, text, json: <T,>() => JSON.parse(text()) as T, bytes: () => new Uint8Array(res.body) };
+};
+const outboundStream: ServerContext["outboundStream"] = async (url, headers = {}, init = {}) => {
+  const target = checkUrl(url);
+  const body = init.body !== undefined ? Buffer.from(init.body) : undefined;
+  const { status, headers: h, res } = await openUpstream(target, { method: init.method ?? "GET", headers: headersFor(headers, body), body, timeoutMs: init.timeoutMs, signal: init.signal });
+  return { status, headers: h, chunks: res as AsyncIterable<Uint8Array> };
+};
+const aiTransport = { request: outbound, stream: outboundStream };
 const ctx: ServerContext = {
   db,
   dialect,
   dataDir: config.dataDir,
   secrets: { encrypt: encryptToken, decrypt: decryptToken },
-  outbound: async (url, headers = {}, init = {}) => {
-    const target = new URL(url);
-    if (target.protocol !== "http:" && target.protocol !== "https:") throw new Error("Only http and https URLs are allowed.");
-    const body = init.body !== undefined ? Buffer.from(init.body) : undefined;
-    const res = await upstreamRequest(target, { method: init.method ?? "GET", headers: { "user-agent": "Cortex", ...headers, ...(body ? { "content-length": String(body.length) } : {}) }, body });
-    const text = () => res.body.toString("utf8");
-    return { status: res.status, headers: res.headers, text, json: <T,>() => JSON.parse(text()) as T, bytes: () => new Uint8Array(res.body) };
-  },
+  outbound,
+  outboundStream,
+  ai: createAiService(db, aiTransport),
   files: { save: (uid, data, name, type) => saveUserFile(db, config.dataDir, uid, data, name, type) },
 };
 const auth = createAuth(db, dialect);
@@ -64,6 +80,7 @@ app.route("/api/settings", settingsRouter(ctx));
 app.route("/api/files", filesRouter(ctx));
 app.route("/api/connections", connectionsRouter(ctx));
 app.route("/api/proxy", proxyRouter(ctx));
+app.route("/api/ai", aiRouter(ctx, aiTransport));
 for (const mod of SERVER_MODULES) {
   if (mod.routes) app.route(`/api/${mod.id}`, mod.routes(ctx));
 }

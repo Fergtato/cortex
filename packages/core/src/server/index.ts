@@ -24,9 +24,56 @@ export interface ServerContext {
    * same private-network policy as /api/proxy (enforced in the socket's DNS
    * lookup, so no rebinding window). Never use fetch() for user-given URLs.
    */
-  outbound: (url: string, headers?: Record<string, string>, init?: { method?: "GET" | "POST"; body?: string }) => Promise<OutboundResponse>;
+  outbound: (url: string, headers?: Record<string, string>, init?: OutboundInit) => Promise<OutboundResponse>;
+  /** Like `outbound`, but resolves when headers arrive and yields the body as it streams (AI replies). */
+  outboundStream: (url: string, headers?: Record<string, string>, init?: OutboundInit) => Promise<OutboundStream>;
+  /** The person's connected AI (Settings → AI). Prompts live in module servers; never call a provider directly. */
+  ai: AiService;
   /** Stores a file for a user (same storage as uploads) and returns its id, for a `cortex-file:<id>` ref. */
   files: { save: (userId: string, data: Uint8Array, name: string, type: string) => Promise<string> };
+}
+
+export interface OutboundInit {
+  method?: "GET" | "POST";
+  body?: string;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}
+
+export interface OutboundStream {
+  status: number;
+  headers: Record<string, string | string[] | undefined>;
+  chunks: AsyncIterable<Uint8Array>;
+}
+
+export interface AiMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface AiRequest {
+  system?: string;
+  messages: AiMessage[];
+  maxTokens?: number;
+  /** Ask the provider for a JSON reply where it supports it. */
+  json?: boolean;
+  temperature?: number;
+}
+
+export interface AiService {
+  /** Whole reply as text. Throws AiError. */
+  complete: (userId: string, req: AiRequest, signal?: AbortSignal) => Promise<string>;
+  /** Reply text as it's generated. Throws AiError. */
+  stream: (userId: string, req: AiRequest, signal?: AbortSignal) => AsyncIterable<string>;
+  /** JSON reply validated by `parse` (e.g. a zod schema's parse); retries once with the error. */
+  json: <T>(userId: string, req: AiRequest, parse: (v: unknown) => T, signal?: AbortSignal) => Promise<T>;
+}
+
+/** A provider failure with a message fit to show the person. */
+export class AiError extends Error {
+  constructor(message: string, public status = 502) {
+    super(message);
+  }
 }
 
 export interface OutboundResponse {

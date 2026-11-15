@@ -120,16 +120,26 @@ interface UpstreamResponse {
 const MAX_RESPONSE = 5 * 1024 * 1024;
 const TIMEOUT_MS = 10_000;
 
-/** One HTTP(S) request with the private-network policy applied; follows up to 3 redirects for GET/HEAD. */
-export function upstreamRequest(
-  target: URL,
-  init: { method: string; headers: Record<string, string>; body?: Buffer },
-  redirectsLeft = 3,
-): Promise<UpstreamResponse> {
+export interface UpstreamInit {
+  method: string;
+  headers: Record<string, string>;
+  body?: Buffer;
+  /** Socket inactivity timeout (default 10 s; AI calls to slow local models use more). */
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}
+
+/**
+ * Opens one HTTP(S) request with the private-network policy applied (in the
+ * socket's DNS lookup, so no rebinding window) and follows up to 3 redirects
+ * for GET/HEAD. Resolves once headers arrive, with the live response stream.
+ */
+export function openUpstream(target: URL, init: UpstreamInit, redirectsLeft = 3): Promise<{ status: number; headers: http.IncomingHttpHeaders; res: http.IncomingMessage }> {
   const denyPrivate = config.proxyPrivateNetworks === "deny";
   if (denyPrivate && isIP(target.hostname.replace(/^\[|\]$/g, "")) && isPrivateAddress(target.hostname.replace(/^\[|\]$/g, ""))) {
     return Promise.reject(Object.assign(new Error("blocked: private address"), { code: "EPRIVATE" }));
   }
+  if (init.signal?.aborted) return Promise.reject(Object.assign(new Error("aborted"), { code: "ABORT" }));
   const mod = target.protocol === "https:" ? https : http;
   return new Promise((resolve, reject) => {
     const req = mod.request(
@@ -137,7 +147,7 @@ export function upstreamRequest(
       {
         method: init.method,
         headers: init.headers,
-        timeout: TIMEOUT_MS,
+        timeout: init.timeoutMs ?? TIMEOUT_MS,
         ...(denyPrivate ? { lookup: guardedLookup as never } : {}),
       },
       (res) => {
@@ -152,26 +162,38 @@ export function upstreamRequest(
             return reject(new Error("bad redirect"));
           }
           if (next.protocol !== "http:" && next.protocol !== "https:") return reject(new Error("bad redirect"));
-          return resolve(upstreamRequest(next, init, redirectsLeft - 1));
+          return resolve(openUpstream(next, init, redirectsLeft - 1));
         }
-        const chunks: Buffer[] = [];
-        let size = 0;
-        res.on("data", (c: Buffer) => {
-          size += c.length;
-          if (size > MAX_RESPONSE) {
-            req.destroy(new Error("response too large"));
-            return;
-          }
-          chunks.push(c);
-        });
-        res.on("end", () => resolve({ status, headers: res.headers, body: Buffer.concat(chunks) }));
-        res.on("error", reject);
+        resolve({ status, headers: res.headers, res });
       },
     );
+    const onAbort = () => req.destroy(Object.assign(new Error("aborted"), { code: "ABORT" }));
+    init.signal?.addEventListener("abort", onAbort, { once: true });
+    req.on("close", () => init.signal?.removeEventListener("abort", onAbort));
     req.on("timeout", () => req.destroy(new Error("upstream timed out")));
     req.on("error", reject);
     if (init.body) req.write(init.body);
     req.end();
+  });
+}
+
+/** One buffered request (max 5 MB) under the same policy. */
+export async function upstreamRequest(target: URL, init: UpstreamInit): Promise<UpstreamResponse> {
+  const { status, headers, res } = await openUpstream(target, init);
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    res.on("data", (c: Buffer) => {
+      size += c.length;
+      if (size > MAX_RESPONSE) {
+        res.destroy(new Error("response too large"));
+        return;
+      }
+      chunks.push(c);
+    });
+    res.on("end", () => resolve({ status, headers, body: Buffer.concat(chunks) }));
+    res.on("error", reject);
+    res.on("aborted", () => reject(new Error("upstream closed")));
   });
 }
 
