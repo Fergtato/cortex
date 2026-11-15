@@ -1,4 +1,4 @@
-import { useEffect, useRef, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { EditorState } from "@tiptap/pm/state";
 import StarterKit from "@tiptap/starter-kit";
@@ -25,6 +25,7 @@ import { Columns, Column } from "./editor/Columns";
 import { Tabs, Tab } from "./editor/Tabs";
 import { TableControls } from "./editor/TableControls";
 import { SlashCommands, type SlashActions } from "./editor/SlashCommands";
+import { AiBubble, AiPanel, type AiRequestState } from "./editor/AiAssist";
 import { pickImage } from "../lib/image";
 
 interface Props {
@@ -62,7 +63,11 @@ export function Editor({
     insertPageLink: () => {},
     insertDatabase: () => {},
     insertImage: () => {},
+    aiWrite: () => {},
   });
+  const [aiReq, setAiReq] = useState<AiRequestState | null>(null);
+  // An open AI panel belongs to the page it was opened on.
+  useEffect(() => setAiReq(null), [page.id]);
 
   // The editor is created ONCE and reused for every page. Switching pages swaps
   // its content (below) rather than tearing down and rebuilding the instance —
@@ -211,6 +216,11 @@ export function Editor({
     insertPageLink,
     insertDatabase,
     insertImage,
+    aiWrite: () => {
+      if (!editor) return;
+      const at = editor.state.selection.from;
+      setAiReq({ mode: "write", from: at, to: at });
+    },
   };
 
   if (!editor) return null;
@@ -240,6 +250,15 @@ export function Editor({
       <div className="editor-content" ref={contentRef} onClick={focusEmptyArea}>
         <EditorContent editor={editor} />
         <TableControls editor={editor} containerRef={contentRef} />
+        <AiBubble
+          editor={editor}
+          hidden={!!aiReq}
+          onAsk={() => {
+            const { from, to } = editor.state.selection;
+            setAiReq({ mode: "rewrite", from, to });
+          }}
+        />
+        {aiReq && <AiPanel key={`${aiReq.mode}${aiReq.from}`} editor={editor} request={aiReq} title={page.title} containerRef={contentRef} onClose={() => setAiReq(null)} />}
       </div>
     </div>
   );

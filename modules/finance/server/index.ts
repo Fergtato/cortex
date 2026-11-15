@@ -359,7 +359,7 @@ function routes(ctx: ServerContext) {
     const p = c.req.query();
     let query = q(c).selectFrom(T.tx);
     if (p.account) query = query.where("account_id", "=", p.account);
-    if (p.category === "none") query = query.where("category_id", "is", null).where("transfer_id", "is", null);
+    if (p.category === "none") query = query.where("category_id", "is", null).where("transfer_id", "is", null).where("iou_id", "is", null);
     else if (p.category) query = query.where("category_id", "=", p.category);
     if (p.from && DATE.safeParse(p.from).success) query = query.where("date", ">=", p.from);
     if (p.to && DATE.safeParse(p.to).success) query = query.where("date", "<=", p.to);

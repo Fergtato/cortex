@@ -66,6 +66,21 @@ its last commit if you need to look something up.
   that secret makes stored tokens unreadable. Module servers that fetch a
   URL a person typed (the Plex import) or a public API (exchange rates) use
   `ctx.outbound`, which goes through the same guard. Never `fetch()` those.
+- **AI is bring-your-own** (Settings → AI, `apps/server/src/ai/`). Three
+  wire formats cover every preset: `anthropic`, `openai` (also OpenRouter,
+  Ollama, LM Studio, custom) and `gemini`. Each person's connections live
+  in `ai_connections`. Keys are AES-GCM encrypted and write-only. An
+  admin's `shared` connection is the fallback for people without their own.
+  Modules use only `ctx.ai.complete / stream / json` and keep prompts in
+  their own `server/ai.ts`. Never call a provider directly or from the
+  browser. `json()` extracts and validates, and retries once. Streamed
+  module routes return chunked `text/plain` that ends with
+  `"\u0000ERROR:<msg>"` on a mid-stream failure; read it with
+  `streamText()` from `@cortex/core`. Hide AI entry points when
+  `useAiStatus().data.available` is false. In Notes, the selection
+  `BubbleMenu` must stay mounted (tippy moves its node, so unmounting
+  crashes React), and AI output goes through `lib/markdown.ts` →
+  `insertContentAt`.
 - **Widgets.** Modules contribute `WidgetDef`s (`CortexModule.widgets`).
   Widgets get `{ widget, dash, editing }` and change the dashboard only through
   `dash.patchWidget` / `dash.setWidgets`, never another module's store. Lazy

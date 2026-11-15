@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { pickImage, useRouter } from "@cortex/core";
 import { Button, Icon, Input } from "@cortex/ui";
 import { formatMinutes, searchText, totalMinutes, type Recipe } from "../shared/types";
@@ -16,7 +17,8 @@ export function Modal({ title, onClose, children, actions, wide }: { title: stri
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  return (
+  // Portalled: a dialog opened from a topbar button must not inherit the topbar's compact styles.
+  return createPortal(
     <div className="cx-dialog-scrim" onMouseDown={onClose}>
       <div className={`cx-dialog rc-modal${wide ? " rc-modal--wide" : ""}`} role="dialog" aria-modal="true" aria-label={title} onMouseDown={(e) => e.stopPropagation()}>
         <div className="rc-modal__head">
@@ -26,7 +28,8 @@ export function Modal({ title, onClose, children, actions, wide }: { title: stri
         <div className="rc-modal__body">{children}</div>
         {actions && <div className="cx-dialog__actions">{actions}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

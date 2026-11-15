@@ -124,3 +124,6 @@
 .ai-msg { margin: 0; font-size: 13px; }
 .ai-msg.is-ok { color: var(--positive); }
 .ai-msg.is-bad { color: var(--negative); }
+.settings-list__label.ai-conn { display: flex; flex-direction: column; gap: 2px; }
+.settings-list__label.ai-conn .settings-muted { margin-left: 0; font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 639px) { .ai-form__actions { flex-wrap: wrap; } }

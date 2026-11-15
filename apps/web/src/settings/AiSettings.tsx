@@ -125,7 +125,7 @@ export function AiSettings() {
               {[...own, ...sharedByAdmin].map((c) => (
                 <li key={c.id}>
                   <Icon name="bolt" size={16} />
-                  <span className="settings-list__label">
+                  <span className="settings-list__label ai-conn">
                     {c.name}
                     <span className="settings-muted">
                       {presetOf(c.preset).label} · <span className="ai-mono">{c.model || "no model"}</span>

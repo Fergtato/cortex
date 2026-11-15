@@ -12,6 +12,7 @@ export interface SlashActions {
   insertPageLink: () => void;
   insertDatabase: () => void;
   insertImage: () => void;
+  aiWrite: () => void;
 }
 
 interface SlashItem {
@@ -26,6 +27,13 @@ const del = (editor: Editor, range: Range) =>
   editor.chain().focus().deleteRange(range);
 
 const ITEMS: SlashItem[] = [
+  {
+    title: "Write with AI", hint: "Ask your AI to write here", icon: "✦", keywords: "ai write generate draft gpt claude assistant",
+    run: (e, r, a) => {
+      del(e, r).run();
+      a.aiWrite();
+    },
+  },
   {
     title: "Text", hint: "Plain paragraph", icon: "¶", keywords: "paragraph plain",
     run: (e, r) => del(e, r).setParagraph().run(),
