@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { splitPath, useRouter, useSettings } from "@cortex/core";
 import { AppRail, Button, type RailApp } from "@cortex/ui";
-import { HOME_ID, MODULES } from "./modules";
+import { HOME_ID, orderModules } from "./modules";
 import { SettingsPage, SettingsSidebar } from "./settings/SettingsPage";
 
 const SETTINGS_ID = "settings";
@@ -25,7 +25,7 @@ export function Shell() {
   const { settings } = useSettings();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const enabled = MODULES.filter((m) => !m.hidden && (m.id === HOME_ID || !settings.disabledModules.includes(m.id)));
+  const enabled = orderModules(settings.appOrder).filter((m) => !m.hidden && (m.id === HOME_ID || !settings.disabledModules.includes(m.id)));
   const { moduleId, subpath } = splitPath(path);
   const activeId = moduleId === "" ? HOME_ID : moduleId;
   const mod = enabled.find((m) => m.id === activeId);

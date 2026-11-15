@@ -18,6 +18,8 @@ export interface UserSettings {
   customThemes: Record<string, unknown>;
   /** Module ids the person has switched off. */
   disabledModules: string[];
+  /** App rail order as module ids. Apps missing from it (newly added) follow in registry order. */
+  appOrder?: string[];
   /** Per-module preferences, keyed by module id (e.g. `finance.baseCurrency`). */
   modules?: Record<string, Record<string, unknown>>;
 }

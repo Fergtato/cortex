@@ -14,6 +14,13 @@ export const MODULES: CortexModule[] = [homeModule, notesModule, financeModule, 
 
 export const HOME_ID = homeModule.id;
 
+/** Modules in the person's chosen rail order (Settings → Apps); unknown ids are ignored, new apps go last. */
+export function orderModules(order: string[] | undefined): CortexModule[] {
+  if (!order?.length) return MODULES;
+  const rank = new Map(order.map((id, i) => [id, i]));
+  return MODULES.map((m, i) => ({ m, i })).sort((a, b) => (rank.get(a.m.id) ?? 1e6 + a.i) - (rank.get(b.m.id) ?? 1e6 + b.i)).map((x) => x.m);
+}
+
 const WIDGETS = MODULES.flatMap((m) => m.widgets ?? []);
 
 /** Nests every module's Provider around the app (registry order) inside the widget registry. */

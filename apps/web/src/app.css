@@ -55,6 +55,13 @@
 .settings-list .cx-icon { color: var(--ink-300); }
 .settings-list__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-list__label .settings-muted { margin-left: var(--space-2); }
+.settings-app { cursor: grab; }
+.settings-app.is-dragging { opacity: .45; }
+.settings-app.is-over { box-shadow: inset 0 2px 0 var(--accent); }
+.settings-app__grip { display: inline-flex; color: var(--ink-300); }
+.settings-app__grip .cx-icon { color: var(--ink-300); }
+.settings-app__move { display: inline-flex; gap: 2px; }
+.settings-app__always { min-width: 66px; text-align: right; }
 
 .theme-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); }
 .theme-card { display: flex; flex-direction: column; gap: var(--space-2); }
