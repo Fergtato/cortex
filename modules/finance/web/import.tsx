@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, PageFrame, useDialog, useRouter } from "@cortex/core";
+import { api, PageFrame, useAiStatus, useDialog, useRouter } from "@cortex/core";
 import { Badge, Button, Checkbox, Grid, Panel, Segmented, Toggle } from "@cortex/ui";
 import { useQuery } from "@tanstack/react-query";
 import { ACCOUNT_TYPES, type Account, type AccountType, type FinanceState, type ImportResult } from "../shared/types";
@@ -21,6 +21,7 @@ const PREVIEW_ROWS = 100;
 
 export function ImportPage({ state }: { state: FinanceState }) {
   const { navigate } = useRouter();
+  const ai = useAiStatus().data?.available;
   const dialog = useDialog();
   const fileRef = useRef<HTMLInputElement>(null);
   const accounts = state.accounts.filter((a) => !a.archived);
@@ -334,6 +335,11 @@ export function ImportPage({ state }: { state: FinanceState }) {
                   {result.updated > 0 && <Badge>{result.updated} updated</Badge>}
                   {result.skipped > 0 && <Badge>{result.skipped} already there</Badge>}
                   {result.categorised > 0 && <Badge tone="info">{result.categorised} filed by rules</Badge>}
+                  {ai && (
+                    <Button size="sm" variant="secondary" icon="sparkle" onClick={() => navigate(`${BASE}/transactions?review=categories`)}>
+                      Suggest categories with AI
+                    </Button>
+                  )}
                   {result.balanceChanges.length > 0 && <Badge tone="info">{result.balanceChanges.length === 1 ? "Balance synced" : `${result.balanceChanges.length} balances synced`}</Badge>}
                   {result.transfers > 0 && (
                     <Button size="sm" variant="primary" onClick={() => navigate(`${BASE}/transactions?review=transfers`)}>

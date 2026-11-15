@@ -1,9 +1,10 @@
 import { Hono } from "hono";
 import { sql, type Kysely } from "kysely";
 import { z } from "zod";
-import { forUser, newId, type AppEnv, type CortexServerModule, type ServerContext } from "@cortex/core/server";
+import { AiError, forUser, newId, type AppEnv, type CortexServerModule, type ServerContext } from "@cortex/core/server";
 import { ACCOUNT_TYPES, type Account, type Budget, type Category, type FinanceState, type Rule, type Summary, type Iou, type Transaction, type TransferSuggestion } from "../shared/types";
 import { findTransferPairs, pairKey, type MatchTx } from "./transfers";
+import { suggestCategories } from "./ai";
 
 /*
  * Finance: typed tables so summaries are SQL aggregates. Portable SQL only
@@ -480,6 +481,18 @@ function routes(ctx: ServerContext) {
       await u.updateTable(T.tx).set({ category_id: b.categoryId, updated_at: now() }).where("id", "in", b.ids.slice(i, i + 500)).where("transfer_id", "is", null).execute();
     }
     return c.json({ ok: true });
+  });
+
+  // ---- AI category suggestions (reviewed and applied by the person)
+  app.post("/ai/categorise", async (c) => {
+    const b = z.object({ ids: z.array(z.string()).max(5000).optional() }).safeParse(await c.req.json().catch(() => ({})));
+    if (!b.success) return c.json({ error: "Invalid request" }, 400);
+    try {
+      return c.json(await suggestCategories(ctx, c.get("userId"), b.data.ids, c.req.raw.signal));
+    } catch (e) {
+      if (e instanceof AiError) return c.json({ error: e.message }, e.status as 400);
+      throw e;
+    }
   });
 
   // ---- transfers between the person's own accounts

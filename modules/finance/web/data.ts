@@ -62,12 +62,22 @@ export const financeApi = {
   setBudget: (categoryId: string, month: string, amount: number | null) => api("/finance/budgets", { method: "PUT", json: { categoryId, month, amount } }),
   createRule: (match: string, categoryId: string, applyToExisting: boolean) =>
     api<{ id: string; updated: number }>("/finance/rules", { method: "POST", json: { match, categoryId, applyToExisting } }),
+  categorise: (ids: string[], categoryId: string | null) => api("/finance/transactions/categorise", { method: "POST", json: { ids, categoryId } }),
+  aiCategorise: (ids?: string[]) => api<{ suggestions: CategorySuggestion[]; more: number }>("/finance/ai/categorise", { method: "POST", json: ids ? { ids } : {} }),
   deleteRule: (id: string) => api(`/finance/rules/${id}`, { method: "DELETE" }),
   linkTransfers: (pairs: [string, string][]) => api<{ linked: number }>("/finance/transfers/link", { method: "POST", json: { pairs } }),
   ignoreTransfers: (pairs: [string, string][]) => api("/finance/transfers/ignore", { method: "POST", json: { pairs } }),
   unlinkTransfer: (id: string) => api("/finance/transfers/unlink", { method: "POST", json: { id } }),
   markTransfer: (id: string, accountId: string, otherAmount?: number) => api(`/finance/transactions/${id}/transfer`, { method: "POST", json: { accountId, otherAmount } }),
 };
+
+export interface CategorySuggestion {
+  payee: string;
+  direction: "in" | "out";
+  categoryId: string | null;
+  ids: string[];
+  total: number;
+}
 
 export function useTransferSuggestions() {
   return useQuery({ queryKey: [...KEY, "transfer-suggestions"], queryFn: () => api<TransferSuggestion[]>("/finance/transfers/suggestions") });
