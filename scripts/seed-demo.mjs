@@ -1,7 +1,8 @@
 // Fills a Cortex account with realistic demo data through the public API:
 // Notes pages and lists, three Home dashboards, six months of Finance
 // (accounts, budgets, rules, transfers, a yen trip) and a Watchlist with
-// real TMDB titles (the instance needs a TMDB key). Modules that already
+// real TMDB titles (the instance needs a TMDB key), and a cookbook with a
+// week plan. Modules that already
 // have data are skipped, so it's safe to re-run.
 //
 // Usage: node scripts/seed-demo.mjs http://localhost:8080 demo@example.com password
@@ -262,6 +263,150 @@ async function notes() {
   return { reading, work, projects, rStatus, sDone, wDate, wType, wMin, wKm, pStatus, psActive, rTitle };
 }
 
+
+// ================================================================ RECIPES
+async function recipes() {
+  const have = await api("/recipes/recipes");
+  if (have.recipes.length) { console.log("recipes: already has recipes, skipping"); return; }
+  // [title, subtitle, art, servings, prep, cook, kcal, level, tags, intro, ingredients [qty, unit, name, note], equipment, steps [title, text, min, handsOff, afterStep#]]
+  const R = [
+    ["Crispy chicken thighs", "with cucumber tomato salad and brown butter corn", "bowl", 2, 10, 20, 690, "easy", ["Dinner", "Under 30 mins", "High protein", "Family friendly"],
+      "Toasting butter in the pan gives it an incredibly nutty flavour and aroma.",
+      [[2, "", "corn on the cob", ""], [2, "", "Persian cucumbers", ""], [115, "g", "grape tomatoes", ""], [7, "g", "chives", ""], [1, "", "lemon", ""], [50, "g", "panko breadcrumbs", "Contains: wheat"], [1, "tbsp", "fry seasoning", ""], [340, "g", "chicken thighs", "boneless"], [2, "tbsp", "sour cream", "Contains: milk"], [1, "tbsp", "butter", ""], [null, "", "olive oil", ""]],
+      ["2 medium bowls", "Large bowl", "2 large pans"],
+      [["Preheat and prep", "Wash and dry all produce. Preheat the oven to 200°C. Cut the corn kernels from the cob. Slice the cucumbers into thin rounds. Halve the tomatoes and thinly slice the chives. Cut the lemon into wedges.", 6],
+       ["Toss salad", "Put the cucumbers, tomatoes and 1 tbsp chives in a medium bowl with a large drizzle of olive oil. Season with salt and pepper and set aside.", 3],
+       ["Crust chicken", "Stir together the panko, fry seasoning, salt and pepper in a bowl. In another bowl, toss the chicken with the sour cream, then press into the panko to coat all over.", 4],
+       ["Cook chicken", "Heat a drizzle of olive oil in a large ovenproof pan over medium-high heat. Brown the chicken 3–4 minutes per side, then roast in the oven until cooked through.", 12, true],
+       ["Cook corn", "Meanwhile, melt the butter in another pan over medium heat. Add the corn and cook, tossing, until golden and the butter smells nutty. Season.", 6],
+       ["Plate and serve", "Divide the corn, salad and chicken between plates. Squeeze over some lemon and garnish with the remaining chives.", 2, false, 4]]],
+    ["Spaghetti carbonara", "the Roman way: no cream, lots of pepper", "pasta", 2, 5, 15, 720, "medium", ["Dinner", "Italian", "Quick & easy", "Under 30 mins", "Comfort food"],
+      "The sauce is just eggs, cheese and pasta water. Take the pan off the heat before the eggs go in, or they scramble.",
+      [[200, "g", "spaghetti", ""], [120, "g", "guanciale", "or pancetta, cut into strips"], [3, "", "egg yolks", ""], [1, "", "egg", ""], [50, "g", "pecorino romano", "finely grated"], [null, "", "black pepper", "freshly cracked"]],
+      ["Large pot", "Frying pan", "Bowl"],
+      [["Boil the water", "Bring a large pot of well-salted water to the boil.", 8, true],
+       ["Make the sauce", "Whisk the egg yolks, egg and most of the pecorino with lots of black pepper.", 3],
+       ["Crisp the guanciale", "Cook the guanciale in a dry pan over medium heat until the fat renders and it's crisp.", 6],
+       ["Cook the pasta", "Cook the spaghetti until just al dente. Save a mug of pasta water.", 9, true, 1],
+       ["Bring it together", "Off the heat, toss the pasta with the guanciale, then the egg mixture and a splash of pasta water until glossy. Serve with the rest of the pecorino.", 2, false, 4]]],
+    ["Thai green curry", "with chicken, green beans and jasmine rice", "curry", 4, 15, 25, 610, "easy", ["Dinner", "Thai", "Spicy", "Batch cook"],
+      "Fry the paste in the coconut cream until it splits and smells fragrant: that's where the flavour comes from.",
+      [[300, "g", "jasmine rice", ""], [600, "g", "chicken thighs", "sliced"], [3, "tbsp", "green curry paste", ""], [400, "ml", "coconut milk", ""], [200, "g", "green beans", "trimmed"], [1, "", "red pepper", "sliced"], [1, "tbsp", "fish sauce", ""], [1, "tsp", "sugar", ""], [1, "", "lime", ""], [1, "bunch", "Thai basil", ""]],
+      ["Saucepan with lid", "Wok or large pan"],
+      [["Rinse and cook the rice", "Rinse the rice, then simmer with 450ml water, covered, for 12 minutes. Rest off the heat.", 15, true],
+       ["Fry the paste", "Heat the thick coconut cream from the top of the tin in a wok and fry the curry paste until fragrant.", 3],
+       ["Seal the chicken", "Add the chicken and stir-fry until coated and starting to colour.", 5],
+       ["Simmer", "Pour in the rest of the coconut milk with the beans and pepper. Simmer until the chicken is cooked.", 10, true],
+       ["Season and serve", "Season with fish sauce, sugar and lime juice. Tear in the basil and serve with the rice.", 2, false, 4]]],
+    ["Shakshuka", "eggs in spiced tomato and pepper sauce", "breakfast", 2, 10, 20, 380, "easy", ["Breakfast", "Vegetarian", "One pot", "Middle Eastern", "Gluten free"],
+      "Make wells in the sauce with a spoon so the eggs stay put while they poach.",
+      [[1, "tbsp", "olive oil", ""], [1, "", "onion", "sliced"], [2, "", "red peppers", "sliced"], [2, "cloves", "garlic", "crushed"], [1, "tsp", "cumin", ""], [1, "tsp", "smoked paprika", ""], [400, "g", "chopped tomatoes", ""], [4, "", "eggs", ""], [50, "g", "feta", "crumbled"], [null, "", "parsley", "to serve"], [null, "", "crusty bread", "to serve"]],
+      ["Deep frying pan with lid"],
+      [["Soften the veg", "Fry the onion and peppers in the oil over medium heat until soft and sweet.", 8],
+       ["Spice it", "Add the garlic, cumin and paprika and cook for a minute.", 1],
+       ["Simmer the sauce", "Tip in the tomatoes, season, and simmer until thickened.", 8, true],
+       ["Poach the eggs", "Make four wells, crack in the eggs, cover and cook until the whites are set.", 6, true],
+       ["Finish", "Scatter with feta and parsley. Serve straight from the pan with bread.", 1, false, 4]]],
+    ["Miso salmon traybake", "with tenderstem and sesame rice", "fish", 2, 10, 20, 560, "easy", ["Dinner", "Healthy", "High protein", "Japanese", "Under 30 mins"],
+      "",
+      [[2, "", "salmon fillets", ""], [1, "tbsp", "white miso", ""], [1, "tbsp", "honey", ""], [1, "tsp", "soy sauce", ""], [200, "g", "tenderstem broccoli", ""], [150, "g", "basmati rice", ""], [1, "tbsp", "sesame seeds", ""], [2, "", "spring onions", "sliced"]],
+      ["Baking tray", "Small saucepan"],
+      [["Start the rice", "Cook the rice according to the packet.", 15, true],
+       ["Glaze the salmon", "Heat the oven to 200°C. Mix the miso, honey and soy and spread over the salmon on a lined tray.", 4],
+       ["Roast", "Add the broccoli around the salmon with a drizzle of oil. Roast until the salmon flakes.", 12, true],
+       ["Serve", "Stir the sesame seeds and spring onions through the rice. Serve with the salmon and broccoli.", 2, false, 3]]],
+    ["Roasted tomato soup", "with basil and grilled cheese soldiers", "soup", 4, 10, 45, 420, "easy", ["Lunch", "Vegetarian", "Comfort food", "Freezer friendly", "Winter"],
+      "Roasting the tomatoes first concentrates them. Use the ripest you can find.",
+      [[1, "kg", "tomatoes", "halved"], [1, "", "red onion", "quartered"], [4, "cloves", "garlic", ""], [2, "tbsp", "olive oil", ""], [500, "ml", "vegetable stock", ""], [1, "bunch", "basil", ""], [4, "slices", "sourdough", ""], [80, "g", "cheddar", "grated"]],
+      ["Roasting tin", "Blender", "Large pan"],
+      [["Roast the veg", "Toss the tomatoes, onion and garlic with oil and salt. Roast at 200°C until soft and charred at the edges.", 35, true],
+       ["Make the toasties", "Sandwich the cheddar between the sourdough and toast in a dry pan until golden. Cut into soldiers.", 8],
+       ["Blend", "Tip the veg into a pan with the stock and basil. Blend until smooth and warm through.", 6, false, 1]]],
+    ["Beef tacos", "with quick pickled onions and lime crema", "taco", 4, 20, 15, 650, "easy", ["Dinner", "Mexican", "Family friendly", "Date night"],
+      "",
+      [[500, "g", "beef mince", "5% fat"], [1, "tbsp", "chipotle paste", ""], [1, "tsp", "cumin", ""], [8, "", "small tortillas", ""], [1, "", "red onion", "thinly sliced"], [3, "tbsp", "lime juice", ""], [100, "ml", "soured cream", ""], [1, "", "avocado", ""], [null, "", "coriander", "to serve"]],
+      ["Frying pan", "Small bowl"],
+      [["Pickle the onions", "Cover the onion with lime juice and a pinch of salt and sugar. Leave to pickle.", 2],
+       ["Cook the beef", "Brown the mince in a hot pan, breaking it up, then add the chipotle and cumin.", 10],
+       ["Make the crema", "Stir a squeeze of lime into the soured cream and season.", 2],
+       ["Warm and fill", "Warm the tortillas, fill with beef, avocado, crema, pickled onions and coriander.", 4]]],
+    ["Banana bread", "one bowl, very forgiving", "bread", 10, 15, 55, 290, "easy", ["Baking", "Snack", "Vegetarian", "Freezer friendly"],
+      "The blacker the bananas, the better it'll be.",
+      [[3, "", "very ripe bananas", ""], [75, "g", "butter", "melted"], [150, "g", "light brown sugar", ""], [1, "", "egg", ""], [1, "tsp", "vanilla extract", ""], [1, "tsp", "bicarbonate of soda", ""], [190, "g", "plain flour", ""], [60, "g", "walnuts", "chopped, optional"]],
+      ["Loaf tin", "Mixing bowl"],
+      [["Mix", "Heat the oven to 175°C. Mash the bananas, then stir in the butter, sugar, egg and vanilla.", 8],
+       ["Fold in", "Fold in the bicarbonate, a pinch of salt, the flour and walnuts until just combined.", 4],
+       ["Bake", "Scrape into a lined loaf tin and bake until a skewer comes out clean.", 55, true],
+       ["Cool", "Cool in the tin for 10 minutes, then on a rack.", 10, true, 3]]],
+    ["Veggie ramen", "with crispy tofu and soft eggs", "noodles", 2, 15, 20, 540, "medium", ["Dinner", "Vegetarian", "Japanese", "Healthy"],
+      "Six and a half minutes from boiling gives jammy yolks.",
+      [[2, "", "eggs", ""], [200, "g", "firm tofu", "cubed"], [1, "tbsp", "cornflour", ""], [800, "ml", "vegetable stock", ""], [2, "tbsp", "white miso", ""], [1, "tbsp", "soy sauce", ""], [2, "nests", "ramen noodles", ""], [100, "g", "pak choi", ""], [2, "", "spring onions", ""], [1, "tsp", "chilli oil", ""]],
+      ["2 saucepans", "Frying pan"],
+      [["Soft-boil the eggs", "Lower the eggs into boiling water for 6½ minutes, then into cold water.", 7, true],
+       ["Crisp the tofu", "Toss the tofu in cornflour and fry until golden on all sides.", 8],
+       ["Make the broth", "Warm the stock, whisk in the miso and soy. Add the pak choi for the last 2 minutes.", 6],
+       ["Noodles and build", "Cook the noodles, divide between bowls, ladle over the broth and top with tofu, halved eggs, spring onions and chilli oil.", 4]]],
+    ["Overnight oats", "with berries and peanut butter", "breakfast", 1, 5, null, 410, "easy", ["Breakfast", "Meal prep", "Vegetarian", "Quick & easy"],
+      "",
+      [[50, "g", "rolled oats", ""], [120, "ml", "milk", "any kind"], [2, "tbsp", "Greek yoghurt", ""], [1, "tsp", "chia seeds", ""], [1, "tbsp", "peanut butter", ""], [80, "g", "mixed berries", ""]],
+      ["Jar with lid"],
+      [["Mix", "Stir the oats, milk, yoghurt and chia together in a jar.", 2],
+       ["Chill overnight", "Cover and refrigerate overnight.", null, true],
+       ["Top", "In the morning, top with berries and peanut butter.", 1, false, 2]]],
+    ["Margherita pizza", "on a no-knead overnight dough", "pizza", 2, 20, 10, 780, "medium", ["Dinner", "Italian", "Vegetarian", "Date night"],
+      "",
+      [[250, "g", "strong white flour", ""], [1, "tsp", "dried yeast", ""], [160, "ml", "warm water", ""], [100, "g", "passata", ""], [125, "g", "mozzarella", "torn"], [null, "", "basil", ""], [null, "", "olive oil", ""]],
+      ["Baking steel or tray", "Mixing bowl"],
+      [["Make the dough", "Mix the flour, yeast, water and a pinch of salt into a shaggy dough. Cover and leave in the fridge overnight.", 10],
+       ["Heat the oven", "Heat the oven and a baking steel to the highest setting.", 30, true],
+       ["Shape", "Stretch the dough into two rounds, spread with seasoned passata and scatter with mozzarella.", 8],
+       ["Bake", "Slide onto the steel and bake until blistered.", 8, true, 2],
+       ["Finish", "Top with basil and a drizzle of oil.", 1, false, 4]]],
+    ["Halloumi grain bowl", "with harissa yoghurt and roasted squash", "bowl", 2, 15, 30, 640, "easy", ["Lunch", "Vegetarian", "Healthy", "Meal prep"],
+      "",
+      [[400, "g", "butternut squash", "cubed"], [150, "g", "bulgur wheat", ""], [225, "g", "halloumi", "sliced"], [100, "g", "Greek yoghurt", ""], [1, "tbsp", "harissa", ""], [1, "", "pomegranate", "seeds only"], [60, "g", "rocket", ""], [null, "", "mint", ""]],
+      ["Roasting tin", "Saucepan", "Griddle pan"],
+      [["Roast the squash", "Toss the squash with oil and salt and roast at 200°C until golden.", 25, true],
+       ["Cook the bulgur", "Simmer the bulgur in salted water, then drain and fluff up.", 12, true],
+       ["Harissa yoghurt", "Swirl the harissa through the yoghurt.", 2],
+       ["Griddle the halloumi", "Griddle the halloumi until charred on both sides.", 5, false, 1],
+       ["Build the bowls", "Divide the bulgur, squash, rocket and halloumi. Spoon over the yoghurt and scatter with pomegranate and mint.", 3]]],
+  ];
+  const ids = [];
+  for (const [title, subtitle, art, servings, prepMin, cookMin, calories, difficulty, tags, intro, ings, equipment, steps] of R) {
+    const stepIds = steps.map(() => id());
+    const r = await api("/recipes/recipes", "POST", {
+      title, subtitle, intro, hero: `art:${art}`, servings, prepMin, cookMin, calories, difficulty, tags, equipment, notes: "", sourceUrl: "",
+      ingredients: ings.map(([qty, unit, name, note]) => ({ id: id(), qty, unit, name, note })),
+      steps: steps.map(([t, text, minutes, handsOff, after], i) => ({ id: stepIds[i], title: t, text, minutes: minutes ?? null, handsOff: !!handsOff, after: after ? stepIds[after - 1] : null, image: null })),
+    });
+    ids.push(r.id);
+  }
+  // Favourites and a cooking history (a few not made for a while).
+  for (const i of [0, 1, 2, 4, 7]) await api(`/recipes/recipes/${ids[i]}`, "PATCH", { favourite: true });
+  for (const [i, ago] of [[0, 3], [0, 17], [0, 40], [1, 9], [1, 60], [2, 12], [3, 45], [4, 6], [5, 80], [6, 21], [7, 50], [7, 120], [9, 2], [9, 5]]) {
+    await api(`/recipes/recipes/${ids[i]}`, "PATCH", { cooked: true, date: iso(daysAgo(ago)) });
+  }
+  // This week's plan, Monday to Sunday.
+  const monday = new Date(TODAY); monday.setDate(TODAY.getDate() - ((TODAY.getDay() + 6) % 7));
+  const day = (n) => { const d = new Date(monday); d.setDate(monday.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+  for (const [n, i, note] of [[0, 2], [0, 9], [1, 4], [2, 1], [3, null, "Leftover curry"], [4, 6], [5, null, "Eating out"], [5, 3], [6, 10], [6, 7]]) {
+    await api("/recipes/plan", "POST", { date: day(n), recipeId: i === null ? null : ids[i], note: note ?? "" });
+  }
+  console.log(`recipes: ${ids.length} recipes, plan for this week`);
+  // Put the week and tonight's meal on the Life dashboard.
+  const homeState = await api("/home");
+  const life = Object.values(homeState.dashboards ?? {}).find((d) => d.name === "Life");
+  if (life && !life.widgets.some((w) => w.type.startsWith("recipes."))) {
+    const y = life.widgets.reduce((m, w) => Math.max(m, w.y + w.h), 0);
+    life.widgets.push({ id: id(), type: "recipes.tonight", x: 0, y, w: 6, h: 3, config: {} }, { id: id(), type: "recipes.week", x: 6, y, w: 6, h: 3, config: {} });
+    life.rows = Math.max(life.rows ?? 8, y + 3);
+    life.updatedAt = Date.now();
+    await api("/home/sync", "POST", { dashboards: { upserts: { [life.id]: life } } });
+    console.log("recipes: widgets added to the Life dashboard");
+  }
+}
+
 // =================================================================== HOME
 async function home(n, fin) {
   const cur = await api("/home");
@@ -310,4 +455,5 @@ const fin = await finance();
 const n = await notes();
 await home(n, fin);
 await watchlist();
+await recipes();
 console.log("done");

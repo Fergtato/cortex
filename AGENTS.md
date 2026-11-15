@@ -109,6 +109,17 @@ its last commit if you need to look something up.
   completed, dropped (shown as "Stopped", never revived by `recomputeTv`).
   `isContinuing` / `isCaughtUp` decide Continue watching. Search fallbacks
   live in `server/fuzzy.ts`; test them against real TMDB.
+- **Recipes** (`modules/recipes`): queryable fields (title, favourite,
+  cook_count, last_cooked) are columns, and the card is one JSON `data`
+  column validated by zod in `server/index.ts`. The whole cookbook loads at
+  once and search and filters run in the browser. `shared/types.ts` holds
+  `parseIngredient` / `formatQty` (scaling) and `schedule()`, the timeline:
+  a step starts when the cook is free and its `after` step is done, and a
+  `handsOff` step frees the cook as soon as it starts. Heroes are
+  `cortex-file:` photos or `art:<name>` illustrations (`web/art.tsx`,
+  tokens only). Ingredient ticks live in localStorage, per browser.
+- **App order**: `UserSettings.appOrder` (Settings → Apps), applied with
+  `orderModules()`. Apps not in it go last, in registry order.
 - **Router**: `useRouter()` gives `path` and `search`. Keep shareable filters
   in the query string and `navigate(url, { replace: true })` as they change.
   `PageFrame` remembers each address's scroll position and the shell
@@ -204,6 +215,7 @@ docker compose up -d --build   # the one-container image on :8080
 - `packages/core/src/module.ts`, `packages/core/src/server/index.ts`: module contracts
 - `modules/home/web`: `index.tsx` (Provider, sidebar, page), `store.ts`, `components/Dashboard*`, `widgets/` (generic widgets); `modules/home/server`
 - `modules/watchlist`: `server/` (tmdb.ts client/cache/mappers, index.ts library/stats/upcoming), `shared/types.ts`, `web/` (views, browse, detail, library, components, settings, widgets)
+- `modules/recipes`: `server/index.ts` (tables, API, backup), `shared/types.ts` (parsing, scaling, `schedule`), `web/` (`views.tsx`, `recipe.tsx` card + timeline, `editor.tsx`, `plan.tsx`, `art.tsx`)
 - `modules/finance`: `server/index.ts` (schema, API, summaries, import, backup), `shared/` (types, money), `web/` (`views.tsx`, `pages.tsx`, `import.tsx`, `widgets.tsx`)
 - `apps/server/src/connections.ts`: connections + the guarded proxy
 - `apps/web/src/settings/BackupSettings.tsx`, `ConnectionsSettings.tsx`

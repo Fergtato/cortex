@@ -247,6 +247,37 @@ episode.
   </tr>
 </table>
 
+### Recipes
+
+A cookbook laid out like a meal-kit recipe card: the summary, picture and
+ingredients on top, the method below.
+
+- **Ingredients with tick boxes**, so you can check off what you've got.
+  Change the servings and every amount scales.
+- **Steps as numbered blocks**, with a time, an optional photo and the
+  ingredient names picked out in bold.
+- **Timeline view.** Mark steps as hands-off (the oven, a simmer) or have a
+  step wait for an earlier one. Cortex lays the method out as a Gantt chart,
+  and if you say when you want to eat, every step gets a clock time.
+- **Tags**: built-in ones like *Under 30 mins* or *Vegetarian*, plus your
+  own. Filter by several tags at once, or by ingredients you already have.
+- **A week plan** (Monday to Sunday) on the Recipes home page. Drag meals
+  between days, or add a note like *Eating out*. Below it: favourites,
+  quick dinners, recipes you haven't made in a while, and shelves for your
+  most-used tags.
+- A photo for each recipe, or one of 14 illustrations until you take one.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/recipes-card.webp" alt="A recipe card: title, intro box, prep and total time, tags, picture, and ingredients with tick boxes"></td>
+    <td width="50%"><img src="docs/images/recipes-timeline.webp" alt="Timeline view: a Gantt chart of the steps with clock times for a 19:00 dinner"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/recipes-home.webp" alt="Recipes home: the week plan, then favourites and quick dinners"></td>
+    <td width="50%"><img src="docs/images/recipes-steps.webp" alt="The method as six numbered step blocks"></td>
+  </tr>
+</table>
+
 ## Everywhere
 
 ### Themes
@@ -422,7 +453,8 @@ it.
 - [x] Notes, Home dashboards, Finance, Watchlist
 - [x] Bank CSV import, transfers, IOUs, multiple currencies
 - [x] Plex import, Discover, stats
-- [ ] **Recipes**: a cookbook with meal plans and shopping lists
+- [x] Recipes: cookbook, cooking timeline, week plan
+- [ ] Shopping list from the week plan, recipe import from a link
 - [ ] **Health**: workouts, sleep and weight, with Apple Health export import
 - [ ] **Outfits**: a wardrobe and outfit planner
 - [ ] Connectors: open-banking sync, wearables (Garmin, Oura, Fitbit, Withings)
