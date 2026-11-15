@@ -1,7 +1,7 @@
 import { useRouter } from "@cortex/core";
 import "./recipes.css";
 import { formatMinutes, totalMinutes } from "../shared/types";
-import { Hero } from "./art";
+import { Hero } from "./hero";
 import { recipePath } from "./components";
 import { addDays, today, usePlan, useRecipeMap, useRecipes, weekStart } from "./data";
 
@@ -65,7 +65,7 @@ export function TonightWidget() {
   if (!r) return <div className="dw-unconfigured">No recipes yet.</div>;
   return (
     <button type="button" className="rc-w rc-w--tonight" onClick={() => navigate(recipePath(r))}>
-      <Hero hero={r.hero} title={r.title} tags={r.tags} />
+      <Hero hero={r.hero} focus={r.heroFocus} />
       <span className="rc-w__body">
         <span className="cx-label">{planned ? "Tonight" : "Idea for tonight"}</span>
         <span className="rc-w__title">{r.title}</span>

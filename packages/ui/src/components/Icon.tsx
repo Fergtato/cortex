@@ -42,6 +42,7 @@ const PATHS = {
   timeline: "M4 6h8 M8 12h10 M6 18h7 M4 3v18",
   play: "M7 5v14l11-7z",
   copy: "M8 8h12v12H8z M4 16V4h12",
+  link: "M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1 M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1",
 } as const;
 
 export type IconName = keyof typeof PATHS;

@@ -115,9 +115,15 @@ its last commit if you need to look something up.
   once and search and filters run in the browser. `shared/types.ts` holds
   `parseIngredient` / `formatQty` (scaling) and `schedule()`, the timeline:
   a step starts when the cook is free and its `after` step is done, and a
-  `handsOff` step frees the cook as soon as it starts. Heroes are
-  `cortex-file:` photos or `art:<name>` illustrations (`web/art.tsx`,
-  tokens only). Ingredient ticks live in localStorage, per browser.
+  `handsOff` step frees the cook as soon as it starts. The hero is a
+  `cortex-file:` photo or empty (one generic placeholder; old `art:` values
+  mean the same). Photos are cropped only by CSS, centred on `heroFocus`.
+  Link import (`server/import.ts`) reads schema.org JSON-LD only, through
+  `ctx.outbound`, and saves the photo with `ctx.files.save`. It returns a
+  draft that the editor opens unsaved. Cook mode lives at `/r/<id>/cook`.
+  Wake Lock needs HTTPS, so it's feature-detected. Ingredient ticks live in
+  localStorage, per browser. Starter recipes: `scripts/recipes-data.mjs`
+  and `scripts/seed-recipes.mjs`.
 - **App order**: `UserSettings.appOrder` (Settings → Apps), applied with
   `orderModules()`. Apps not in it go last, in registry order.
 - **Router**: `useRouter()` gives `path` and `search`. Keep shareable filters
@@ -215,7 +221,7 @@ docker compose up -d --build   # the one-container image on :8080
 - `packages/core/src/module.ts`, `packages/core/src/server/index.ts`: module contracts
 - `modules/home/web`: `index.tsx` (Provider, sidebar, page), `store.ts`, `components/Dashboard*`, `widgets/` (generic widgets); `modules/home/server`
 - `modules/watchlist`: `server/` (tmdb.ts client/cache/mappers, index.ts library/stats/upcoming), `shared/types.ts`, `web/` (views, browse, detail, library, components, settings, widgets)
-- `modules/recipes`: `server/index.ts` (tables, API, backup), `shared/types.ts` (parsing, scaling, `schedule`), `web/` (`views.tsx`, `recipe.tsx` card + timeline, `editor.tsx`, `plan.tsx`, `art.tsx`)
+- `modules/recipes`: `server/index.ts` (tables, API, backup), `shared/types.ts` (parsing, scaling, `schedule`), `server/import.ts` (link import), `web/` (`views.tsx`, `recipe.tsx` page + timeline, `cook.tsx`, `editor.tsx`, `plan.tsx`, `importer.tsx`, `hero.tsx`)
 - `modules/finance`: `server/index.ts` (schema, API, summaries, import, backup), `shared/` (types, money), `web/` (`views.tsx`, `pages.tsx`, `import.tsx`, `widgets.tsx`)
 - `apps/server/src/connections.ts`: connections + the guarded proxy
 - `apps/web/src/settings/BackupSettings.tsx`, `ConnectionsSettings.tsx`

@@ -148,3 +148,17 @@ export function writeTicks(id: string, ticks: string[]) {
     /* storage blocked: ticks last for this visit */
   }
 }
+
+// ------------------------------------------------------------ import draft
+
+let pendingDraft: RecipeData | null = null;
+
+/** Hands an imported recipe to the editor at /recipes/new (kept in memory, not the URL). */
+export function setPendingDraft(d: RecipeData | null) {
+  pendingDraft = d;
+}
+export const peekPendingDraft = () => pendingDraft;
+
+export function useImportRecipe() {
+  return useMutation({ mutationFn: (url: string) => api<RecipeData>(`${R}/import`, { method: "POST", json: { url } }) });
+}

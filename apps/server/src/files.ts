@@ -17,6 +17,18 @@ const INLINE_TYPES = /^(image\/(png|jpeg|gif|webp|avif)|video\/(mp4|webm)|applic
  * `cortex-file:<id>` ref; the browser loads `/api/files/<id>` with the session
  * cookie. An S3 driver can implement the same three operations later.
  */
+/** Writes one file for a user and records it; returns the new file id. */
+export async function saveUserFile(db: ServerContext["db"], dataDir: string, uid: string, data: Uint8Array, name: string, type: string): Promise<string> {
+  const id = newId();
+  await mkdir(join(dataDir, "files", uid), { recursive: true });
+  await writeFile(join(dataDir, "files", uid, id), data);
+  await db
+    .insertInto("files")
+    .values({ id, user_id: uid, name: name.slice(0, 255) || "file", type: type || "application/octet-stream", size: data.byteLength, created_at: new Date().toISOString() })
+    .execute();
+  return id;
+}
+
 export function filesRouter(ctx: ServerContext) {
   const root = join(ctx.dataDir, "files");
   const pathFor = (uid: string, id: string) => join(root, uid, id);
@@ -28,20 +40,7 @@ export function filesRouter(ctx: ServerContext) {
     const file = body.file;
     if (!(file instanceof File)) return c.json({ error: "Expected a multipart `file` field" }, 400);
     if (file.size > config.maxUploadBytes) return c.json({ error: "File too large" }, 413);
-    const id = newId();
-    await mkdir(join(root, uid), { recursive: true });
-    await writeFile(pathFor(uid, id), Buffer.from(await file.arrayBuffer()));
-    await ctx.db
-      .insertInto("files")
-      .values({
-        id,
-        user_id: uid,
-        name: file.name.slice(0, 255) || "file",
-        type: file.type || "application/octet-stream",
-        size: file.size,
-        created_at: new Date().toISOString(),
-      })
-      .execute();
+    const id = await saveUserFile(ctx.db, ctx.dataDir, uid, Buffer.from(await file.arrayBuffer()), file.name, file.type);
     return c.json({ id }, 201);
   });
 

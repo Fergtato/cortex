@@ -2,13 +2,10 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { pickImage, useRouter } from "@cortex/core";
 import { Button, Icon, Input } from "@cortex/ui";
 import { formatMinutes, searchText, totalMinutes, type Recipe } from "../shared/types";
-import { ART, ART_NAMES, ArtSvg, Hero, guessArt, matchArt } from "./art";
+import { dishWords, hasPhoto, Hero } from "./hero";
 
 /** Search text plus the dish family ("pasta" finds spaghetti carbonara). */
-export const recipeText = (r: Recipe) => {
-  const family = matchArt(r.title, r.tags);
-  return family ? `${searchText(r)} ${ART[family].label.toLowerCase()}` : searchText(r);
-};
+export const recipeText = (r: Recipe) => `${searchText(r)} ${dishWords(r.title)}`;
 import { BASE, usePatchRecipe, useRecipes, useTags } from "./data";
 
 export const recipePath = (r: { id: string }) => `${BASE}/r/${r.id}`;
@@ -58,7 +55,7 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
   return (
     <article className="rc-card">
       <button type="button" className="rc-card__hit" onClick={() => navigate(recipePath(recipe))}>
-        <Hero hero={recipe.hero} title={recipe.title} tags={recipe.tags} />
+        <Hero hero={recipe.hero} focus={recipe.heroFocus} />
         <span className="rc-card__body">
           <span className="rc-card__title">{recipe.title}</span>
           <span className="rc-card__meta">
@@ -176,52 +173,49 @@ export function TagInput({ value, onChange }: { value: string[]; onChange: (tags
   );
 }
 
-/** Upload a photo or choose one of the illustrations. */
-export function HeroPicker({ value, title, tags, onChange }: { value: string; title: string; tags: string[]; onChange: (hero: string) => void }) {
+/** Upload, replace or remove the photo, and choose which part shows when it's cropped. */
+export function HeroPicker({ value, focus, onChange }: { value: string; focus: number; onChange: (patch: { hero?: string; heroFocus?: number }) => void }) {
   const [busy, setBusy] = useState(false);
-  const current = value.startsWith("art:") ? value.slice(4) : value ? "" : guessArt(title, tags);
+  const [failed, setFailed] = useState(false);
+  const photo = hasPhoto(value);
+  const upload = async () => {
+    setBusy(true);
+    setFailed(false);
+    const ref = await pickImage();
+    setBusy(false);
+    if (ref) onChange({ hero: ref, heroFocus: 50 });
+    else setFailed(true);
+  };
   return (
     <div className="rc-heropick">
-      <div className="rc-heropick__preview">
-        <Hero hero={value} title={title} tags={tags} />
-        <div className="rc-heropick__actions">
-          <Button
-            size="sm"
-            variant="secondary"
-            icon="image"
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              const ref = await pickImage();
-              setBusy(false);
-              if (ref) onChange(ref);
-            }}
-          >
-            {busy ? "Uploading…" : value.startsWith("cortex-file:") ? "Replace photo" : "Upload photo"}
+      <div className="rc-heropick__previews">
+        <figure>
+          <Hero hero={value} focus={focus} className="rc-hero--banner" />
+          <figcaption className="rc-hint">Banner</figcaption>
+        </figure>
+        <figure>
+          <Hero hero={value} focus={focus} />
+          <figcaption className="rc-hint">Card</figcaption>
+        </figure>
+      </div>
+      {photo && (
+        <label className="rc-heropick__focus">
+          <span className="cx-label">Position</span>
+          <input type="range" min={0} max={100} value={focus} onChange={(e) => onChange({ heroFocus: Number(e.target.value) })} aria-label="Photo position, top to bottom" />
+          <span className="rc-muted rc-small">{focus < 34 ? "Top" : focus > 66 ? "Bottom" : "Middle"}</span>
+        </label>
+      )}
+      <div className="rc-heropick__actions">
+        <Button size="sm" variant="secondary" icon="image" disabled={busy} onClick={upload}>
+          {busy ? "Uploading…" : photo ? "Replace photo" : "Upload photo"}
+        </Button>
+        {(photo || value) && (
+          <Button size="sm" variant="ghost" onClick={() => onChange({ hero: "", heroFocus: 50 })}>
+            Remove
           </Button>
-          {value.startsWith("cortex-file:") && (
-            <Button size="sm" variant="ghost" onClick={() => onChange("")}>
-              Use an illustration
-            </Button>
-          )}
-        </div>
+        )}
       </div>
-      <div className="rc-heropick__arts" role="radiogroup" aria-label="Illustration">
-        {ART_NAMES.map((n) => (
-          <button
-            key={n}
-            type="button"
-            role="radio"
-            aria-checked={current === n && !value.startsWith("cortex-file:")}
-            className="rc-heropick__art"
-            title={ART[n].label}
-            onClick={() => onChange(`art:${n}`)}
-          >
-            <ArtSvg name={n} />
-          </button>
-        ))}
-      </div>
-      <p className="rc-hint">{value ? "" : "Matched to the recipe name until you choose. "}Photos are stored on your Cortex server.</p>
+      <p className="rc-hint">{failed ? "Upload cancelled or failed." : "Any shape works: large photos are shrunk, and the picture is cropped to fit each place it appears."}</p>
     </div>
   );
 }
@@ -243,7 +237,7 @@ export function RecipePicker({ onPick, onClose, title }: { onPick: (r: Recipe | 
           {list.slice(0, 50).map((r) => (
             <li key={r.id}>
               <button type="button" className="rc-picker__item" onClick={() => onPick(r)}>
-                <Hero hero={r.hero} title={r.title} tags={r.tags} className="rc-hero--thumb" />
+                <Hero hero={r.hero} focus={r.heroFocus} className="rc-hero--thumb" />
                 <span className="rc-picker__text">
                   <span className="rc-picker__title">
                     {r.title}

@@ -6,6 +6,8 @@ import { totalMinutes, type Recipe } from "../shared/types";
 import { RecipeCard, recipeText, Shelf } from "./components";
 import { BASE, useRecipes, useTags } from "./data";
 import { RecipeEditor } from "./editor";
+import { CookMode } from "./cook";
+import { ImportButton, ImportDialog } from "./importer";
 import { WeekPlan } from "./plan";
 import { RecipePage } from "./recipe";
 
@@ -13,6 +15,7 @@ export function RecipesSidebar({ subpath }: ModuleViewProps) {
   const { navigate, search } = useRouter();
   const recipes = useRecipes().data?.recipes ?? [];
   const tags = useTags().filter((t) => t.count > 0);
+  const [importing, setImporting] = useState(false);
   const p = new URLSearchParams(search);
   const active =
     subpath === "/all" ? (p.get("fav") ? "/all?fav=1" : p.get("tags") && !p.get("q") && !p.get("tags")!.includes(",") ? `/all?tags=${encodeURIComponent(p.get("tags")!)}` : "/all") : subpath === "/new" ? "/new" : subpath === "/" ? "/" : "";
@@ -27,20 +30,24 @@ export function RecipesSidebar({ subpath }: ModuleViewProps) {
             { id: "/all", label: "All recipes", icon: "list", count: recipes.length },
             { id: "/all?fav=1", label: "Favourites", icon: "heart", count: recipes.filter((r) => r.favourite).length },
             { id: "/new", label: "New recipe", icon: "plus" },
+            { id: "#import", label: "Import from link", icon: "link" },
           ],
         },
         ...(tags.length ? [{ label: "Tags", items: tags.slice(0, 30).map((t) => ({ id: `/all?tags=${encodeURIComponent(t.name)}`, label: t.name, count: t.count })) }] : []),
       ]}
       active={active}
-      onSelect={(id) => navigate(id === "/" ? BASE : BASE + id)}
-    />
+      onSelect={(id) => (id === "#import" ? setImporting(true) : navigate(id === "/" ? BASE : BASE + id))}
+    >
+      {importing && <ImportDialog onClose={() => setImporting(false)} />}
+    </Sidebar>
   );
 }
 
 export function RecipesPage({ subpath }: ModuleViewProps) {
   const q = useRecipes();
-  const m = subpath.match(/^\/r\/([^/]+)(\/edit)?$/);
-  if (subpath === "/new") return <RecipeEditor />;
+  const { search } = useRouter();
+  const m = subpath.match(/^\/r\/([^/]+)(\/edit|\/cook)?$/);
+  if (subpath === "/new") return <RecipeEditor key={search} />;
   if (m) {
     const recipe = q.data?.recipes.find((r) => r.id === m[1]);
     if (!recipe)
@@ -49,6 +56,7 @@ export function RecipesPage({ subpath }: ModuleViewProps) {
           {!q.isPending && <p className="rc-muted">This recipe doesn't exist any more.</p>}
         </PageFrame>
       );
+    if (m[2] === "/cook") return <CookMode recipe={recipe} />;
     return m[2] ? <RecipeEditor key={recipe.id} recipe={recipe} /> : <RecipePage recipe={recipe} />;
   }
   if (subpath === "/all") return <Browse />;
@@ -102,6 +110,7 @@ function Home() {
       actions={
         <>
           <SearchBox />
+          <ImportButton />
           <Button size="sm" variant="primary" icon="plus" onClick={() => navigate(`${BASE}/new`)}>
             New recipe
           </Button>
@@ -212,9 +221,12 @@ function Browse() {
     <PageFrame
       crumbs={["Recipes", title]}
       actions={
-        <Button size="sm" variant="primary" icon="plus" onClick={() => navigate(`${BASE}/new`)}>
-          New recipe
-        </Button>
+        <>
+          <ImportButton />
+          <Button size="sm" variant="primary" icon="plus" onClick={() => navigate(`${BASE}/new`)}>
+            New recipe
+          </Button>
+        </>
       }
     >
       <div className="rc-root">

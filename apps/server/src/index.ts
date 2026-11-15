@@ -8,7 +8,7 @@ import { countUsers, createAuth, migrateAuth } from "./auth";
 import { config } from "./config";
 import { connectionsRouter, decryptToken, encryptToken, proxyRouter, upstreamRequest } from "./connections";
 import { createDb } from "./db";
-import { filesRouter } from "./files";
+import { filesRouter, saveUserFile } from "./files";
 import { startJobs } from "./jobs";
 import { migrate } from "./migrate";
 import { SERVER_MODULES } from "./modules";
@@ -26,8 +26,9 @@ const ctx: ServerContext = {
     const body = init.body !== undefined ? Buffer.from(init.body) : undefined;
     const res = await upstreamRequest(target, { method: init.method ?? "GET", headers: { "user-agent": "Cortex", ...headers, ...(body ? { "content-length": String(body.length) } : {}) }, body });
     const text = () => res.body.toString("utf8");
-    return { status: res.status, headers: res.headers, text, json: <T,>() => JSON.parse(text()) as T };
+    return { status: res.status, headers: res.headers, text, json: <T,>() => JSON.parse(text()) as T, bytes: () => new Uint8Array(res.body) };
   },
+  files: { save: (uid, data, name, type) => saveUserFile(db, config.dataDir, uid, data, name, type) },
 };
 const auth = createAuth(db, dialect);
 

@@ -3,7 +3,8 @@ import { newId, PageFrame, pickImage, StoredImg, useDialog, useRouter } from "@c
 import { Button, Icon, Toggle } from "@cortex/ui";
 import { emptyRecipe, formatQty, parseIngredient, schedule, formatMinutes, type Ingredient, type Recipe, type RecipeData, type Step } from "../shared/types";
 import { HeroPicker, TagInput } from "./components";
-import { BASE, useDeleteRecipe, useSaveRecipe } from "./data";
+import { BASE, peekPendingDraft, setPendingDraft, useDeleteRecipe, useSaveRecipe } from "./data";
+import { ImportButton } from "./importer";
 
 /*
  * Create / edit a recipe. Ingredients are rows (paste a list to fill them
@@ -54,12 +55,19 @@ export function RecipeEditor({ recipe }: { recipe?: Recipe }) {
   const save = useSaveRecipe();
   const del = useDeleteRecipe();
   const [d, setD] = useState<RecipeData>(() => {
-    if (!recipe) return { ...emptyRecipe(), steps: [newStep()], ingredients: [newIngredient()] };
+    if (!recipe) {
+      const draft = peekPendingDraft();
+      if (draft) return { ...emptyRecipe(), ...draft, steps: draft.steps.length ? draft.steps : [newStep()] };
+      return { ...emptyRecipe(), steps: [newStep()], ingredients: [newIngredient()] };
+    }
     const { id: _i, favourite: _f, cookCount: _c, lastCooked: _l, createdAt: _a, updatedAt: _u, ...data } = recipe;
     return data;
   });
   const [error, setError] = useState("");
-  const [dirty, setDirty] = useState(false);
+  const [dirty, setDirty] = useState(() => !recipe && !!peekPendingDraft());
+  const imported = !recipe && !!peekPendingDraft();
+  // The draft is used once: leaving the page (saved or not) drops it.
+  useEffect(() => () => setPendingDraft(null), []);
   const [paste, setPaste] = useState<string | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -121,6 +129,7 @@ export function RecipeEditor({ recipe }: { recipe?: Recipe }) {
       crumbs={["Recipes", ...(recipe ? [{ label: recipe.title, to: back }] : []), recipe ? "Edit" : "New recipe"]}
       actions={
         <>
+          {!recipe && !imported && <ImportButton label="Import from link" />}
           <Button size="sm" variant="ghost" onClick={cancel}>
             Cancel
           </Button>
@@ -137,6 +146,9 @@ export function RecipeEditor({ recipe }: { recipe?: Recipe }) {
           submit();
         }}
       >
+        {imported && !error && (
+          <p className="rc-notice">Imported from {d.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}. Check it over, then save.</p>
+        )}
         {error && (
           <p className="rc-error" role="alert">
             {error}
@@ -183,7 +195,7 @@ export function RecipeEditor({ recipe }: { recipe?: Recipe }) {
           </div>
           <div className="rc-edit__hero cx-panel">
             <span className="cx-label">Picture</span>
-            <HeroPicker value={d.hero} title={d.title} tags={d.tags} onChange={(hero) => set({ hero })} />
+            <HeroPicker value={d.hero} focus={d.heroFocus ?? 50} onChange={(patch) => set(patch)} />
           </div>
         </section>
 

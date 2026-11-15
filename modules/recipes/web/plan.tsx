@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useRouter } from "@cortex/core";
 import { Button, Icon } from "@cortex/ui";
 import type { PlanEntry } from "../shared/types";
-import { Hero } from "./art";
+import { Hero } from "./hero";
 import { RecipePicker, recipePath } from "./components";
 import { addDays, isoDate, today, usePlan, usePlanMutations, useRecipeMap, weekStart } from "./data";
 
@@ -98,7 +98,7 @@ export function WeekPlan({ compact = false }: { compact?: boolean }) {
                       }}
                     >
                       <button type="button" className="rc-meal__hit" onClick={() => r && navigate(recipePath(r))} disabled={!r}>
-                        {r && <Hero hero={r.hero} title={r.title} tags={r.tags} className="rc-hero--thumb" />}
+                        {r && <Hero hero={r.hero} focus={r.heroFocus} className="rc-hero--thumb" />}
                         <span className="rc-meal__title">{r ? r.title : e.note || "Removed recipe"}</span>
                       </button>
                       <button type="button" className="rc-meal__x" aria-label="Remove from plan" onClick={() => remove.mutate(e.id)}>

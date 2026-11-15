@@ -3,6 +3,7 @@ import type { Kysely } from "kysely";
 import { z } from "zod";
 import { forUser, newId, type AppEnv, type CortexServerModule, type ServerContext } from "@cortex/core/server";
 import type { PlanEntry, Recipe, RecipeData } from "../shared/types";
+import { findRecipe, mapRecipe } from "./import";
 
 /*
  * Recipes. A recipe's queryable bits (title, favourite, cooking history) are
@@ -35,6 +36,7 @@ const recipeData = z.object({
   subtitle: z.string().max(300),
   intro: z.string().max(3000),
   hero: IMG,
+  heroFocus: z.number().min(0).max(100).default(50),
   servings: z.number().int().min(1).max(100),
   prepMin: MIN,
   cookMin: MIN,
@@ -92,6 +94,7 @@ function toRecipe(r: any): Recipe {
     subtitle: "",
     intro: "",
     hero: "",
+    heroFocus: 50,
     servings: 2,
     prepMin: null,
     cookMin: null,
@@ -179,6 +182,38 @@ function routes(ctx: ServerContext) {
     await q(c).deleteFrom(T.recipes).where("id", "=", id).execute();
     await q(c).deleteFrom(T.plan).where("recipe_id", "=", id).execute();
     return c.body(null, 204);
+  });
+
+  // ---- import from a web page (schema.org JSON-LD). Returns a draft; nothing is saved but the photo.
+  app.post("/import", async (c) => {
+    const b = z.object({ url: z.string().trim().url().max(2000) }).safeParse(await c.req.json().catch(() => null));
+    if (!b.success || !/^https?:\/\//i.test(b.data.url)) return bad(c, "Paste a full link, starting with https://");
+    const ua = { "user-agent": "Mozilla/5.0 (compatible; Cortex recipe import)", accept: "text/html,application/xhtml+xml" };
+    let html: string;
+    try {
+      const res = await ctx.outbound(b.data.url, ua);
+      if (res.status >= 400) return c.json({ error: `That site answered ${res.status}. Some sites block imports; try another link.` }, 502);
+      html = res.text();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      return c.json({ error: /private/.test(msg) ? "That address isn't allowed." : /large/.test(msg) ? "That page is too big to read." : "Couldn't reach that page." }, 502);
+    }
+    const node = findRecipe(html);
+    if (!node) return c.json({ error: "No recipe found on that page. Cortex reads the recipe data most recipe sites include; this one doesn't seem to." }, 422);
+    const { draft, imageUrl } = mapRecipe(node, b.data.url);
+    if (imageUrl) {
+      try {
+        const img = await ctx.outbound(imageUrl, { "user-agent": ua["user-agent"], accept: "image/*" });
+        const type = String(img.headers["content-type"] ?? "").split(";")[0].trim();
+        if (img.status < 400 && /^image\/(jpeg|png|webp|gif|avif)$/.test(type)) {
+          const id = await ctx.files.save(c.get("userId"), img.bytes(), `${draft.title.slice(0, 80)}.${type.split("/")[1]}`, type);
+          draft.hero = `cortex-file:${id}`;
+        }
+      } catch {
+        /* no photo: the placeholder stands in */
+      }
+    }
+    return c.json(draft);
   });
 
   // ---- week plan

@@ -34,8 +34,10 @@ export interface RecipeData {
   subtitle: string;
   /** The intro / tip box at the top of the card. */
   intro: string;
-  /** `cortex-file:<id>` for a photo, or `art:<name>` for an illustration. */
+  /** `cortex-file:<id>` for a photo; empty for the placeholder (old `art:<name>` values also mean placeholder). */
   hero: string;
+  /** Vertical focus of the photo in the banner crop, 0 (top) to 100 (bottom). */
+  heroFocus: number;
   servings: number;
   prepMin: number | null;
   cookMin: number | null;
@@ -113,6 +115,7 @@ export const emptyRecipe = (): RecipeData => ({
   subtitle: "",
   intro: "",
   hero: "",
+  heroFocus: 50,
   servings: 2,
   prepMin: null,
   cookMin: null,
@@ -189,8 +192,9 @@ const UNITS = [
   "can", "cans", "tin", "tins", "pack", "packs", "packet", "packets", "bunch", "bunches", "handful", "handfuls", "slice", "slices",
   "sprig", "sprigs", "stick", "sticks", "piece", "pieces", "sheet", "sheets", "jar", "jars", "dash", "splash", "knob", "fl oz", "pint", "pints",
   "teaspoon", "teaspoons", "tablespoon", "tablespoons", "litre", "litres", "liter", "liters", "gram", "grams", "kilogram", "kilograms",
+  "ounce", "ounces", "pound", "pounds", "millilitre", "millilitres", "milliliter", "milliliters", "thumb", "head", "heads", "bulb", "bulbs", "nest", "nests", "batch",
 ];
-const UNIT_ALIASES: Record<string, string> = { teaspoon: "tsp", teaspoons: "tsp", tablespoon: "tbsp", tablespoons: "tbsp", gram: "g", grams: "g", kilogram: "kg", kilograms: "kg", litre: "l", litres: "l", liter: "l", liters: "l", lbs: "lb" };
+const UNIT_ALIASES: Record<string, string> = { teaspoon: "tsp", teaspoons: "tsp", tablespoon: "tbsp", tablespoons: "tbsp", gram: "g", grams: "g", kilogram: "kg", kilograms: "kg", litre: "l", litres: "l", liter: "l", liters: "l", lbs: "lb", ounce: "oz", ounces: "oz", pound: "lb", pounds: "lb", millilitre: "ml", millilitres: "ml", milliliter: "ml", milliliters: "ml" };
 
 function parseNumber(s: string): number | null {
   s = s.trim();

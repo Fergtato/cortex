@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { PageFrame, StoredImg, useDialog, useRouter } from "@cortex/core";
 import { Button, Checkbox, Icon, Segmented } from "@cortex/ui";
 import { formatIngredientAmount, formatMinutes, schedule, totalMinutes, type Recipe, type ScheduledStep } from "../shared/types";
-import { Hero } from "./art";
+import { hasPhoto, Hero } from "./hero";
 import { FavButton } from "./components";
 import { BASE, readTicks, usePatchRecipe, usePlanMutations, writeTicks } from "./data";
 import { planDayOptions } from "./plan";
@@ -53,17 +53,16 @@ export function RecipePage({ recipe }: { recipe: Recipe }) {
     ["Level", cap(recipe.difficulty)],
   ].filter(([, v]) => v) as [string, string][];
 
+  const cookedLine = recipe.cookCount
+    ? `Cooked ${recipe.cookCount === 1 ? "once" : `${recipe.cookCount} times`}${recipe.lastCooked ? ` · last ${new Date(`${recipe.lastCooked}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : ""}`
+    : "Not cooked yet";
+
   return (
     <PageFrame
       crumbs={["Recipes", recipe.title]}
       actions={
         <>
-          <Button
-            size="sm"
-            variant="ghost"
-            icon="check"
-            onClick={() => patch.mutate({ id: recipe.id, cooked: true }, { onSuccess: () => setFlash("Marked as cooked today") })}
-          >
+          <Button size="sm" variant="ghost" icon="check" onClick={() => patch.mutate({ id: recipe.id, cooked: true }, { onSuccess: () => setFlash("Marked as cooked today") })}>
             Cooked it
           </Button>
           <Button
@@ -72,39 +71,26 @@ export function RecipePage({ recipe }: { recipe: Recipe }) {
             icon="calendar"
             onClick={async () => {
               const date = await dialog.choose(`Plan “${recipe.title}” for`, planDayOptions());
-              if (date) add.mutate({ date, recipeId: recipe.id }, { onSuccess: () => setFlash("Added to your plan.") });
+              if (date) add.mutate({ date, recipeId: recipe.id }, { onSuccess: () => setFlash("Added to your plan") });
             }}
           >
             Plan
           </Button>
-          <Button size="sm" variant="secondary" icon="pencil" onClick={() => navigate(`${BASE}/r/${recipe.id}/edit`)}>
+          <Button size="sm" variant="ghost" icon="pencil" onClick={() => navigate(`${BASE}/r/${recipe.id}/edit`)}>
             Edit
           </Button>
+          {recipe.steps.length > 0 && (
+            <Button size="sm" variant="primary" icon="play" onClick={() => navigate(`${BASE}/r/${recipe.id}/cook${servings !== recipe.servings ? `?serves=${servings}` : ""}`)}>
+              Cook
+            </Button>
+          )}
         </>
       }
     >
       <article className="rc-recipe">
-        <section className="rc-top">
-          <div className="rc-top__info">
-            <div className="rc-top__titles">
-              <h1 className="rc-title">{recipe.title}</h1>
-              {recipe.subtitle && <p className="rc-subtitle">{recipe.subtitle}</p>}
-            </div>
-            {recipe.intro && (
-              <div className="rc-intro">
-                <p>{recipe.intro}</p>
-              </div>
-            )}
-            {stats.length > 0 && (
-              <dl className="rc-stats">
-                {stats.map(([k, v]) => (
-                  <div key={k}>
-                    <dt className="cx-label">{k}</dt>
-                    <dd>{v}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
+        <header className={`rc-banner${hasPhoto(recipe.hero) ? " rc-banner--photo" : ""}`}>
+          <Hero hero={recipe.hero} focus={recipe.heroFocus} className="rc-banner__img" />
+          <div className="rc-banner__text">
             {recipe.tags.length > 0 && (
               <div className="rc-tags">
                 {recipe.tags.map((t) => (
@@ -114,148 +100,167 @@ export function RecipePage({ recipe }: { recipe: Recipe }) {
                 ))}
               </div>
             )}
-            <div className="rc-top__foot">
-              <FavButton recipe={recipe} size="md" />
-              <span className="rc-muted rc-small">
-                {recipe.cookCount
-                  ? `Cooked ${recipe.cookCount === 1 ? "once" : `${recipe.cookCount} times`}${recipe.lastCooked ? ` · last ${new Date(`${recipe.lastCooked}T00:00:00`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}` : ""}`
-                  : "Not cooked yet"}
-              </span>
-              {flash && (
-                <span className="rc-flash" role="status">
-                  {flash}
-                </span>
-              )}
-            </div>
+            <h1 className="rc-title">{recipe.title}</h1>
+            {recipe.subtitle && <p className="rc-subtitle">{recipe.subtitle}</p>}
           </div>
-          <div className="rc-top__hero">
-            <Hero hero={recipe.hero} title={recipe.title} tags={recipe.tags} />
-          </div>
-        </section>
+          <span className="rc-banner__fav">
+            <FavButton recipe={recipe} size="md" />
+          </span>
+        </header>
 
-        <section className="rc-ingr cx-panel">
-          <header className="rc-ingr__head">
-            <span className="cx-label">Ingredients</span>
-            <span className="rc-serves">
-              <Button size="sm" variant="ghost" icon="minus" aria-label="Fewer servings" disabled={servings <= 1} onClick={() => setServings(servings - 1)} />
-              <span className="rc-serves__n">
-                <strong>{servings}</strong> {servings === 1 ? "serving" : "servings"}
-              </span>
-              <Button size="sm" variant="ghost" icon="plus" aria-label="More servings" onClick={() => setServings(servings + 1)} />
-            </span>
-            {ticks.length > 0 && (
-              <>
-                <span className="rc-muted rc-small">
-                  {ticks.filter((t) => recipe.ingredients.some((i) => i.id === t)).length} of {recipe.ingredients.length} ticked
+        <div className="rc-layout">
+          <aside className="rc-side">
+            <section className="rc-ingr cx-panel">
+              <header className="rc-ingr__head">
+                <span className="cx-label">Ingredients</span>
+                <span className="rc-serves">
+                  <Button size="sm" variant="ghost" icon="minus" aria-label="Fewer servings" disabled={servings <= 1} onClick={() => setServings(servings - 1)} />
+                  <span className="rc-serves__n">
+                    <strong>{servings}</strong> {servings === 1 ? "serving" : "servings"}
+                  </span>
+                  <Button size="sm" variant="ghost" icon="plus" aria-label="More servings" onClick={() => setServings(servings + 1)} />
                 </span>
-                <button type="button" className="rc-link" onClick={() => (setTicks([]), writeTicks(recipe.id, []))}>
-                  Clear
-                </button>
-              </>
-            )}
-          </header>
-          <div className="rc-ingr__body">
-            {recipe.ingredients.length ? (
-              <ul className="rc-ingr__list">
-                {recipe.ingredients.map((i) => {
-                  const on = ticks.includes(i.id);
-                  return (
-                    <li key={i.id} className={on ? "is-on" : ""}>
-                      <Checkbox checked={on} onChange={(v) => toggle(i.id, v)} label={i.name} className="rc-ingr__check" />
-                      <span className="rc-ingr__amt">{formatIngredientAmount(i, factor)}</span>
-                      {i.note && <span className="rc-ingr__note">{i.note}</span>}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="rc-muted">No ingredients yet.</p>
-            )}
+              </header>
+              {recipe.ingredients.length ? (
+                <ul className="rc-ingr__list">
+                  {recipe.ingredients.map((i) => {
+                    const on = ticks.includes(i.id);
+                    return (
+                      <li key={i.id} className={on ? "is-on" : ""}>
+                        <Checkbox checked={on} onChange={(v) => toggle(i.id, v)} label={i.name} className="rc-ingr__check" />
+                        <span className="rc-ingr__amt">{formatIngredientAmount(i, factor)}</span>
+                        {i.note && <span className="rc-ingr__note">{i.note}</span>}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="rc-muted">No ingredients yet.</p>
+              )}
+              {ticks.length > 0 && (
+                <footer className="rc-ingr__foot">
+                  <span className="rc-muted rc-small">
+                    {ticks.filter((t) => recipe.ingredients.some((i) => i.id === t)).length} of {recipe.ingredients.length} ticked
+                  </span>
+                  <button type="button" className="rc-link" onClick={() => (setTicks([]), writeTicks(recipe.id, []))}>
+                    Clear
+                  </button>
+                </footer>
+              )}
+            </section>
             {recipe.equipment.length > 0 && (
-              <aside className="rc-equip">
+              <section className="rc-equip cx-panel">
                 <span className="cx-label">You’ll need</span>
                 <ul>
                   {recipe.equipment.map((e, k) => (
                     <li key={k}>{e}</li>
                   ))}
                 </ul>
-              </aside>
+              </section>
+            )}
+          </aside>
+
+          <div className="rc-main">
+            <section className="rc-summary">
+              {stats.length > 0 && (
+                <dl className="rc-stats">
+                  {stats.map(([k, v]) => (
+                    <div key={k}>
+                      <dt className="cx-label">{k}</dt>
+                      <dd>{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+              {recipe.intro && (
+                <div className="rc-intro">
+                  <p>{recipe.intro}</p>
+                </div>
+              )}
+              <p className="rc-muted rc-small rc-cooked">
+                {cookedLine}
+                {flash && (
+                  <span className="rc-flash" role="status">
+                    {flash}
+                  </span>
+                )}
+              </p>
+            </section>
+
+            <section className="rc-method">
+              <header className="rc-method__head">
+                <h2 className="cx-label">Method</h2>
+                {recipe.steps.length > 0 && <span className="rc-muted rc-small">{recipe.steps.length} steps{total ? ` · ${formatMinutes(total)}` : ""}</span>}
+                {recipe.steps.length > 1 && (
+                  <Segmented
+                    size="sm"
+                    value={view}
+                    onChange={setView}
+                    options={[
+                      { value: "steps", label: "Steps" },
+                      { value: "timeline", label: "Timeline" },
+                    ]}
+                  />
+                )}
+              </header>
+              {!recipe.steps.length ? (
+                <p className="rc-muted">No steps yet. Add them in Edit.</p>
+              ) : view === "timeline" ? (
+                <Timeline recipe={recipe} />
+              ) : (
+                <ol className="rc-steps">
+                  {recipe.steps.map((s, n) => (
+                    <li key={s.id} className="rc-step cx-panel">
+                      {s.image && (
+                        <span className="rc-step__img">
+                          <StoredImg src={s.image} alt="" loading="lazy" />
+                        </span>
+                      )}
+                      <div className="rc-step__body">
+                        <div className="rc-step__head">
+                          <span className="rc-step__n">{n + 1}</span>
+                          {s.title && <h3 className="rc-step__title">{s.title}</h3>}
+                        </div>
+                        <p className="rc-step__text">
+                          <Highlight text={s.text} names={recipe.ingredients.map((i) => i.name)} />
+                        </p>
+                        {(s.minutes || s.handsOff) && (
+                          <div className="rc-step__foot">
+                            {s.minutes ? (
+                              <span className="rc-chip">
+                                <Icon name="clock" size={12} /> {formatMinutes(s.minutes)}
+                              </span>
+                            ) : null}
+                            {s.handsOff && <span className="rc-chip rc-chip--soft">Hands-off</span>}
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              )}
+            </section>
+
+            {(recipe.notes || recipe.sourceUrl) && (
+              <section className="rc-notes cx-panel">
+                <span className="cx-label">Notes</span>
+                {recipe.notes && <p className="rc-notes__text">{recipe.notes}</p>}
+                {recipe.sourceUrl && /^https?:\/\//.test(recipe.sourceUrl) && (
+                  <a className="rc-source" href={recipe.sourceUrl} target="_blank" rel="noreferrer noopener">
+                    <Icon name="arrow-up-right" size={12} /> {recipe.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
+                  </a>
+                )}
+              </section>
             )}
           </div>
-        </section>
-
-        <section className="rc-method">
-          <header className="rc-method__head">
-            <h2 className="cx-label">Method</h2>
-            {recipe.steps.length > 0 && <span className="rc-muted rc-small">{recipe.steps.length} steps{total ? ` · ${formatMinutes(total)}` : ""}</span>}
-            {recipe.steps.length > 1 && (
-              <Segmented
-                size="sm"
-                value={view}
-                onChange={setView}
-                options={[
-                  { value: "steps", label: "Steps" },
-                  { value: "timeline", label: "Timeline" },
-                ]}
-              />
-            )}
-          </header>
-          {!recipe.steps.length ? (
-            <p className="rc-muted">No steps yet. Add them in Edit.</p>
-          ) : view === "timeline" ? (
-            <Timeline recipe={recipe} />
-          ) : (
-            <ol className="rc-steps">
-              {recipe.steps.map((s, n) => (
-                <li key={s.id} className="rc-step cx-panel">
-                  {s.image && (
-                    <span className="rc-step__img">
-                      <StoredImg src={s.image} alt="" loading="lazy" />
-                    </span>
-                  )}
-                  <div className="rc-step__body">
-                    <div className="rc-step__head">
-                      <span className="rc-step__n">{n + 1}</span>
-                      {s.title && <h3 className="rc-step__title">{s.title}</h3>}
-                    </div>
-                    <p className="rc-step__text">
-                      <Highlight text={s.text} names={recipe.ingredients.map((i) => i.name)} />
-                    </p>
-                    {(s.minutes || s.handsOff) && (
-                      <div className="rc-step__foot">
-                        {s.minutes ? (
-                          <span className="rc-chip">
-                            <Icon name="clock" size={12} /> {formatMinutes(s.minutes)}
-                          </span>
-                        ) : null}
-                        {s.handsOff && <span className="rc-chip rc-chip--soft">Hands-off</span>}
-                      </div>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </section>
-
-        {(recipe.notes || recipe.sourceUrl) && (
-          <section className="rc-notes cx-panel">
-            <span className="cx-label">Notes</span>
-            {recipe.notes && <p className="rc-notes__text">{recipe.notes}</p>}
-            {recipe.sourceUrl && /^https?:\/\//.test(recipe.sourceUrl) && (
-              <a className="rc-source" href={recipe.sourceUrl} target="_blank" rel="noreferrer noopener">
-                <Icon name="arrow-up-right" size={12} /> {recipe.sourceUrl.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
-              </a>
-            )}
-          </section>
-        )}
+        </div>
       </article>
     </PageFrame>
   );
 }
 
 /** Bolds ingredient names inside step text, like a printed recipe card. */
-function Highlight({ text, names }: { text: string; names: string[] }) {
+export function Highlight({ text, names }: { text: string; names: string[] }) {
   const re = useMemo(() => {
     const words = [...new Set(names.flatMap((n) => [n, n.split(/\s+/).pop() ?? ""]).map((n) => n.trim().toLowerCase()).filter((n) => n.length >= 3))].sort((a, b) => b.length - a.length);
     if (!words.length) return null;

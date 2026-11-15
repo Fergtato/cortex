@@ -25,6 +25,8 @@ export interface ServerContext {
    * lookup, so no rebinding window). Never use fetch() for user-given URLs.
    */
   outbound: (url: string, headers?: Record<string, string>, init?: { method?: "GET" | "POST"; body?: string }) => Promise<OutboundResponse>;
+  /** Stores a file for a user (same storage as uploads) and returns its id, for a `cortex-file:<id>` ref. */
+  files: { save: (userId: string, data: Uint8Array, name: string, type: string) => Promise<string> };
 }
 
 export interface OutboundResponse {
@@ -32,6 +34,7 @@ export interface OutboundResponse {
   headers: Record<string, string | string[] | undefined>;
   text: () => string;
   json: <T = unknown>() => T;
+  bytes: () => Uint8Array;
 }
 
 /** A recurring background job (connector syncs, reminders, cleanups). */
