@@ -2,14 +2,14 @@
 
 <picture>
   <source media="(prefers-color-scheme: light)" srcset="docs/images/banner-light.webp">
-  <img alt="Cortex: your notes, money, movies and dashboards, in one calm app you run yourself" src="docs/images/banner-dark.webp" width="100%">
+  <img alt="Cortex: your notes, money, movies, recipes and dashboards, in one calm app you run yourself. Bring your own AI." src="docs/images/banner-dark.webp" width="100%">
 </picture>
 
 <br>
 
 [![Build](https://img.shields.io/github/actions/workflow/status/Fergtato/cortex/docker.yml?branch=main&style=flat-square&label=build&labelColor=0a0a0b&color=2fd9b4)](https://github.com/Fergtato/cortex/actions/workflows/docker.yml) [![Image](https://img.shields.io/badge/ghcr.io-fergtato%2Fcortex-2fd9b4?style=flat-square&labelColor=0a0a0b&logo=docker&logoColor=white)](https://github.com/Fergtato/cortex/pkgs/container/cortex) [![License](https://img.shields.io/github/license/Fergtato/cortex?style=flat-square&labelColor=0a0a0b&color=2fd9b4)](LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-strict-2fd9b4?style=flat-square&labelColor=0a0a0b&logo=typescript&logoColor=white)](tsconfig.base.json) [![SQLite or Postgres](https://img.shields.io/badge/SQLite%20%C2%B7%20Postgres-ready-2fd9b4?style=flat-square&labelColor=0a0a0b)](docs/self-hosting.md)
 
-**[Quick start](#quick-start)** · **[The apps](#the-apps)** · **[Everywhere](#everywhere)** · **[Self-hosting](#self-hosting)** · **[How it's built](#how-its-built)** · **[Development](#development)** · **[Roadmap](#roadmap)**
+**[Quick start](#quick-start)** · **[The apps](#the-apps)** · **[AI](#bring-your-own-ai)** · **[Everywhere](#everywhere)** · **[Self-hosting](#self-hosting)** · **[How it's built](#how-its-built)** · **[Development](#development)** · **[Roadmap](#roadmap)**
 
 </div>
 
@@ -17,10 +17,15 @@
 
 Cortex is a **self-hosted suite of personal apps** for tracking your life:
 **Notes** for pages and lists, **Finance** for money, **Watchlist** for movies
-and TV, and **Home** for dashboards that pull them all together. It runs as
-**one Docker container** with your data in **one volume**. There's no cloud
-account, no subscription and no tracking. Your notes, bank imports and watch
-history stay on your machine.
+and TV, **Recipes** for cooking and meal plans, and **Home** for dashboards
+that pull them all together. It runs as **one Docker container** with your
+data in **one volume**. There's no cloud account, no subscription and no
+tracking. Your notes, bank imports and watch history stay on your machine.
+
+Connect **the AI you already use** (Claude, ChatGPT, Gemini, OpenRouter, or a
+local model through Ollama or LM Studio) and it can write recipes, file your
+payments and rewrite your notes. It's optional, and nothing is sent anywhere
+until you connect one.
 
 It's built as one modular app rather than a pile of separate services, so the
 apps share one sign-in, one design system, one backup file and one set of
@@ -39,6 +44,9 @@ dashboards. Adding an app means adding a folder.
   next to the show you're halfway through and the habit you're keeping.
 - **Your data, portable.** One JSON backup covers every app. Import it into
   another Cortex, or keep it as an archive.
+- **Bring your own AI, or none.** Use your own key or a model on your own
+  machine. Cortex never needs an AI and never sends data to one you didn't
+  connect.
 - **Calm, fast, keyboard-friendly.** An instrument-like design system with one
   accent colour, short linear motion, and themes you can swap or write yourself.
 - **Works on your phone.** Every screen is responsive, with a bottom app bar on
@@ -81,7 +89,8 @@ volumes:
 
 **Watchlist** needs a free [TMDB](https://www.themoviedb.org/settings/api) API
 key. The admin pastes it once in **Settings → Watchlist** (it's stored
-encrypted) or sets `TMDB_API_KEY`. Everything else works with no
+encrypted) or sets `TMDB_API_KEY`. **AI features** appear once someone
+connects a provider in **Settings → AI**. Everything else works with no
 configuration.
 
 ## The apps
@@ -94,6 +103,10 @@ configuration.
   <tr>
     <td width="50%"><a href="#finance"><img src="docs/images/thumb-finance.webp" alt="Finance: money, all of it"></a></td>
     <td width="50%"><a href="#watchlist"><img src="docs/images/thumb-watchlist.webp" alt="Watchlist: movies and TV"></a></td>
+  </tr>
+  <tr>
+    <td width="50%"><a href="#recipes"><img src="docs/images/thumb-recipes.webp" alt="Recipes: cook, plan, repeat"></a></td>
+    <td width="50%"><a href="#bring-your-own-ai"><img src="docs/images/thumb-ai.webp" alt="Bring your own AI"></a></td>
   </tr>
 </table>
 
@@ -249,34 +262,103 @@ episode.
 
 ### Recipes
 
-A cookbook laid out like a meal-kit recipe card: the summary, picture and
-ingredients on top, the method below.
+A cookbook laid out like a meal-kit recipe card, with a cooking timeline that
+tells you when to start each step.
 
-- **Ingredients with tick boxes**, so you can check off what you've got.
-  Change the servings and every amount scales.
+<img src="docs/images/recipes-card.webp" alt="A recipe: a banner with the title and tags, the ingredients as a tick-box list beside prep and total time, the intro tip and the method as numbered steps" width="100%">
+
+- **The recipe page.** The picture is a banner across the top. Ingredients
+  sit in a column beside the method and stay in view as you scroll, with tick
+  boxes so you can check off what you've got. Change the servings and every
+  amount scales.
 - **Steps as numbered blocks**, with a time, an optional photo and the
   ingredient names picked out in bold.
 - **Timeline view.** Mark steps as hands-off (the oven, a simmer) or have a
   step wait for an earlier one. Cortex lays the method out as a Gantt chart,
   and if you say when you want to eat, every step gets a clock time.
+- **Cook mode.** One step at a time in large type, full screen. It shows the
+  ingredients each step needs and has timers that keep running between steps
+  and chime when they're done. The screen stays awake where the browser
+  allows it. Swipe or use the arrow keys.
+- **Import from a link.** Paste a recipe URL from almost any recipe site.
+  Cortex reads the recipe data the page carries (ingredients, steps, times,
+  servings, photo) and opens it in the editor to check before saving.
+- **Create with AI.** Describe what you fancy ("quick and vegetarian with
+  leeks, feta and eggs") and your AI writes the whole recipe, timed steps
+  included.
 - **Tags**: built-in ones like *Under 30 mins* or *Vegetarian*, plus your
   own. Filter by several tags at once, or by ingredients you already have.
 - **A week plan** (Monday to Sunday) on the Recipes home page. Drag meals
-  between days, or add a note like *Eating out*. Below it: favourites,
-  quick dinners, recipes you haven't made in a while, and shelves for your
+  between days, or add a note like *Eating out*. Below it: favourites, quick
+  dinners, recipes you haven't made in a while, and shelves for your
   most-used tags.
-- A photo for each recipe, or one of 14 illustrations until you take one.
+- Photos of any shape are fitted to each place they appear, and you can pick
+  which part stays in view. `scripts/seed-recipes.mjs` adds 24 starter
+  recipes to an account.
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/images/recipes-card.webp" alt="A recipe card: title, intro box, prep and total time, tags, picture, and ingredients with tick boxes"></td>
-    <td width="50%"><img src="docs/images/recipes-timeline.webp" alt="Timeline view: a Gantt chart of the steps with clock times for a 19:00 dinner"></td>
+    <td width="50%"><img src="docs/images/recipes-timeline.webp" alt="Timeline view: a Gantt chart of the steps with clock times for a 19:00 dinner, and a what-to-do-when list"></td>
+    <td width="50%"><img src="docs/images/recipes-cook.webp" alt="Cook mode: step 2 in large type, the ingredients it uses, the full ingredient list, and a running timer"></td>
   </tr>
   <tr>
     <td width="50%"><img src="docs/images/recipes-home.webp" alt="Recipes home: the week plan, then favourites and quick dinners"></td>
-    <td width="50%"><img src="docs/images/recipes-steps.webp" alt="The method as six numbered step blocks"></td>
+    <td width="50%"><img src="docs/images/recipes-steps.webp" alt="The method as numbered step blocks with times and hands-off markers"></td>
   </tr>
 </table>
+
+## Bring your own AI
+
+Cortex doesn't come with an AI or an AI bill. Connect the one you already use
+in **Settings → AI**:
+
+| Provider | What you need |
+| --- | --- |
+| **Claude** | An Anthropic API key |
+| **ChatGPT** | An OpenAI API key |
+| **Gemini** | A Google AI Studio key |
+| **OpenRouter** | One key for hundreds of models |
+| **Ollama** / **LM Studio** | Nothing: models running on your own machine |
+| **Anything OpenAI-compatible** | Its address, and a key if it needs one |
+
+Pick a model from the provider's list, press **Test**, and save. Keys are
+stored encrypted on your server and never sent back to the browser. Every
+person on a Cortex server connects their own, and the admin can share one
+connection for everyone who hasn't.
+
+<img src="docs/images/ai-notes.webp" alt="Notes: a sentence selected on the Japan trip page, and the AI's improved version in a preview panel with Replace, Insert below, Try again and Discard" width="100%">
+
+What it does today:
+
+- **Notes: rewrite or write.** Select text and press **Ask AI** to improve it,
+  fix spelling, shorten, expand, change the tone, summarise or translate, or
+  type your own instruction. Type `/ai` to have it write at the cursor: a
+  summary of the page, a brainstorm, a to-do list. The answer streams into a
+  preview, and nothing changes in your page until you press Replace or Insert.
+- **Recipes: create from an idea.** It writes ingredients, timed steps and
+  hands-off markers, so the timeline works straight away, and reuses your
+  tags. You check the draft in the editor before it's saved.
+- **Finance: suggest categories.** Uncategorised payments are grouped by
+  payee and the AI suggests a category for each. Only payee names, money in
+  or out, and your category list are sent. You review the list, and **Make a
+  rule** files that payee automatically next time, without asking the AI
+  again.
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/images/ai-recipe-dialog.webp" alt="Create a recipe with AI: an idea box with example prompts and a servings field"></td>
+    <td width="50%"><img src="docs/images/ai-finance.webp" alt="Suggest categories with AI: payees with a suggested category, a Make a rule tick and Apply buttons"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/images/settings-ai.webp" alt="Settings → AI: the connection in use, your connections and ones shared by the admin, and provider cards"></td>
+    <td width="50%"><img src="docs/images/ai-recipe.webp" alt="The AI-written recipe open in the editor, marked Written by AI from your idea"></td>
+  </tr>
+</table>
+
+Running Cortex in Docker and a model on the same computer? Inside the
+container, `localhost` is the container itself, so point Cortex at your
+computer's LAN IP or `host.docker.internal` (for Ollama,
+`http://192.168.1.20:11434/v1`).
 
 ## Everywhere
 
@@ -312,7 +394,7 @@ complete starting point.
 
 ### On your phone
 
-<img src="docs/images/phones.webp" alt="Cortex on a phone: dashboard, watchlist, finance overview, a list as a board, and a show's page" width="100%">
+<img src="docs/images/phones.webp" alt="Cortex on a phone: dashboard, watchlist, finance overview, a list as a board, and a recipe" width="100%">
 
 ### Connections
 
@@ -325,12 +407,14 @@ nobody can probe your LAN.
 ### Backup and restore
 
 **Settings → Backup** downloads one file covering every app: pages, lists,
-dashboards, accounts, transactions, budgets, rules, IOUs, watch history and
-lists. Import it in **merge** or **replace** mode. Backups from Cortex v0 (the
+dashboards, accounts, transactions, budgets, rules, IOUs, watch history,
+lists, recipes and meal plans. Import it in **merge** or **replace** mode. Backups from Cortex v0 (the
 older single-app version) import too, images included.
 
 ### Little things
 
+- Reorder the app rail by dragging apps in **Settings → Apps**, or switch
+  apps off.
 - Switching apps returns you to where you were. Going back restores the list
   and scroll position you left.
 - Breadcrumbs are links. Filters live in the address, so views can be
@@ -353,15 +437,16 @@ and the generated secret. **Back up that volume**, or use the in-app backup.
 | `TMDB_API_KEY` | unset | Watchlist's TMDB key (or set it in the app) |
 | `TMDB_REGION` | `GB` | Region for "In cinemas" and "Upcoming" |
 | `FX_RATES_URL` | Frankfurter (ECB) | Exchange rates for multi-currency totals |
-| `PROXY_PRIVATE_NETWORKS` | `allow` | `deny` blocks Connections and Plex from reaching private addresses |
+| `PROXY_PRIVATE_NETWORKS` | `allow` | `deny` blocks Connections, Plex, recipe import and AI from reaching private addresses (so no local Ollama) |
 | `MAX_UPLOAD_MB` | `25` | Largest file upload |
 | `PORT` | `8080` | Port inside the container |
 
 **Updating**: `docker pull ghcr.io/fergtato/cortex:latest` and recreate the
 container. Database migrations run on start, for SQLite and Postgres alike.
 
-The full guide covers configuration, backups, TrueNAS, the TMDB key and
-moving from Cortex v0: **[docs/self-hosting.md](docs/self-hosting.md)**.
+The full guide covers configuration, backups, TrueNAS, the TMDB key,
+connecting an AI, and moving from Cortex v0:
+**[docs/self-hosting.md](docs/self-hosting.md)**.
 
 ## How it's built
 
@@ -374,7 +459,7 @@ dashboard widgets and a slice of the backup.
 flowchart LR
   subgraph Browser
     Shell["Shell: app rail · router · themes"]
-    Mods["Module UIs: Home · Notes · Finance · Watchlist"]
+    Mods["Module UIs: Home · Notes · Finance · Watchlist · Recipes"]
     Shell --- Mods
   end
   subgraph Container["One container"]
@@ -392,6 +477,8 @@ flowchart LR
   Guard --> Plex["Plex"]
   Guard --> ECB["ECB rates"]
   Guard --> Yours["Your APIs (Connections)"]
+  Guard --> AI["Your AI: Claude · OpenAI · Gemini · OpenRouter · Ollama"]
+  Guard --> Sites["Recipe sites (link import)"]
 ```
 
 | Layer | Stack |
@@ -405,8 +492,8 @@ A few rules keep it portable and safe:
 - **Every table has `user_id`.** Module code can only reach data through a
   per-user query helper.
 - **Money is integer minor units**, never floats.
-- **Only the server talks to third parties.** Keys and tokens never reach the
-  browser, and outbound requests go through the private-network guard, which
+- **Only the server talks to third parties**, AI providers included. Keys and
+  tokens never reach the browser, and outbound requests go through the private-network guard, which
   is enforced at the socket so DNS rebinding can't get round it.
 
 More detail is in **[docs/v2-architecture.md](docs/v2-architecture.md)**, and
@@ -428,6 +515,7 @@ the demo data used for these screenshots. The Watchlist part needs a TMDB key:
 
 ```bash
 node scripts/seed-demo.mjs http://localhost:8080 you@example.com your-password
+node scripts/seed-recipes.mjs http://localhost:8080 you@example.com your-password   # just the 24 starter recipes
 ```
 
 ```text
@@ -440,6 +528,7 @@ modules/home      dashboards and generic widgets
 modules/notes     pages, lists, editor, Notes widgets
 modules/finance   accounts, transactions, transfers, IOUs, CSV import
 modules/watchlist TMDB client, library, stats, Discover, Plex import
+modules/recipes   recipes, timeline, cook mode, week plan, link import
 ```
 
 **Adding an app** means a folder in `modules/` with a `CortexModule` (web) and
@@ -453,8 +542,10 @@ it.
 - [x] Notes, Home dashboards, Finance, Watchlist
 - [x] Bank CSV import, transfers, IOUs, multiple currencies
 - [x] Plex import, Discover, stats
-- [x] Recipes: cookbook, cooking timeline, week plan
-- [ ] Shopping list from the week plan, recipe import from a link
+- [x] Recipes: cookbook, cooking timeline, cook mode, week plan, link import
+- [x] Bring your own AI: recipes from an idea, category suggestions, rewriting in Notes
+- [ ] Shopping list from the week plan
+- [ ] More AI: ask questions about your money, build dashboards and lists from a description
 - [ ] **Health**: workouts, sleep and weight, with Apple Health export import
 - [ ] **Outfits**: a wardrobe and outfit planner
 - [ ] Connectors: open-banking sync, wearables (Garmin, Oura, Fitbit, Withings)

@@ -111,6 +111,26 @@ modules/<id>/    web/ (Page, Sidebar, widgets) · server/ (routes, migrations, j
 - **Widgets**: `watchlist.continue`, `watchlist.upcoming`, `watchlist.queue`,
   `watchlist.stats`.
 
+## Recipes
+
+Typed columns for what's queried (title, favourite, cook count, last cooked)
+and one JSON `data` column for the card (ingredients, steps, tags…), validated
+by zod. The week plan is `recipes_plan`, one row per planned meal or note.
+`shared/types.ts` holds ingredient parsing and scaling and `schedule()`, the
+timeline: a step starts when the cook is free and its `after` step has
+finished, and a hands-off step frees the cook as soon as it starts. Link
+import reads schema.org JSON-LD only, no per-site scrapers.
+
+## AI (bring your own)
+
+`apps/server/src/ai/` stores each person's connections (`ai_connections`,
+keys encrypted, an admin's `shared` row as the fallback) and speaks three
+wire formats: Anthropic Messages, OpenAI chat completions (also OpenRouter,
+Ollama, LM Studio, custom) and Gemini. Modules get `ctx.ai` and keep their
+prompts in `server/ai.ts`. Structured features (recipes, categories) use
+`json()`. Notes streams chunked `text/plain` that the browser reads with
+`streamText()`. Nothing calls a provider from the browser.
+
 ## Module preferences
 
 `UserSettings.modules[<id>]` holds per-module preferences, read and written
@@ -124,6 +144,12 @@ with `useModulePrefs(id, defaults)`. Finance stores `baseCurrency` there.
   secrets modules store (the TMDB key).
 - `useRouter().search`: the query string. `navigate()` updates it, so pages
   can keep filters in the URL.
+- `ServerContext.outbound` / `outboundStream`: guarded HTTP for URLs a person
+  typed or public APIs, with longer timeouts and streaming for AI.
+- `ServerContext.files.save`: store a file for a user (recipe photos fetched
+  by link import) and get a `cortex-file:` id.
+- `ServerContext.ai`: the person's connected AI (`complete`, `stream`, and
+  `json`, which validates and retries once). See "AI" below.
 
 ## Shared server pieces
 

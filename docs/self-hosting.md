@@ -19,13 +19,13 @@ Everything is optional.
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `CORTEX_URL` | unset | Public address, e.g. `https://cortex.example.com`. Set it when you're behind a reverse proxy or on HTTPS: an `https://` address also makes the session cookie `Secure`. Unset, Cortex trusts whatever address the browser used, which suits LAN installs. |
-| `CORTEX_SECRET` | generated | Signs sessions and encrypts connector tokens. If unset, Cortex generates one on first start and keeps it in `/data/secret`. **Back it up with the data.** |
+| `CORTEX_SECRET` | generated | Signs sessions and encrypts stored tokens and AI keys. If unset, Cortex generates one on first start and keeps it in `/data/secret`. **Back it up with the data.** |
 | `DATABASE_URL` | unset (SQLite) | A Postgres connection string. Used by the hosted version. Self-hosters can stay on SQLite. |
 | `ALLOW_SIGNUP` | `false` | `true` lets anyone create an account (hosted mode). |
 | `TMDB_API_KEY` | unset | The TMDB key Watchlist uses (a v4 read access token or a v3 key). Optional: an admin can instead paste it in **Settings → Watchlist**, where it's stored encrypted. The env var wins if both are set. |
 | `TMDB_REGION` | `GB` | Default region for "In cinemas" and "Upcoming". Admins can change it in Settings → Watchlist. |
 | `FX_RATES_URL` | Frankfurter (ECB) | Where Finance gets exchange rates for totals across currencies. Any Frankfurter-compatible `/latest` endpoint works, including a self-hosted one. |
-| `PROXY_PRIVATE_NETWORKS` | `allow` (`deny` when `ALLOW_SIGNUP=true`) | Whether API connections may reach private addresses (LAN, localhost). Self-hosters want `allow` to reach home devices. A hosted instance must use `deny` so people can't probe the server's network. |
+| `PROXY_PRIVATE_NETWORKS` | `allow` (`deny` when `ALLOW_SIGNUP=true`) | Whether API connections, the Plex import, recipe link import and AI connections may reach private addresses (LAN, localhost). Self-hosters want `allow` to reach home devices and local models (Ollama, LM Studio). A hosted instance must use `deny` so people can't probe the server's network. |
 | `MAX_UPLOAD_MB` | `25` | Largest file upload. |
 | `PORT` | `8080` | Port inside the container. |
 
@@ -78,6 +78,29 @@ Access Token**. Then either paste it in Cortex (**Settings → Watchlist**,
 admins only) or set `TMDB_API_KEY`. One key serves everyone on the instance.
 The server calls TMDB and caches responses, so the key never reaches
 browsers. Posters load directly from TMDB's image servers.
+
+## Connecting an AI
+
+AI features (recipes from an idea, category suggestions in Finance, rewriting
+and writing in Notes) appear once a provider is connected in **Settings →
+AI**. There's nothing to set in the environment.
+
+- **Hosted providers** (Claude, ChatGPT, Gemini, OpenRouter): paste an API key
+  from the provider's console. Usage is billed by the provider to that key.
+- **Local models** (Ollama, LM Studio, or any OpenAI-compatible server): give
+  its address, e.g. `http://192.168.1.20:11434/v1` for Ollama. Inside the
+  Docker container, `localhost` means the container, so use the host's LAN IP
+  or `host.docker.internal` (on Linux, add
+  `extra_hosts: ["host.docker.internal:host-gateway"]` to the compose file).
+  If a firewall on the host blocks containers, allow the model's port.
+  `PROXY_PRIVATE_NETWORKS` must be `allow`.
+
+Each person connects their own provider. An admin can tick **Share with
+everyone** so accounts without their own use that one. Keys are encrypted
+with `CORTEX_SECRET` and never sent to browsers. Only the server calls the
+provider, and only when someone uses an AI feature. Each feature sends just
+what it needs: the idea, the payee names and category list, or the selected
+note text.
 
 ## Coming from Cortex v0 (Supabase)
 
